@@ -2,7 +2,7 @@
 ///
 /// 运行: cargo run --example basic
 
-use ncm_api::create_client;
+use ncm_api::{create_client, Query};
 
 #[tokio::main]
 async fn main() {
@@ -10,7 +10,11 @@ async fn main() {
 
     // 搜索歌曲
     println!("=== 搜索歌曲 ===");
-    match client.cloudsearch("晴天 周杰伦", Some(1), Some(5), None).await {
+    let query = Query::new()
+        .param("keywords", "晴天 周杰伦")
+        .param("type", "1")
+        .param("limit", "5");
+    match client.cloudsearch(&query).await {
         Ok(resp) => {
             println!("状态: {}", resp.status);
             if let Some(songs) = resp.body["result"]["songs"].as_array() {
@@ -29,7 +33,8 @@ async fn main() {
 
     // 获取歌曲详情
     println!("\n=== 歌曲详情 ===");
-    match client.song_detail(&[186016]).await {
+    let query = Query::new().param("ids", "186016");
+    match client.song_detail(&query).await {
         Ok(resp) => {
             if let Some(songs) = resp.body["songs"].as_array() {
                 for song in songs {
@@ -47,7 +52,8 @@ async fn main() {
 
     // 获取歌词
     println!("\n=== 歌词 ===");
-    match client.lyric(186016).await {
+    let query = Query::new().param("id", "186016");
+    match client.lyric(&query).await {
         Ok(resp) => {
             if let Some(lyric) = resp.body["lrc"]["lyric"].as_str() {
                 // 只显示前 5 行
@@ -62,7 +68,10 @@ async fn main() {
 
     // 获取播放链接
     println!("\n=== 播放链接 ===");
-    match client.song_url_v1(186016, "standard").await {
+    let query = Query::new()
+        .param("id", "186016")
+        .param("level", "standard");
+    match client.song_url_v1(&query).await {
         Ok(resp) => {
             if let Some(data) = resp.body["data"].as_array() {
                 for item in data {

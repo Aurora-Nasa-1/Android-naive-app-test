@@ -1,0 +1,23 @@
+/// 已购单曲
+/// 对应 Node.js module/song_purchased.js
+use crate::request::{ApiClient, ApiResponse, CryptoType};
+use crate::error::Result;
+use serde_json::json;
+use super::Query;
+
+impl ApiClient {
+    /// 已购单曲
+    /// 对应 /song/purchased
+    pub async fn song_purchased(&self, query: &Query) -> Result<ApiResponse> {
+        let data = json!({
+            "limit": query.get_or("limit", "20").parse::<i64>().unwrap_or(20),
+            "offset": query.get_or("offset", "0").parse::<i64>().unwrap_or(0),
+        });
+        self.request(
+            "/api/single/mybought/song/list",
+            data,
+            query.to_option(CryptoType::Weapi),
+        )
+        .await
+    }
+}

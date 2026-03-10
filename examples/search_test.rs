@@ -2,7 +2,7 @@
 ///
 /// 运行: cargo run --example search_test
 
-use ncm_api::create_client;
+use ncm_api::{create_client, Query};
 
 #[tokio::main]
 async fn main() {
@@ -10,7 +10,11 @@ async fn main() {
 
     // 1. 搜索歌曲
     println!("=== 搜索: 晴天 周杰伦 ===\n");
-    match client.cloudsearch("晴天 周杰伦", Some(1), Some(3), None).await {
+    let query = Query::new()
+        .param("keywords", "晴天 周杰伦")
+        .param("type", "1")
+        .param("limit", "3");
+    match client.cloudsearch(&query).await {
         Ok(resp) => {
             println!("状态码: {}", resp.status);
             // 打印格式化的 JSON（限制一下长度）
@@ -74,7 +78,8 @@ async fn main() {
 
     // 2. 歌曲详情
     println!("\n\n=== 歌曲详情: ID 186016 (晴天) ===\n");
-    match client.song_detail(&[186016]).await {
+    let query = Query::new().param("ids", "186016");
+    match client.song_detail(&query).await {
         Ok(resp) => {
             println!("状态码: {}", resp.status);
             let json_str = serde_json::to_string_pretty(&resp.body).unwrap();
@@ -90,7 +95,8 @@ async fn main() {
 
     // 3. 歌词
     println!("\n\n=== 歌词: ID 186016 (晴天) ===\n");
-    match client.lyric(186016).await {
+    let query = Query::new().param("id", "186016");
+    match client.lyric(&query).await {
         Ok(resp) => {
             println!("状态码: {}", resp.status);
             if let Some(lrc) = resp.body["lrc"]["lyric"].as_str() {

@@ -82,7 +82,7 @@ pub struct ApiResponse {
 /// API 客户端
 #[derive(Debug, Clone)]
 pub struct ApiClient {
-    client: reqwest::Client,
+    pub(crate) client: reqwest::Client,
     cookie: Option<String>,
     anonymous_token: Option<String>,
 }

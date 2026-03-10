@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "Netease Cloud Music API Rust SDK"
 license = "MIT"
+repository = "https://github.com/imsyy/ncm-api-rs"
+homepage = "https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced"
 
 [dependencies]
 # HTTP

@@ -1,6 +1,6 @@
 # NCM API Rust SDK
 
-网易云音乐 API 的 Rust 原生实现，从 [NeteaseCloudMusicApi](https://github.com/imsyy/NeteaseCloudMusicApi) 移植。
+网易云音乐 API 的 Rust 原生实现，从 [NeteaseCloudMusicApi Enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) 移植。
 
 ## 特点
 
@@ -116,11 +116,11 @@ impl ApiClient {
 }
 ```
 
-对应的 Node.js 接口参考 [NeteaseCloudMusicApi](https://github.com/imsyy/NeteaseCloudMusicApi) 的 `module/` 目录。
+对应的 Node.js 接口参考 [NeteaseCloudMusicApi Enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) 的 `module/` 目录。
 
 ## 致谢
 
-- [NeteaseCloudMusicApi](https://github.com/imsyy/NeteaseCloudMusicApi) - 原始 Node.js 实现
+- [NeteaseCloudMusicApi Enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) - 原始 Node.js 实现
 
 ## License
 

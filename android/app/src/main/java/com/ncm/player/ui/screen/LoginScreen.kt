@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -14,6 +15,12 @@ import com.ncm.player.viewmodel.LoginViewModel
 fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
     if (viewModel.isLogged) {
         onLoginSuccess()
+    }
+
+    LaunchedEffect(Unit) {
+        if (!viewModel.isLogged && viewModel.qrCodeBitmap == null) {
+            viewModel.fetchQrCode()
+        }
     }
 
     Column(

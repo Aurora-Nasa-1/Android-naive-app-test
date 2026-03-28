@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.ncm.player.viewmodel.LoginViewModel
 
 @Composable
@@ -33,14 +34,24 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
         Text("Scan QR Code to Login", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
 
-        viewModel.qrCodeBitmap?.let { bitmap ->
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "QR Code",
-                modifier = Modifier.size(256.dp)
-            )
-        } ?: run {
-            CircularProgressIndicator()
+        when {
+            viewModel.qrCodeBitmap != null -> {
+                Image(
+                    bitmap = viewModel.qrCodeBitmap!!.asImageBitmap(),
+                    contentDescription = "QR Code",
+                    modifier = Modifier.size(256.dp)
+                )
+            }
+            viewModel.qrUrl != null -> {
+                AsyncImage(
+                    model = viewModel.qrUrl,
+                    contentDescription = "QR Code",
+                    modifier = Modifier.size(256.dp)
+                )
+            }
+            else -> {
+                CircularProgressIndicator()
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

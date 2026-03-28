@@ -72,7 +72,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 recommendedSongs = playerViewModel.recommendedSongs,
                 userPlaylists = playerViewModel.userPlaylists,
                 onSongClick = { song ->
-                    playerViewModel.playSong(song)
+                    playerViewModel.playSong(song, playerViewModel.recommendedSongs)
                     navController.navigate("player")
                 },
                 onNavigateToSettings = {
@@ -85,8 +85,8 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 song = playerViewModel.currentSong,
                 isPlaying = playerViewModel.isPlaying,
                 onPlayPause = { playerViewModel.togglePlayPause() },
-                onSkipNext = { /* Next song logic */ },
-                onSkipPrevious = { /* Previous song logic */ },
+                onSkipNext = { playerViewModel.skipNext() },
+                onSkipPrevious = { playerViewModel.skipPrevious() },
                 onBackPressed = { navController.popBackStack() }
             )
         }

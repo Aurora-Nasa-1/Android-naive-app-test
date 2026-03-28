@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -62,11 +63,25 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
         mediaControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         mediaControllerFuture?.addListener({
-            mediaController?.addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    this@PlayerViewModel.isPlaying = isPlaying
-                }
-            })
+            mediaController?.let { controller ->
+                controller.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        this@PlayerViewModel.isPlaying = isPlaying
+                    }
+
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        mediaItem?.mediaMetadata?.let { metadata ->
+                            currentSong = Song(
+                                id = mediaItem.mediaId,
+                                name = metadata.title?.toString() ?: "Unknown",
+                                artist = metadata.artist?.toString() ?: "Unknown",
+                                album = metadata.albumTitle?.toString() ?: "Unknown",
+                                albumArtUrl = metadata.artworkUri?.toString()
+                            )
+                        }
+                    }
+                })
+            }
         }, MoreExecutors.directExecutor())
     }
 
@@ -88,8 +103,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 } ?: emptyList()
 
                 // Fetch User Playlists
-                val statusResponse = apiService.loginStatus()
-                val uid = statusResponse.body()?.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong ?: 0L
+                val statusResponse = apiService.loginStatus(cookie = cookie ?: "")
+                val uid = statusResponse.body()?.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: statusResponse.body()?.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: 0L
 
                 if (uid != 0L) {
                     val plResponse = apiService.getUserPlaylist(uid, cookie)
@@ -115,26 +132,47 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun playSong(song: Song) {
-        currentSong = song
-
+    fun playSong(song: Song, playlist: List<Song> = emptyList()) {
         viewModelScope.launch {
             try {
-                val response = apiService.getSongUrl(song.id, currentQuality)
-                val url = response.body()?.get("data")?.asJsonArray?.get(0)?.asJsonObject?.get("url")?.asString
+                mediaController?.let { controller ->
+                    controller.stop()
+                    controller.clearMediaItems()
 
-                url?.let {
-                    val mediaItem = MediaItem.fromUri(it)
-                    mediaController?.let { controller ->
-                        controller.setMediaItem(mediaItem)
-                        controller.prepare()
-                        controller.play()
+                    val targetPlaylist = if (playlist.isNotEmpty()) playlist else listOf(song)
+                    val startIndex = targetPlaylist.indexOf(song).coerceAtLeast(0)
+
+                    val mediaItems = targetPlaylist.map { s ->
+                        val metadata = MediaMetadata.Builder()
+                            .setTitle(s.name)
+                            .setArtist(s.artist)
+                            .setAlbumTitle(s.album)
+                            .setArtworkUri(s.albumArtUrl?.let { android.net.Uri.parse(it) })
+                            .build()
+
+                        MediaItem.Builder()
+                            .setMediaId(s.id)
+                            .setUri("http://127.0.0.1:3000/song/url/v1?id=${s.id}&level=$currentQuality")
+                            .setMediaMetadata(metadata)
+                            .build()
                     }
+
+                    controller.setMediaItems(mediaItems, startIndex, 0L)
+                    controller.prepare()
+                    controller.play()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
+    }
+
+    fun skipNext() {
+        mediaController?.seekToNext()
+    }
+
+    fun skipPrevious() {
+        mediaController?.seekToPrevious()
     }
 
     fun togglePlayPause() {

@@ -65,7 +65,9 @@ class MusicService : MediaSessionService() {
             }
         })
 
-        mediaSession = MediaSession.Builder(this, player!!).build()
+        mediaSession = MediaSession.Builder(this, player!!)
+            .setCallback(object : MediaSession.Callback {})
+            .build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession

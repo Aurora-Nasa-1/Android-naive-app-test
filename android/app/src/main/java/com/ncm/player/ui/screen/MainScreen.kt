@@ -12,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.ncm.player.model.Song
 import com.ncm.player.model.Playlist
 
@@ -77,11 +79,19 @@ fun SongItem(song: Song, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.primaryContainer,
                 shape = MaterialTheme.shapes.small
             ) {
-                Icon(
-                    Icons.Default.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.padding(8.dp)
-                )
+                if (song.albumArtUrl != null) {
+                    AsyncImage(
+                        model = song.albumArtUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
         },
         modifier = Modifier.clickable { onClick() }
@@ -99,11 +109,19 @@ fun PlaylistItem(playlist: Playlist) {
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = MaterialTheme.shapes.small
             ) {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.padding(8.dp)
-                )
+                if (playlist.coverImgUrl != null) {
+                    AsyncImage(
+                        model = playlist.coverImgUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
         }
     )

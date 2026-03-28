@@ -7,7 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.ncm.player.model.Song
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,11 +52,19 @@ fun PlayerScreen(
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = MaterialTheme.shapes.extraLarge
             ) {
-                Icon(
-                    Icons.Default.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.size(128.dp)
-                )
+                if (song.albumArtUrl != null) {
+                    AsyncImage(
+                        model = song.albumArtUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(128.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))

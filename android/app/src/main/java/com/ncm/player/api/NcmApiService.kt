@@ -16,7 +16,7 @@ interface NcmApiService {
     suspend fun checkQr(@Query("key") key: String, @Query("timestamp") timestamp: Long = System.currentTimeMillis()): Response<JsonObject>
 
     @GET("login/status")
-    suspend fun loginStatus(@Query("timestamp") timestamp: Long = System.currentTimeMillis()): Response<JsonObject>
+    suspend fun loginStatus(@Query("cookie") cookie: String? = null, @Query("timestamp") timestamp: Long = System.currentTimeMillis()): Response<JsonObject>
 
     @GET("recommend/songs")
     suspend fun getRecommendSongs(@Query("cookie") cookie: String? = null): Response<JsonObject>

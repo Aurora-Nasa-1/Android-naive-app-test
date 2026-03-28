@@ -1,0 +1,2 @@
+rootProject.name = "NCM Player"
+include ':app'

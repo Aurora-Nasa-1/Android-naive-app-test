@@ -165,9 +165,20 @@ async fn extract_merged_query(
 fn build_success_response(api_resp: ApiResponse) -> Response {
     let status = axum::http::StatusCode::from_u16(api_resp.status as u16)
         .unwrap_or(axum::http::StatusCode::OK);
-    let mut response = (status, Json(api_resp.body)).into_response();
 
-    // 设置 API 返回的 Cookie
+    let mut body = api_resp.body.clone();
+
+    // 将 Cookie 注入到响应体中，方便移动端等调用方获取
+    if !api_resp.cookie.is_empty() {
+        if let Value::Object(ref mut map) = body {
+            let cookie_str = api_resp.cookie.join("; ");
+            map.insert("cookie".to_string(), Value::String(cookie_str));
+        }
+    }
+
+    let mut response = (status, Json(body)).into_response();
+
+    // 设置 HTTP Header 中的 Set-Cookie
     for cookie_str in &api_resp.cookie {
         if let Ok(val) = header::HeaderValue::from_str(cookie_str) {
             response.headers_mut().append(header::SET_COOKIE, val);

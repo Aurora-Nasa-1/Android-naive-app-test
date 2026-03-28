@@ -14,17 +14,3 @@ Thumbs.db
 
 # Environment
 .env
-
-# Android
-.gradle/
-build/
-local.properties
-.cxx/
-captures/
-*.apk
-*.ap_
-*.dex
-/android/app/build/
-/android/build/
-/android/local.properties
-/android/.gradle/

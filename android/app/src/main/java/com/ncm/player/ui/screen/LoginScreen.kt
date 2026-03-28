@@ -13,8 +13,10 @@ import com.ncm.player.viewmodel.LoginViewModel
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
-    if (viewModel.isLogged) {
-        onLoginSuccess()
+    LaunchedEffect(viewModel.isLogged) {
+        if (viewModel.isLogged) {
+            onLoginSuccess()
+        }
     }
 
     LaunchedEffect(Unit) {

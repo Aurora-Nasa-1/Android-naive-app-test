@@ -31,6 +31,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     var cookie by mutableStateOf<String?>(null)
 
     private var checkJob: Job? = null
+    private var fetchJob: Job? = null
 
     init {
         cookie = UserPreferences.getCookie(application)
@@ -41,8 +42,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun fetchQrCode() {
+        if (fetchJob?.isActive == true) return
+
         loginStatus = "Fetching QR Code..."
-        viewModelScope.launch {
+        fetchJob = viewModelScope.launch {
             try {
                 Log.d("LoginVM", "Fetching QR key...")
                 val keyResponse = apiService.getQrKey()
@@ -58,12 +61,19 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
 
-                Log.d("LoginVM", "Decoding QR image...")
-                val decodedString: ByteArray = Base64.decode(qrImg.substringAfter(","), Base64.DEFAULT)
-                qrCodeBitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
-                loginStatus = "Waiting for scan..."
+                Log.d("LoginVM", "Decoding QR image (length: ${qrImg.length})...")
+                val base64Data = qrImg.substringAfter(",")
+                val decodedString: ByteArray = Base64.decode(base64Data, Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
 
-                startChecking(key)
+                if (bitmap != null) {
+                    qrCodeBitmap = bitmap
+                    loginStatus = "Waiting for scan..."
+                    startChecking(key)
+                } else {
+                    Log.e("LoginVM", "Failed to decode QR bitmap")
+                    loginStatus = "Decoding error"
+                }
             } catch (e: Exception) {
                 Log.e("LoginVM", "Error fetching QR code", e)
                 loginStatus = "Error: ${e.message}"

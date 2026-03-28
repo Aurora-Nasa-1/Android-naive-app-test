@@ -109,6 +109,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                             navController.navigate("player")
                         }
                     },
+                    onQueueAllClick = { songs ->
+                        songs.forEach { playerViewModel.addToQueue(it, loginViewModel.cookie) }
+                    },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
                         playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)

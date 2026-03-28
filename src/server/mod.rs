@@ -178,10 +178,12 @@ fn build_success_response(api_resp: ApiResponse) -> Response {
 
     let mut response = if status == axum::http::StatusCode::FOUND {
         // 处理 302 重定向
-        let redirect_url = body.get("redirectUrl").and_then(|u| u.as_str()).unwrap_or("");
+        let redirect_url = body.get("redirectUrl").and_then(|u| u.as_str()).map(|s| s.to_string());
         let mut resp = (status, Json(body)).into_response();
-        if let Ok(val) = header::HeaderValue::from_str(redirect_url) {
-            resp.headers_mut().insert(header::LOCATION, val);
+        if let Some(url) = redirect_url {
+            if let Ok(val) = header::HeaderValue::from_str(&url) {
+                resp.headers_mut().insert(header::LOCATION, val);
+            }
         }
         resp
     } else {

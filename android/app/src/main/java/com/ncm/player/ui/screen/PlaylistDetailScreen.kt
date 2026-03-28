@@ -23,6 +23,7 @@ fun PlaylistDetailScreen(
     isLoading: Boolean,
     onSongClick: (Song) -> Unit,
     onPlayAllClick: (List<Song>) -> Unit,
+    onQueueAllClick: (List<Song>) -> Unit,
     onLikeClick: (Song) -> Unit,
     onBackPressed: () -> Unit
 ) {
@@ -49,13 +50,24 @@ fun PlaylistDetailScreen(
                     .padding(innerPadding)
             ) {
                 item {
-                    Button(
-                        onClick = { onPlayAllClick(songs) },
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Play All")
+                        Button(
+                            onClick = { onPlayAllClick(songs) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Play All")
+                        }
+                        OutlinedButton(
+                            onClick = { onQueueAllClick(songs) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Queue All")
+                        }
                     }
                 }
                 items(songs) { song ->

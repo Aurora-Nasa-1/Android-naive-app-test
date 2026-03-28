@@ -223,18 +223,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     val startIndex = targetPlaylist.indexOf(song).coerceAtLeast(0)
 
                     val mediaItems = targetPlaylist.map { s ->
-                        val metadata = MediaMetadata.Builder()
-                            .setTitle(s.name)
-                            .setArtist(s.artist)
-                            .setAlbumTitle(s.album)
-                            .setArtworkUri(s.albumArtUrl?.let { android.net.Uri.parse(it) })
-                            .build()
-
-                        MediaItem.Builder()
-                            .setMediaId(s.id)
-                            .setUri("http://127.0.0.1:3000/song/url/v1/302?id=${s.id}&level=$currentQuality")
-                            .setMediaMetadata(metadata)
-                            .build()
+                        createMediaItem(s, cookie)
                     }
 
                     controller.setMediaItems(mediaItems, startIndex, 0L)
@@ -267,23 +256,40 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addToQueue(song: Song) {
+    fun addToQueue(song: Song, cookie: String? = null) {
         mediaController?.let { controller ->
-            val metadata = MediaMetadata.Builder()
-                .setTitle(song.name)
-                .setArtist(song.artist)
-                .setAlbumTitle(song.album)
-                .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
-                .build()
-
-            val mediaItem = MediaItem.Builder()
-                .setMediaId(song.id)
-                .setUri("http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$currentQuality")
-                .setMediaMetadata(metadata)
-                .build()
-
+            val mediaItem = createMediaItem(song, cookie)
             controller.addMediaItem(mediaItem)
         }
+    }
+
+    fun playNext(song: Song, cookie: String? = null) {
+        mediaController?.let { controller ->
+            val mediaItem = createMediaItem(song, cookie)
+            val nextIndex = if (controller.mediaItemCount > 0) controller.currentMediaItemIndex + 1 else 0
+            controller.addMediaItem(nextIndex, mediaItem)
+        }
+    }
+
+    private fun createMediaItem(song: Song, cookie: String?): MediaItem {
+        val metadata = MediaMetadata.Builder()
+            .setTitle(song.name)
+            .setArtist(song.artist)
+            .setAlbumTitle(song.album)
+            .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
+            .build()
+
+        val uri = if (!cookie.isNullOrEmpty()) {
+            "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$currentQuality&cookie=${URLEncoder.encode(cookie, "UTF-8")}"
+        } else {
+            "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$currentQuality"
+        }
+
+        return MediaItem.Builder()
+            .setMediaId(song.id)
+            .setUri(uri)
+            .setMediaMetadata(metadata)
+            .build()
     }
 
     fun skipNext() {

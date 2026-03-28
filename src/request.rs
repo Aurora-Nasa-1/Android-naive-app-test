@@ -492,7 +492,7 @@ impl ApiClient {
             cookie: resp_cookies,
         };
 
-        if status == 200 {
+        if status == 200 || status == 302 {
             Ok(answer)
         } else {
             let msg = answer

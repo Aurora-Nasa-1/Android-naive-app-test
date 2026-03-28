@@ -6,7 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -38,7 +38,6 @@ class MusicService : MediaSessionService() {
                 return DefaultAudioSink.Builder(this@MusicService)
                     .setAudioProcessors(arrayOf(fadeAudioProcessor))
                     .setEnableFloatOutput(true)
-                    .setOffloadMode(DefaultAudioSink.OFFLOAD_MODE_ENABLED_GAPLESS_NOT_REQUIRED)
                     .build()
             }
         }

@@ -48,14 +48,14 @@ class FadeAudioProcessor : BaseAudioProcessor() {
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!isFadingIn && !isFadingOut) {
-            replaceOutputBuffer(inputBuffer.remaining())
+            val outputBuffer = replaceOutputBuffer(inputBuffer.remaining())
             outputBuffer.put(inputBuffer)
             outputBuffer.flip()
             return
         }
 
         val remaining = inputBuffer.remaining()
-        replaceOutputBuffer(remaining)
+        val outputBuffer = replaceOutputBuffer(remaining)
 
         val bytesPerFrame = inputAudioFormat.bytesPerFrame
         val framesToProcess = remaining / bytesPerFrame

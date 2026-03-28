@@ -176,7 +176,17 @@ fn build_success_response(api_resp: ApiResponse) -> Response {
         }
     }
 
-    let mut response = (status, Json(body)).into_response();
+    let mut response = if status == axum::http::StatusCode::FOUND {
+        // 处理 302 重定向
+        let redirect_url = body.get("redirectUrl").and_then(|u| u.as_str()).unwrap_or("");
+        let mut resp = (status, Json(body)).into_response();
+        if let Ok(val) = header::HeaderValue::from_str(redirect_url) {
+            resp.headers_mut().insert(header::LOCATION, val);
+        }
+        resp
+    } else {
+        (status, Json(body)).into_response()
+    };
 
     // 设置 HTTP Header 中的 Set-Cookie
     for cookie_str in &api_resp.cookie {

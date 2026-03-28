@@ -42,6 +42,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     var currentQuality by mutableStateOf("standard")
     var fadeDuration by mutableStateOf(2f)
+    var repeatMode by mutableStateOf(Player.REPEAT_MODE_OFF)
+    var shuffleMode by mutableStateOf(false)
 
     private var mediaControllerFuture: ListenableFuture<MediaController>? = null
     private val mediaController: MediaController?
@@ -228,15 +230,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                             .setArtworkUri(s.albumArtUrl?.let { android.net.Uri.parse(it) })
                             .build()
 
-                        val uri = if (!cookie.isNullOrEmpty()) {
-                            "http://127.0.0.1:3000/song/url/v1?id=${s.id}&level=$currentQuality&cookie=${URLEncoder.encode(cookie, "UTF-8")}"
-                        } else {
-                            "http://127.0.0.1:3000/song/url/v1?id=${s.id}&level=$currentQuality"
-                        }
-
                         MediaItem.Builder()
                             .setMediaId(s.id)
-                            .setUri(uri)
+                            .setUri("http://127.0.0.1:3000/song/url/v1/302?id=${s.id}&level=$currentQuality")
                             .setMediaMetadata(metadata)
                             .build()
                     }
@@ -248,6 +244,45 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    fun toggleRepeatMode() {
+        mediaController?.let { controller ->
+            val nextMode = when (controller.repeatMode) {
+                Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                else -> Player.REPEAT_MODE_OFF
+            }
+            controller.repeatMode = nextMode
+            repeatMode = nextMode
+        }
+    }
+
+    fun toggleShuffleMode() {
+        mediaController?.let { controller ->
+            val nextMode = !controller.shuffleModeEnabled
+            controller.shuffleModeEnabled = nextMode
+            shuffleMode = nextMode
+        }
+    }
+
+    fun addToQueue(song: Song) {
+        mediaController?.let { controller ->
+            val metadata = MediaMetadata.Builder()
+                .setTitle(song.name)
+                .setArtist(song.artist)
+                .setAlbumTitle(song.album)
+                .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
+                .build()
+
+            val mediaItem = MediaItem.Builder()
+                .setMediaId(song.id)
+                .setUri("http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$currentQuality")
+                .setMediaMetadata(metadata)
+                .build()
+
+            controller.addMediaItem(mediaItem)
         }
     }
 

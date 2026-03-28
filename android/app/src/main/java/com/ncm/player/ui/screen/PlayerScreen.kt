@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.ncm.player.model.Song
 
@@ -20,6 +21,10 @@ fun PlayerScreen(
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
+    onRepeatClick: () -> Unit = {},
+    onShuffleClick: () -> Unit = {},
+    repeatMode: Int = Player.REPEAT_MODE_OFF,
+    shuffleMode: Boolean = false,
     isFavorite: Boolean = false,
     onLikeClick: () -> Unit = {},
     onDownloadClick: () -> Unit = {},
@@ -93,6 +98,33 @@ fun PlayerScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onShuffleClick) {
+                    Icon(
+                        Icons.Default.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                    )
+                }
+                IconButton(onClick = onRepeatClick) {
+                    val icon = when (repeatMode) {
+                        Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                        Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
+                        else -> Icons.Default.Repeat
+                    }
+                    Icon(
+                        icon,
+                        contentDescription = "Repeat",
+                        tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,

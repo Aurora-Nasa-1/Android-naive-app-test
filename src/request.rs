@@ -16,7 +16,7 @@ use std::sync::LazyLock;
 
 /// 特殊状态码集合（视为 200）
 static SPECIAL_STATUS_CODES: LazyLock<std::collections::HashSet<i64>> =
-    LazyLock::new(|| [201, 302, 400, 502, 800, 801, 802, 803].into());
+    LazyLock::new(|| [201, 400, 502, 800, 801, 802, 803].into());
 
 /// 全局设备 ID（进程生命周期内固定）
 static DEVICE_ID: LazyLock<String> = LazyLock::new(generate_device_id);

@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,6 +22,7 @@ fun PlaylistDetailScreen(
     favoriteSongs: List<String>,
     isLoading: Boolean,
     onSongClick: (Song) -> Unit,
+    onPlayAllClick: (List<Song>) -> Unit,
     onLikeClick: (Song) -> Unit,
     onBackPressed: () -> Unit
 ) {
@@ -46,6 +48,16 @@ fun PlaylistDetailScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
+                item {
+                    Button(
+                        onClick = { onPlayAllClick(songs) },
+                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Play All")
+                    }
+                }
                 items(songs) { song ->
                     SongItem(
                         song = song,

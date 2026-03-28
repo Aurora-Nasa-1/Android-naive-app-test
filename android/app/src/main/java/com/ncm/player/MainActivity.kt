@@ -103,6 +103,12 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
                         navController.navigate("player")
                     },
+                    onPlayAllClick = { songs ->
+                        if (songs.isNotEmpty()) {
+                            playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
+                            navController.navigate("player")
+                        }
+                    },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
                         playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
@@ -118,6 +124,10 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 onPlayPause = { playerViewModel.togglePlayPause() },
                 onSkipNext = { playerViewModel.skipNext() },
                 onSkipPrevious = { playerViewModel.skipPrevious() },
+                onRepeatClick = { playerViewModel.toggleRepeatMode() },
+                onShuffleClick = { playerViewModel.toggleShuffleMode() },
+                repeatMode = playerViewModel.repeatMode,
+                shuffleMode = playerViewModel.shuffleMode,
                 isFavorite = playerViewModel.currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false,
                 onLikeClick = {
                     playerViewModel.currentSong?.let { song ->

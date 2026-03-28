@@ -23,6 +23,11 @@ object RustServerManager {
         }
 
         val outFile = File(context.filesDir, "ncm-server")
+        if (outFile.exists() && outFile.canExecute()) {
+            Log.d(TAG, "Server already extracted and executable")
+            return outFile.absolutePath
+        }
+
         try {
             val assetExists = context.assets.list("bin")?.contains(assetName) ?: false
             if (!assetExists) {

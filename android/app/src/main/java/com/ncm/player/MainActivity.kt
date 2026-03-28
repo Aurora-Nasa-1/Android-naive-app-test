@@ -72,7 +72,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 recommendedSongs = playerViewModel.recommendedSongs,
                 userPlaylists = playerViewModel.userPlaylists,
                 onSongClick = { song ->
-                    playerViewModel.playSong(song, playerViewModel.recommendedSongs)
+                    playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
                     navController.navigate("player")
                 },
                 onNavigateToSettings = {

@@ -20,6 +20,7 @@ import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
+import java.net.URLEncoder
 import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -86,11 +87,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun fetchUserData(cookie: String?) {
+        if (cookie.isNullOrEmpty()) return
+
         viewModelScope.launch {
             try {
                 // Fetch Recommendations
                 val recResponse = apiService.getRecommendSongs(cookie)
-                val songsJson = recResponse.body()?.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
+                val recBody = recResponse.body()
+                val songsJson = recBody?.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
+                    ?: recBody?.get("dailySongs")?.asJsonArray
+
                 recommendedSongs = songsJson?.map {
                     val obj = it.asJsonObject
                     Song(
@@ -103,9 +109,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 } ?: emptyList()
 
                 // Fetch User Playlists
-                val statusResponse = apiService.loginStatus(cookie = cookie ?: "")
-                val uid = statusResponse.body()?.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
-                    ?: statusResponse.body()?.get("account")?.asJsonObject?.get("id")?.asLong
+                val statusResponse = apiService.loginStatus(cookie = cookie)
+                val statusBody = statusResponse.body()
+                val uid = statusBody?.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: statusBody?.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: statusBody?.get("profile")?.asJsonObject?.get("userId")?.asLong
                     ?: 0L
 
                 if (uid != 0L) {
@@ -132,7 +140,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun playSong(song: Song, playlist: List<Song> = emptyList()) {
+    fun playSong(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null) {
         viewModelScope.launch {
             try {
                 mediaController?.let { controller ->
@@ -150,9 +158,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                             .setArtworkUri(s.albumArtUrl?.let { android.net.Uri.parse(it) })
                             .build()
 
+                        val uri = if (!cookie.isNullOrEmpty()) {
+                            "http://127.0.0.1:3000/song/url/v1?id=${s.id}&level=$currentQuality&cookie=${URLEncoder.encode(cookie, "UTF-8")}"
+                        } else {
+                            "http://127.0.0.1:3000/song/url/v1?id=${s.id}&level=$currentQuality"
+                        }
+
                         MediaItem.Builder()
                             .setMediaId(s.id)
-                            .setUri("http://127.0.0.1:3000/song/url/v1?id=${s.id}&level=$currentQuality")
+                            .setUri(uri)
                             .setMediaMetadata(metadata)
                             .build()
                     }

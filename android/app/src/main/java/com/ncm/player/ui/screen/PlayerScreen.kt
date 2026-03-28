@@ -20,6 +20,9 @@ fun PlayerScreen(
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
+    isFavorite: Boolean = false,
+    onLikeClick: () -> Unit = {},
+    onDownloadClick: () -> Unit = {},
     onBackPressed: () -> Unit
 ) {
     if (song == null) {
@@ -71,7 +74,25 @@ fun PlayerScreen(
             Text(song.name, style = MaterialTheme.typography.headlineLarge)
             Text(song.artist, style = MaterialTheme.typography.titleMedium)
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                IconButton(onClick = onLikeClick) {
+                    Icon(
+                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Like",
+                        modifier = Modifier.size(32.dp),
+                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                    )
+                }
+                IconButton(onClick = onDownloadClick) {
+                    Icon(Icons.Default.Download, contentDescription = "Download", modifier = Modifier.size(32.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,

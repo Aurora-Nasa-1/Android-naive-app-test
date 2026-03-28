@@ -8,7 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -75,10 +75,41 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
                     navController.navigate("player")
                 },
+                onPlaylistClick = { playlist ->
+                    playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                    navController.navigate("playlist/${playlist.id}")
+                },
+                onLikeClick = { song ->
+                    val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                    playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                },
+                favoriteSongs = playerViewModel.favoriteSongs,
                 onNavigateToSettings = {
                     navController.navigate("settings")
                 }
             )
+        }
+        composable("playlist/{playlistId}") { backStackEntry ->
+            val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
+            val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
+
+            if (playlist != null) {
+                PlaylistDetailScreen(
+                    playlist = playlist,
+                    songs = playerViewModel.playlistSongs,
+                    favoriteSongs = playerViewModel.favoriteSongs,
+                    isLoading = playerViewModel.isLoading,
+                    onSongClick = { song ->
+                        playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
+                        navController.navigate("player")
+                    },
+                    onLikeClick = { song ->
+                        val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                        playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                    },
+                    onBackPressed = { navController.popBackStack() }
+                )
+            }
         }
         composable("player") {
             PlayerScreen(
@@ -87,6 +118,18 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 onPlayPause = { playerViewModel.togglePlayPause() },
                 onSkipNext = { playerViewModel.skipNext() },
                 onSkipPrevious = { playerViewModel.skipPrevious() },
+                isFavorite = playerViewModel.currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false,
+                onLikeClick = {
+                    playerViewModel.currentSong?.let { song ->
+                        val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                        playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                    }
+                },
+                onDownloadClick = {
+                    playerViewModel.currentSong?.let { song ->
+                        playerViewModel.downloadSong(song, loginViewModel.cookie)
+                    }
+                },
                 onBackPressed = { navController.popBackStack() }
             )
         }

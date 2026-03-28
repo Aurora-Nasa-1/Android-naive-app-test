@@ -6,6 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -24,6 +27,9 @@ fun MainScreen(
     recommendedSongs: List<Song>,
     userPlaylists: List<Playlist>,
     onSongClick: (Song) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
+    onLikeClick: (Song) -> Unit,
+    favoriteSongs: List<String>,
     onNavigateToSettings: () -> Unit
 ) {
     Scaffold(
@@ -51,7 +57,12 @@ fun MainScreen(
                 )
             }
             items(recommendedSongs) { song ->
-                SongItem(song, onClick = { onSongClick(song) })
+                SongItem(
+                    song = song,
+                    isFavorite = favoriteSongs.contains(song.id),
+                    onLikeClick = { onLikeClick(song) },
+                    onClick = { onSongClick(song) }
+                )
             }
 
             item {
@@ -62,14 +73,19 @@ fun MainScreen(
                 )
             }
             items(userPlaylists) { playlist ->
-                PlaylistItem(playlist)
+                PlaylistItem(playlist, onClick = { onPlaylistClick(playlist) })
             }
         }
     }
 }
 
 @Composable
-fun SongItem(song: Song, onClick: () -> Unit) {
+fun SongItem(
+    song: Song,
+    isFavorite: Boolean = false,
+    onLikeClick: () -> Unit = {},
+    onClick: () -> Unit
+) {
     ListItem(
         headlineContent = { Text(song.name) },
         supportingContent = { Text(song.artist) },
@@ -94,12 +110,21 @@ fun SongItem(song: Song, onClick: () -> Unit) {
                 }
             }
         },
+        trailingContent = {
+            IconButton(onClick = onLikeClick) {
+                Icon(
+                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Like",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                )
+            }
+        },
         modifier = Modifier.clickable { onClick() }
     )
 }
 
 @Composable
-fun PlaylistItem(playlist: Playlist) {
+fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(playlist.name) },
         supportingContent = { Text("${playlist.trackCount} songs") },
@@ -123,6 +148,7 @@ fun PlaylistItem(playlist: Playlist) {
                     )
                 }
             }
-        }
+        },
+        modifier = Modifier.clickable { onClick() }
     )
 }

@@ -37,6 +37,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
     var userPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
+    var playlistSongs by mutableStateOf<List<Song>>(emptyList())
+    var isLoading by mutableStateOf(false)
 
     var currentQuality by mutableStateOf("standard")
     var fadeDuration by mutableStateOf(2f)
@@ -90,6 +92,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (cookie.isNullOrEmpty()) return
 
         viewModelScope.launch {
+            isLoading = true
             try {
                 // Fetch Recommendations
                 val recResponse = apiService.getRecommendSongs(cookie)
@@ -134,6 +137,73 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     favoriteSongs = favJson?.map { it.asString } ?: emptyList()
                 }
 
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun fetchPlaylistSongs(playlistId: Long, cookie: String?) {
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                val response = apiService.getPlaylistTracks(playlistId, cookie)
+                val songsJson = response.body()?.get("songs")?.asJsonArray
+                playlistSongs = songsJson?.map {
+                    val obj = it.asJsonObject
+                    Song(
+                        id = obj.get("id").asString,
+                        name = obj.get("name").asString,
+                        artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
+                        album = obj.get("al").asJsonObject.get("name").asString,
+                        albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
+                    )
+                } ?: emptyList()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun toggleLike(songId: String, like: Boolean, cookie: String?) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.likeSong(songId, like, cookie)
+                if (response.isSuccessful) {
+                    favoriteSongs = if (like) {
+                        favoriteSongs + songId
+                    } else {
+                        favoriteSongs - songId
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun downloadSong(song: Song, cookie: String?) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.getDownloadUrl(song.id, cookie = cookie)
+                val url = response.body()?.get("data")?.asJsonArray?.get(0)?.asJsonObject?.get("url")?.asString
+
+                url?.let { downloadUrl ->
+                    val request = android.app.DownloadManager.Request(android.net.Uri.parse(downloadUrl))
+                        .setTitle("Downloading ${song.name}")
+                        .setDescription("${song.artist} - ${song.album}")
+                        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
+                        .setAllowedOverMetered(true)
+                        .setAllowedOverRoaming(true)
+
+                    val downloadManager = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+                    downloadManager.enqueue(request)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }

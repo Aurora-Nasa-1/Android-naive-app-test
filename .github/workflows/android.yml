@@ -59,14 +59,14 @@ jobs:
           name: rust-binaries
           path: android/app/src/main/assets/bin/
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Grant execute permission for gradlew
-        run: chmod +x android/gradlew || echo "gradlew not found"
+        run: chmod +x android/gradlew
 
       - name: Build with Gradle
         working-directory: android

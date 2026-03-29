@@ -16,7 +16,9 @@ targets=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android
 
 for target in "${targets[@]}"; do
     echo "Building for $target..."
-    cargo build --release --features server --bin ncm-server --target "$target"
+    # Support 16KB page size for Android 15+ (AOSP 16kb page size support)
+    # Ref: https://developer.android.com/guide/practices/page-alignment
+    RUSTFLAGS="-Clink-arg=-Wl,-z,max-page-size=16384" cargo build --release --features server --bin ncm-server --target "$target"
 done
 
 # Copy to android assets

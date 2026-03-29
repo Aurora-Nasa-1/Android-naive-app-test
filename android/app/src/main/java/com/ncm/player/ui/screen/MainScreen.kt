@@ -3,6 +3,7 @@ package com.ncm.player.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -34,8 +35,8 @@ fun MainScreen(
 ) {
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = { Text("NCM Player") },
+            TopAppBar(
+                title = { Text("Good day") },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -56,24 +57,22 @@ fun MainScreen(
                     modifier = Modifier.padding(16.dp)
                 )
             }
-            items(
-                items = recommendedSongs,
-                key = { it.id },
-                contentType = { "song" }
-            ) { song ->
-                SongItem(
-                    song = song,
-                    isFavorite = favoriteSongs.contains(song.id),
-                    onLikeClick = { onLikeClick(song) },
-                    onClick = { onSongClick(song) }
-                )
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(recommendedSongs) { song ->
+                        SongCard(song, onClick = { onSongClick(song) })
+                    }
+                }
             }
 
             item(contentType = "header") {
                 Text(
                     "My Playlists",
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
                 )
             }
             items(
@@ -84,6 +83,49 @@ fun MainScreen(
                 PlaylistItem(playlist, onClick = { onPlaylistClick(playlist) })
             }
         }
+    }
+}
+
+@Composable
+fun SongCard(song: Song, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(150.dp)
+            .clickable { onClick() }
+    ) {
+        Surface(
+            modifier = Modifier.size(150.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            if (song.albumArtUrl != null) {
+                AsyncImage(
+                    model = song.albumArtUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    Icons.Default.MusicNote,
+                    contentDescription = null,
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = song.name,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+        Text(
+            text = song.artist,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
     }
 }
 

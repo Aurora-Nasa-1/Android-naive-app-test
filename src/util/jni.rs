@@ -6,9 +6,13 @@ use tracing_subscriber::prelude::*;
 
 static SERVER_STARTED: AtomicBool = AtomicBool::new(false);
 
+/// # Safety
+///
+/// This function is called by the Android application via JNI.
+/// It starts the Rust server in a background thread.
 #[no_mangle]
 #[allow(unsafe_code)]
-pub extern "system" fn Java_com_ncm_player_util_RustServerManager_startNativeServer(
+pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_startNativeServer(
     mut env: JNIEnv,
     _class: JClass,
     host: JString,

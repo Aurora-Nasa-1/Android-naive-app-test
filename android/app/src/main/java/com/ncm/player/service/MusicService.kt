@@ -3,6 +3,7 @@ package com.ncm.player.service
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -10,12 +11,26 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.ncm.player.api.NcmApiService
 import com.ncm.player.util.UserPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MusicService : MediaSessionService() {
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
     private val fadeAudioProcessor = FadeAudioProcessor()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val apiService = Retrofit.Builder()
+        .baseUrl("http://127.0.0.1:3000/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+        .create(NcmApiService::class.java)
 
     override fun onCreate() {
         super.onCreate()
@@ -74,7 +89,7 @@ class MusicService : MediaSessionService() {
 
     override fun onDestroy() {
         mediaSession?.run {
-            player.release()
+            player?.release()
             release()
             mediaSession = null
         }

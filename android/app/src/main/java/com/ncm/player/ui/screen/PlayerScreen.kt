@@ -28,6 +28,7 @@ fun PlayerScreen(
     isFavorite: Boolean = false,
     onLikeClick: () -> Unit = {},
     onDownloadClick: () -> Unit = {},
+    onLyricClick: () -> Unit = {},
     onBackPressed: () -> Unit
 ) {
     if (song == null) {
@@ -94,6 +95,9 @@ fun PlayerScreen(
                 }
                 IconButton(onClick = onDownloadClick) {
                     Icon(Icons.Default.Download, contentDescription = "Download", modifier = Modifier.size(32.dp))
+                }
+                IconButton(onClick = onLyricClick) {
+                    Icon(Icons.Default.Lyrics, contentDescription = "Lyrics", modifier = Modifier.size(32.dp))
                 }
             }
 

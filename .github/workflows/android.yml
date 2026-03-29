@@ -76,7 +76,9 @@ jobs:
 
       - name: Build with Gradle
         working-directory: android
-        run: ./gradlew assembleDebug --parallel --build-cache
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --parallel --build-cache
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

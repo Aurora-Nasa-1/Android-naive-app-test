@@ -6,7 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
@@ -16,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ncm.player.service.RustServerService
+import com.ncm.player.ui.component.BottomPlaybackBar
 import com.ncm.player.ui.screen.*
 import com.ncm.player.ui.theme.NCMPlayerTheme
 import com.ncm.player.viewmodel.LoginViewModel
@@ -52,8 +55,27 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewModel) {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
-    NavHost(navController = navController, startDestination = if (loginViewModel.isLogged) "main" else "login") {
+    Scaffold(
+        bottomBar = {
+            if (loginViewModel.isLogged && playerViewModel.currentSong != null) {
+                BottomPlaybackBar(
+                    song = playerViewModel.currentSong,
+                    isPlaying = playerViewModel.isPlaying,
+                    onPlayPause = { playerViewModel.togglePlayPause() },
+                    onClick = {
+                        context.startActivity(Intent(context, PlayerActivity::class.java))
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
+    NavHost(
+        navController = navController,
+        startDestination = if (loginViewModel.isLogged) "main" else "login",
+        modifier = Modifier.padding(innerPadding)
+    ) {
         composable("login") {
             LoginScreen(loginViewModel, onLoginSuccess = {
                 playerViewModel.fetchUserData(loginViewModel.cookie)
@@ -73,7 +95,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 userPlaylists = playerViewModel.userPlaylists,
                 onSongClick = { song ->
                     playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
-                    navController.navigate("player")
+                    context.startActivity(Intent(context, PlayerActivity::class.java))
                 },
                 onPlaylistClick = { playlist ->
                     playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
@@ -101,12 +123,12 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     isLoading = playerViewModel.isLoading,
                     onSongClick = { song ->
                         playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
-                        navController.navigate("player")
+                        context.startActivity(Intent(context, PlayerActivity::class.java))
                     },
                     onPlayAllClick = { songs ->
                         if (songs.isNotEmpty()) {
                             playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
-                            navController.navigate("player")
+                            context.startActivity(Intent(context, PlayerActivity::class.java))
                         }
                     },
                     onQueueAllClick = { songs ->
@@ -120,32 +142,6 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 )
             }
         }
-        composable("player") {
-            PlayerScreen(
-                song = playerViewModel.currentSong,
-                isPlaying = playerViewModel.isPlaying,
-                onPlayPause = { playerViewModel.togglePlayPause() },
-                onSkipNext = { playerViewModel.skipNext() },
-                onSkipPrevious = { playerViewModel.skipPrevious() },
-                onRepeatClick = { playerViewModel.toggleRepeatMode() },
-                onShuffleClick = { playerViewModel.toggleShuffleMode() },
-                repeatMode = playerViewModel.repeatMode,
-                shuffleMode = playerViewModel.shuffleMode,
-                isFavorite = playerViewModel.currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false,
-                onLikeClick = {
-                    playerViewModel.currentSong?.let { song ->
-                        val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
-                        playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
-                    }
-                },
-                onDownloadClick = {
-                    playerViewModel.currentSong?.let { song ->
-                        playerViewModel.downloadSong(song, loginViewModel.cookie)
-                    }
-                },
-                onBackPressed = { navController.popBackStack() }
-            )
-        }
         composable("settings") {
             SettingsScreen(
                 currentQuality = playerViewModel.currentQuality,
@@ -155,5 +151,6 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 onBackPressed = { navController.popBackStack() }
             )
         }
+    }
     }
 }

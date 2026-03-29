@@ -1,11 +1,12 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
     namespace 'com.ncm.player'
-    compileSdk 34
+    compileSdk 35
 
     signingConfigs {
         debug {
@@ -24,7 +25,7 @@ android {
 
     defaultConfig {
         applicationId "com.ncm.player"
-        minSdk 24
+        minSdk 28
         targetSdk 34
         versionCode 1
         versionName "1.0"
@@ -54,9 +55,6 @@ android {
     }
     buildFeatures {
         compose true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.10'
     }
     packagingOptions {
         resources {

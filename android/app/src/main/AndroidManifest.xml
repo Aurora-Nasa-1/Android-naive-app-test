@@ -21,6 +21,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NCMPlayer"
         android:usesCleartextTraffic="true">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -31,6 +32,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.NCMPlayer" />
 
         <service
             android:name=".service.MusicService"

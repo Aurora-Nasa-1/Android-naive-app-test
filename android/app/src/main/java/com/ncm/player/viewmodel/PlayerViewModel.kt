@@ -38,6 +38,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var userPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
     var playlistSongs by mutableStateOf<List<Song>>(emptyList())
+    var currentLyrics by mutableStateOf<String?>(null)
     var isLoading by mutableStateOf(false)
 
     var currentQuality by mutableStateOf("standard")
@@ -182,6 +183,18 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         favoriteSongs - songId
                     }
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun fetchLyrics(songId: String) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.getLyric(songId)
+                val lrc = response.body()?.get("lrc")?.asJsonObject?.get("lyric")?.asString
+                currentLyrics = lrc
             } catch (e: Exception) {
                 e.printStackTrace()
             }

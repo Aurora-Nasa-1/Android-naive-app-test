@@ -14,7 +14,6 @@ import androidx.core.view.WindowCompat
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NCMPlayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -38,7 +37,7 @@ fun NCMPlayerTheme(
         }
     }
 
-    MaterialExpressiveTheme(
+    MaterialTheme(
         colorScheme = colorScheme,
         content = content
     )

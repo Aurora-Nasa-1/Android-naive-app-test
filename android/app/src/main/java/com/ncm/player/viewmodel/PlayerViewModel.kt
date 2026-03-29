@@ -22,12 +22,22 @@ import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
 import java.net.URLEncoder
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
+    private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .build()
+
     private val apiService = Retrofit.Builder()
         .baseUrl("http://127.0.0.1:3000/")
+        .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(NcmApiService::class.java)
@@ -96,9 +106,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             isLoading = true
-            try {
-                // Fetch Recommendations
-                val recResponse = apiService.getRecommendSongs(cookie)
+            var retryCount = 0
+            val maxRetries = 5
+
+            while (retryCount < maxRetries) {
+                try {
+                    // Fetch Recommendations
+                    val recResponse = apiService.getRecommendSongs(cookie)
                 val recBody = recResponse.body()
                 val songsJson = recBody?.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
                     ?: recBody?.get("dailySongs")?.asJsonArray
@@ -139,11 +153,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     val favJson = favResponse.body()?.get("ids")?.asJsonArray
                     favoriteSongs = favJson?.map { it.asString } ?: emptyList()
                 }
-
+                isLoading = false
+                break // Success, exit retry loop
             } catch (e: Exception) {
                 e.printStackTrace()
+                retryCount++
+                if (retryCount < maxRetries) {
+                    kotlinx.coroutines.delay(1000L * retryCount)
+                }
             } finally {
-                isLoading = false
+                if (retryCount == maxRetries) {
+                    isLoading = false
+                }
+            }
             }
         }
     }

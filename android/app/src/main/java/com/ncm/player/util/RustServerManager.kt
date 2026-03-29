@@ -11,6 +11,19 @@ import java.io.InputStreamReader
 object RustServerManager {
     private var process: Process? = null
     private const val TAG = "RustServer"
+    private var isNativeLoaded = false
+
+    init {
+        try {
+            System.loadLibrary("ncm_api")
+            isNativeLoaded = true
+            Log.i(TAG, "Native library loaded successfully")
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "Native library not found, falling back to executable binary")
+        }
+    }
+
+    private external fun startNativeServer(host: String, port: Int)
 
     fun extractServer(context: Context): String? {
         val abi = Build.SUPPORTED_ABIS[0]
@@ -32,17 +45,13 @@ object RustServerManager {
         }
 
         try {
-            val assetExists = context.assets.list("bin")?.contains(assetName) ?: false
-            if (!assetExists) {
-                Log.e(TAG, "Asset not found: bin/$assetName")
-                return null
-            }
             context.assets.open("bin/$assetName").use { input ->
                 FileOutputStream(outFile).use { output ->
                     input.copyTo(output)
                 }
             }
-            outFile.setExecutable(true)
+            outFile.setExecutable(true, true)
+            Log.d(TAG, "Extracted $assetName to ${outFile.absolutePath}")
             return outFile.absolutePath
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract server", e)
@@ -51,6 +60,12 @@ object RustServerManager {
     }
 
     fun startServer(context: Context, port: Int = 3000) {
+        if (isNativeLoaded) {
+            Log.d(TAG, "Starting server via JNI")
+            startNativeServer("127.0.0.1", port)
+            return
+        }
+
         if (process != null) {
             Log.d(TAG, "Server is already running.")
             return

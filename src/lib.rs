@@ -12,6 +12,11 @@ pub mod error;
 pub mod request;
 pub mod util;
 
+#[cfg(feature = "jni")]
+pub mod jni_bridge {
+    pub use crate::util::jni::*;
+}
+
 #[cfg(feature = "server")]
 pub mod server;
 

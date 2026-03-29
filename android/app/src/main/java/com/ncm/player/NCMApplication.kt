@@ -15,7 +15,11 @@ class NCMApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         // Start Rust Backend Service at the earliest moment
         val serviceIntent = Intent(this, RustServerService::class.java)
-        startService(serviceIntent)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
     }
 
     override fun newImageLoader(): ImageLoader {

@@ -11,6 +11,19 @@ import java.io.InputStreamReader
 object RustServerManager {
     private var process: Process? = null
     private const val TAG = "RustServer"
+    private var isNativeLoaded = false
+
+    init {
+        try {
+            System.loadLibrary("ncm_api")
+            isNativeLoaded = true
+            Log.i(TAG, "Native library loaded successfully")
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "Native library not found, falling back to executable binary")
+        }
+    }
+
+    private external fun startNativeServer(host: String, port: Int)
 
     fun extractServer(context: Context): String? {
         val abi = Build.SUPPORTED_ABIS[0]
@@ -23,23 +36,22 @@ object RustServerManager {
         }
 
         val outFile = File(context.filesDir, "ncm-server")
+
+        // Optimistic check: if it exists and version is same (could add version check later)
+        // For now, let's at least check if it exists and is executable
         if (outFile.exists() && outFile.canExecute()) {
             Log.d(TAG, "Server already extracted and executable")
             return outFile.absolutePath
         }
 
         try {
-            val assetExists = context.assets.list("bin")?.contains(assetName) ?: false
-            if (!assetExists) {
-                Log.e(TAG, "Asset not found: bin/$assetName")
-                return null
-            }
             context.assets.open("bin/$assetName").use { input ->
                 FileOutputStream(outFile).use { output ->
                     input.copyTo(output)
                 }
             }
-            outFile.setExecutable(true)
+            outFile.setExecutable(true, true)
+            Log.d(TAG, "Extracted $assetName to ${outFile.absolutePath}")
             return outFile.absolutePath
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract server", e)
@@ -48,34 +60,58 @@ object RustServerManager {
     }
 
     fun startServer(context: Context, port: Int = 3000) {
-        if (process != null) return
+        if (isNativeLoaded) {
+            Log.d(TAG, "Starting server via JNI")
+            startNativeServer("127.0.0.1", port)
+            return
+        }
 
-        val serverPath = extractServer(context) ?: return
+        if (process != null) {
+            Log.d(TAG, "Server is already running.")
+            return
+        }
 
+        val serverPath = extractServer(context) ?: run {
+            Log.e(TAG, "Failed to extract server.")
+            return
+        }
+
+        // Run the server in a separate thread to avoid blocking the main thread.
         Thread {
             try {
+                Log.d(TAG, "Starting Rust server from $serverPath on port $port")
                 val pb = ProcessBuilder(serverPath)
                 val env = pb.environment()
                 env["NCM_PORT"] = port.toString()
                 env["NCM_HOST"] = "127.0.0.1"
                 env["RUST_LOG"] = "info"
 
+                // Merge stdout and stderr for easier logging.
                 pb.redirectErrorStream(true)
-                process = pb.start()
 
-                val reader = BufferedReader(InputStreamReader(process?.inputStream))
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    Log.i(TAG, "[Rust] $line")
+                val startedProcess = pb.start()
+                process = startedProcess
+
+                // Efficiently read logs to prevent process hanging due to pipe filling.
+                startedProcess.inputStream.bufferedReader().use { reader ->
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        Log.i(TAG, "[Rust] $line")
+                    }
                 }
 
-                process?.waitFor()
+                val exitCode = startedProcess.waitFor()
+                Log.d(TAG, "Rust server process exited with code $exitCode")
             } catch (e: Exception) {
-                Log.e(TAG, "Server error", e)
+                Log.e(TAG, "Failed to manage Rust server process", e)
             } finally {
                 process = null
             }
-        }.start()
+        }.apply {
+            name = "RustServerThread"
+            priority = Thread.NORM_PRIORITY
+            start()
+        }
     }
 
     fun stopServer() {

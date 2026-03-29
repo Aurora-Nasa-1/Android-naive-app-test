@@ -3,6 +3,7 @@ package com.ncm.player
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
@@ -30,10 +30,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Start Rust Backend Service
-        val serviceIntent = Intent(this, RustServerService::class.java)
-        startService(serviceIntent)
 
         setContent {
             NCMPlayerTheme {
@@ -65,92 +61,131 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     isPlaying = playerViewModel.isPlaying,
                     onPlayPause = { playerViewModel.togglePlayPause() },
                     onClick = {
-                        context.startActivity(Intent(context, PlayerActivity::class.java))
+                        navController.navigate("player")
                     }
                 )
             }
         }
     ) { innerPadding ->
-    NavHost(
-        navController = navController,
-        startDestination = if (loginViewModel.isLogged) "main" else "login",
-        modifier = Modifier.padding(innerPadding)
-    ) {
-        composable("login") {
-            LoginScreen(loginViewModel, onLoginSuccess = {
-                playerViewModel.fetchUserData(loginViewModel.cookie)
-                navController.navigate("main") {
-                    popUpTo("login") { inclusive = true }
-                }
-            })
-        }
-        composable("main") {
-            LaunchedEffect(Unit) {
-                if (playerViewModel.recommendedSongs.isEmpty()) {
+        NavHost(
+            navController = navController,
+            startDestination = if (loginViewModel.isLogged) "main" else "login",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("login") {
+                LoginScreen(loginViewModel, onLoginSuccess = {
                     playerViewModel.fetchUserData(loginViewModel.cookie)
-                }
+                    navController.navigate("main") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                })
             }
-            MainScreen(
-                recommendedSongs = playerViewModel.recommendedSongs,
-                userPlaylists = playerViewModel.userPlaylists,
-                onSongClick = { song ->
-                    playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
-                    context.startActivity(Intent(context, PlayerActivity::class.java))
-                },
-                onPlaylistClick = { playlist ->
-                    playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
-                    navController.navigate("playlist/${playlist.id}")
-                },
-                onLikeClick = { song ->
-                    val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
-                    playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
-                },
-                favoriteSongs = playerViewModel.favoriteSongs,
-                onNavigateToSettings = {
-                    navController.navigate("settings")
+            composable("main") {
+                LaunchedEffect(Unit) {
+                    if (playerViewModel.recommendedSongs.isEmpty()) {
+                        playerViewModel.fetchUserData(loginViewModel.cookie)
+                    }
                 }
-            )
-        }
-        composable("playlist/{playlistId}") { backStackEntry ->
-            val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
-            val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
-
-            if (playlist != null) {
-                PlaylistDetailScreen(
-                    playlist = playlist,
-                    songs = playerViewModel.playlistSongs,
-                    favoriteSongs = playerViewModel.favoriteSongs,
-                    isLoading = playerViewModel.isLoading,
+                MainScreen(
+                    recommendedSongs = playerViewModel.recommendedSongs,
+                    userPlaylists = playerViewModel.userPlaylists,
                     onSongClick = { song ->
-                        playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
-                        context.startActivity(Intent(context, PlayerActivity::class.java))
+                        playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
+                        navController.navigate("player")
                     },
-                    onPlayAllClick = { songs ->
-                        if (songs.isNotEmpty()) {
-                            playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
-                            context.startActivity(Intent(context, PlayerActivity::class.java))
-                        }
-                    },
-                    onQueueAllClick = { songs ->
-                        songs.forEach { playerViewModel.addToQueue(it, loginViewModel.cookie) }
+                    onPlaylistClick = { playlist ->
+                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                        navController.navigate("playlist/${playlist.id}")
                     },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
                         playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
                     },
+                    favoriteSongs = playerViewModel.favoriteSongs,
+                    onNavigateToSettings = {
+                        navController.navigate("settings")
+                    }
+                )
+            }
+            composable("playlist/{playlistId}") { backStackEntry ->
+                val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
+                val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
+
+                if (playlist != null) {
+                    PlaylistDetailScreen(
+                        playlist = playlist,
+                        songs = playerViewModel.playlistSongs,
+                        favoriteSongs = playerViewModel.favoriteSongs,
+                        isLoading = playerViewModel.isLoading,
+                        onSongClick = { song ->
+                            playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
+                            navController.navigate("player")
+                        },
+                        onPlayAllClick = { songs ->
+                            if (songs.isNotEmpty()) {
+                                playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
+                                navController.navigate("player")
+                            }
+                        },
+                        onQueueAllClick = { songs ->
+                            songs.forEach { playerViewModel.addToQueue(it, loginViewModel.cookie) }
+                        },
+                        onLikeClick = { song ->
+                            val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                            playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                        },
+                        onBackPressed = { navController.popBackStack() }
+                    )
+                }
+            }
+            composable("settings") {
+                SettingsScreen(
+                    currentQuality = playerViewModel.currentQuality,
+                    onQualityChange = { playerViewModel.setQuality(it) },
+                    fadeDuration = playerViewModel.fadeDuration,
+                    onFadeChange = { playerViewModel.setFade(it) },
+                    onBackPressed = { navController.popBackStack() }
+                )
+            }
+            composable("player") {
+                PlayerScreen(
+                    song = playerViewModel.currentSong,
+                    isPlaying = playerViewModel.isPlaying,
+                    onPlayPause = { playerViewModel.togglePlayPause() },
+                    onSkipNext = { playerViewModel.skipNext() },
+                    onSkipPrevious = { playerViewModel.skipPrevious() },
+                    onRepeatClick = { playerViewModel.toggleRepeatMode() },
+                    onShuffleClick = { playerViewModel.toggleShuffleMode() },
+                    repeatMode = playerViewModel.repeatMode,
+                    shuffleMode = playerViewModel.shuffleMode,
+                    isFavorite = playerViewModel.currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false,
+                    onLikeClick = {
+                        playerViewModel.currentSong?.let { song ->
+                            val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                            playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                        }
+                    },
+                    onDownloadClick = {
+                        playerViewModel.currentSong?.let { song ->
+                            playerViewModel.downloadSong(song, loginViewModel.cookie)
+                        }
+                    },
+                    onLyricClick = {
+                        playerViewModel.currentSong?.let { song ->
+                            playerViewModel.fetchLyrics(song.id)
+                            navController.navigate("lyrics")
+                        }
+                    },
+                    onBackPressed = { navController.popBackStack() }
+                )
+            }
+            composable("lyrics") {
+                LyricsScreen(
+                    lyrics = playerViewModel.currentLyrics,
+                    songName = playerViewModel.currentSong?.name ?: "Lyrics",
                     onBackPressed = { navController.popBackStack() }
                 )
             }
         }
-        composable("settings") {
-            SettingsScreen(
-                currentQuality = playerViewModel.currentQuality,
-                onQualityChange = { playerViewModel.setQuality(it) },
-                fadeDuration = playerViewModel.fadeDuration,
-                onFadeChange = { playerViewModel.setFade(it) },
-                onBackPressed = { navController.popBackStack() }
-            )
-        }
-    }
     }
 }

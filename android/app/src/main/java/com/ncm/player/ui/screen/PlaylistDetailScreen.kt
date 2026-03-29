@@ -70,7 +70,11 @@ fun PlaylistDetailScreen(
                         }
                     }
                 }
-                items(songs) { song ->
+                items(
+                    items = songs,
+                    key = { it.id },
+                    contentType = { "song" }
+                ) { song ->
                     SongItem(
                         song = song,
                         isFavorite = favoriteSongs.contains(song.id),

@@ -16,12 +16,21 @@ import com.ncm.player.util.UserPreferences
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
+    private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .build()
+
     private val apiService = Retrofit.Builder()
         .baseUrl("http://127.0.0.1:3000/")
+        .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(NcmApiService::class.java)

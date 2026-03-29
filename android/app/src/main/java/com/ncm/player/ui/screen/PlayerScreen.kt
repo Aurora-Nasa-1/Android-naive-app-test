@@ -32,7 +32,9 @@ fun PlayerScreen(
     onBackPressed: () -> Unit
 ) {
     if (song == null) {
-        onBackPressed()
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
         return
     }
 

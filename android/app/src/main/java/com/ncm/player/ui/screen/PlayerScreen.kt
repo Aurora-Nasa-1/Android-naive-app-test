@@ -3,7 +3,7 @@ package com.ncm.player.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -16,7 +16,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.ncm.player.model.Song
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -223,7 +223,7 @@ fun PlayerScreen(
                         Icon(Icons.Default.Lyrics, contentDescription = "Lyrics")
                     }
                     IconButton(onClick = {}) {
-                        Icon(Icons.Default.PlaylistAdd, contentDescription = "Add to Playlist")
+                        Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
                     }
                 }
             }

@@ -5,6 +5,7 @@
 //! 支持 weapi / eapi / linuxapi 三种加密方式
 
 #![deny(unsafe_code)]
+#![allow(clippy::missing_safety_doc)]
 
 pub mod api;
 pub mod crypto;

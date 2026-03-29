@@ -7,6 +7,7 @@ use tracing_subscriber::prelude::*;
 static SERVER_STARTED: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]
+#[allow(unsafe_code)]
 pub extern "system" fn Java_com_ncm_player_util_RustServerManager_startNativeServer(
     mut env: JNIEnv,
     _class: JClass,

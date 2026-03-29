@@ -31,10 +31,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Start Rust Backend Service
-        val serviceIntent = Intent(this, RustServerService::class.java)
-        startService(serviceIntent)
-
         setContent {
             NCMPlayerTheme {
                 Surface(

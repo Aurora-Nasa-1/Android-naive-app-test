@@ -51,34 +51,52 @@ object RustServerManager {
     }
 
     fun startServer(context: Context, port: Int = 3000) {
-        if (process != null) return
+        if (process != null) {
+            Log.d(TAG, "Server is already running.")
+            return
+        }
 
-        val serverPath = extractServer(context) ?: return
+        val serverPath = extractServer(context) ?: run {
+            Log.e(TAG, "Failed to extract server.")
+            return
+        }
 
+        // Run the server in a separate thread to avoid blocking the main thread.
         Thread {
             try {
+                Log.d(TAG, "Starting Rust server from $serverPath on port $port")
                 val pb = ProcessBuilder(serverPath)
                 val env = pb.environment()
                 env["NCM_PORT"] = port.toString()
                 env["NCM_HOST"] = "127.0.0.1"
                 env["RUST_LOG"] = "info"
 
+                // Merge stdout and stderr for easier logging.
                 pb.redirectErrorStream(true)
-                process = pb.start()
 
-                val reader = BufferedReader(InputStreamReader(process?.inputStream))
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    Log.i(TAG, "[Rust] $line")
+                val startedProcess = pb.start()
+                process = startedProcess
+
+                // Efficiently read logs to prevent process hanging due to pipe filling.
+                startedProcess.inputStream.bufferedReader().use { reader ->
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        Log.i(TAG, "[Rust] $line")
+                    }
                 }
 
-                process?.waitFor()
+                val exitCode = startedProcess.waitFor()
+                Log.d(TAG, "Rust server process exited with code $exitCode")
             } catch (e: Exception) {
-                Log.e(TAG, "Server error", e)
+                Log.e(TAG, "Failed to manage Rust server process", e)
             } finally {
                 process = null
             }
-        }.start()
+        }.apply {
+            name = "RustServerThread"
+            priority = Thread.NORM_PRIORITY
+            start()
+        }
     }
 
     fun stopServer() {

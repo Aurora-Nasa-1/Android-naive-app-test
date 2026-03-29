@@ -6,9 +6,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -16,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ncm.player.service.RustServerService
+import com.ncm.player.ui.component.BottomPlaybackBar
 import com.ncm.player.ui.screen.*
 import com.ncm.player.ui.theme.NCMPlayerTheme
 import com.ncm.player.viewmodel.LoginViewModel
@@ -52,8 +55,27 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewModel) {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
-    NavHost(navController = navController, startDestination = if (loginViewModel.isLogged) "main" else "login") {
+    Scaffold(
+        bottomBar = {
+            if (loginViewModel.isLogged && playerViewModel.currentSong != null) {
+                BottomPlaybackBar(
+                    song = playerViewModel.currentSong,
+                    isPlaying = playerViewModel.isPlaying,
+                    onPlayPause = { playerViewModel.togglePlayPause() },
+                    onClick = {
+                        context.startActivity(Intent(context, PlayerActivity::class.java))
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
+    NavHost(
+        navController = navController,
+        startDestination = if (loginViewModel.isLogged) "main" else "login",
+        modifier = Modifier.padding(innerPadding)
+    ) {
         composable("login") {
             LoginScreen(loginViewModel, onLoginSuccess = {
                 playerViewModel.fetchUserData(loginViewModel.cookie)
@@ -72,23 +94,53 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 recommendedSongs = playerViewModel.recommendedSongs,
                 userPlaylists = playerViewModel.userPlaylists,
                 onSongClick = { song ->
-                    playerViewModel.playSong(song)
-                    navController.navigate("player")
+                    playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
+                    context.startActivity(Intent(context, PlayerActivity::class.java))
                 },
+                onPlaylistClick = { playlist ->
+                    playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                    navController.navigate("playlist/${playlist.id}")
+                },
+                onLikeClick = { song ->
+                    val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                    playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                },
+                favoriteSongs = playerViewModel.favoriteSongs,
                 onNavigateToSettings = {
                     navController.navigate("settings")
                 }
             )
         }
-        composable("player") {
-            PlayerScreen(
-                song = playerViewModel.currentSong,
-                isPlaying = playerViewModel.isPlaying,
-                onPlayPause = { playerViewModel.togglePlayPause() },
-                onSkipNext = { /* Next song logic */ },
-                onSkipPrevious = { /* Previous song logic */ },
-                onBackPressed = { navController.popBackStack() }
-            )
+        composable("playlist/{playlistId}") { backStackEntry ->
+            val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
+            val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
+
+            if (playlist != null) {
+                PlaylistDetailScreen(
+                    playlist = playlist,
+                    songs = playerViewModel.playlistSongs,
+                    favoriteSongs = playerViewModel.favoriteSongs,
+                    isLoading = playerViewModel.isLoading,
+                    onSongClick = { song ->
+                        playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
+                        context.startActivity(Intent(context, PlayerActivity::class.java))
+                    },
+                    onPlayAllClick = { songs ->
+                        if (songs.isNotEmpty()) {
+                            playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
+                            context.startActivity(Intent(context, PlayerActivity::class.java))
+                        }
+                    },
+                    onQueueAllClick = { songs ->
+                        songs.forEach { playerViewModel.addToQueue(it, loginViewModel.cookie) }
+                    },
+                    onLikeClick = { song ->
+                        val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                        playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                    },
+                    onBackPressed = { navController.popBackStack() }
+                )
+            }
         }
         composable("settings") {
             SettingsScreen(
@@ -99,5 +151,6 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 onBackPressed = { navController.popBackStack() }
             )
         }
+    }
     }
 }

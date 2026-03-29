@@ -16,15 +16,12 @@ use std::sync::LazyLock;
 
 /// 特殊状态码集合（视为 200）
 static SPECIAL_STATUS_CODES: LazyLock<std::collections::HashSet<i64>> =
-    LazyLock::new(|| [201, 302, 400, 502, 800, 801, 802, 803].into());
+    LazyLock::new(|| [201, 400, 502, 800, 801, 802, 803].into());
 
 /// 全局设备 ID（进程生命周期内固定）
 static DEVICE_ID: LazyLock<String> = LazyLock::new(generate_device_id);
 /// 全局 WNMCID
 static WNMCID: LazyLock<String> = LazyLock::new(generate_wnmcid);
-/// Cookie Domain 移除正则（编译一次，全局复用）
-static DOMAIN_REGEX: LazyLock<regex_lite::Regex> =
-    LazyLock::new(|| regex_lite::Regex::new(r"\s*Domain=[^;]+;?").unwrap());
 
 /// 安全创建 HeaderValue，无效字符会被过滤
 fn header_value(s: &str) -> HeaderValue {
@@ -452,9 +449,10 @@ impl ApiClient {
             .iter()
             .filter_map(|v| v.to_str().ok())
             .map(|s| {
-                // 移除 Domain 属性
-                DOMAIN_REGEX.replace_all(s, "").to_string()
+                // 仅保留第一个分号前的部分 (key=value)
+                s.split(';').next().unwrap_or("").trim().to_string()
             })
+            .filter(|s| !s.is_empty())
             .collect();
 
         // 解析响应体
@@ -494,7 +492,7 @@ impl ApiClient {
             cookie: resp_cookies,
         };
 
-        if status == 200 {
+        if status == 200 || status == 302 {
             Ok(answer)
         } else {
             let msg = answer

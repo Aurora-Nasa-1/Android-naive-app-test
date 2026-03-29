@@ -23,6 +23,9 @@ object RustServerManager {
         }
 
         val outFile = File(context.filesDir, "ncm-server")
+
+        // Optimistic check: if it exists and version is same (could add version check later)
+        // For now, let's at least check if it exists and is executable
         if (outFile.exists() && outFile.canExecute()) {
             Log.d(TAG, "Server already extracted and executable")
             return outFile.absolutePath

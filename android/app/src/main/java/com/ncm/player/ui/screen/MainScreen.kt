@@ -49,14 +49,18 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            item {
+            item(contentType = "header") {
                 Text(
                     "Daily Recommendations",
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(16.dp)
                 )
             }
-            items(recommendedSongs) { song ->
+            items(
+                items = recommendedSongs,
+                key = { it.id },
+                contentType = { "song" }
+            ) { song ->
                 SongItem(
                     song = song,
                     isFavorite = favoriteSongs.contains(song.id),
@@ -65,14 +69,18 @@ fun MainScreen(
                 )
             }
 
-            item {
+            item(contentType = "header") {
                 Text(
                     "My Playlists",
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(16.dp)
                 )
             }
-            items(userPlaylists) { playlist ->
+            items(
+                items = userPlaylists,
+                key = { it.id },
+                contentType = { "playlist" }
+            ) { playlist ->
                 PlaylistItem(playlist, onClick = { onPlaylistClick(playlist) })
             }
         }

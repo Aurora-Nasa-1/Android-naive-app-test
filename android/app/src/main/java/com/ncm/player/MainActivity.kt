@@ -6,16 +6,23 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ncm.player.service.RustServerService
 import com.ncm.player.ui.component.BottomPlaybackBar
@@ -51,19 +58,47 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewModel) {
     val navController = rememberNavController()
-    val context = LocalContext.current
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
 
     Scaffold(
         bottomBar = {
-            if (loginViewModel.isLogged && playerViewModel.currentSong != null) {
-                BottomPlaybackBar(
-                    song = playerViewModel.currentSong,
-                    isPlaying = playerViewModel.isPlaying,
-                    onPlayPause = { playerViewModel.togglePlayPause() },
-                    onClick = {
-                        navController.navigate("player")
+            if (loginViewModel.isLogged) {
+                Column {
+                    if (playerViewModel.currentSong != null) {
+                        BottomPlaybackBar(
+                            song = playerViewModel.currentSong,
+                            isPlaying = playerViewModel.isPlaying,
+                            onPlayPause = { playerViewModel.togglePlayPause() },
+                            onClick = {
+                                navController.navigate("player")
+                            }
+                        )
                     }
-                )
+                    val items = listOf(
+                        Triple("main", "Home", Icons.Filled.Home),
+                        Triple("search", "Search", Icons.Filled.Search),
+                        Triple("library", "Library", Icons.Filled.LibraryMusic)
+                    )
+                    NavigationBar {
+                        items.forEach { (route, label, icon) ->
+                            NavigationBarItem(
+                                icon = { Icon(icon, contentDescription = label) },
+                                label = { Text(label) },
+                                selected = currentDestination?.hierarchy?.any { it.route == route } == true,
+                                onClick = {
+                                    navController.navigate(route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     ) { innerPadding ->
@@ -106,6 +141,16 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         navController.navigate("settings")
                     }
                 )
+            }
+            composable("search") {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Text("Search Screen", modifier = Modifier.padding(16.dp))
+                }
+            }
+            composable("library") {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Text("Library Screen", modifier = Modifier.padding(16.dp))
+                }
             }
             composable("playlist/{playlistId}") { backStackEntry ->
                 val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
@@ -151,9 +196,12 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 PlayerScreen(
                     song = playerViewModel.currentSong,
                     isPlaying = playerViewModel.isPlaying,
+                    currentPosition = playerViewModel.currentPosition,
+                    duration = playerViewModel.duration,
                     onPlayPause = { playerViewModel.togglePlayPause() },
                     onSkipNext = { playerViewModel.skipNext() },
                     onSkipPrevious = { playerViewModel.skipPrevious() },
+                    onSeek = { playerViewModel.seekTo(it) },
                     onRepeatClick = { playerViewModel.toggleRepeatMode() },
                     onShuffleClick = { playerViewModel.toggleShuffleMode() },
                     repeatMode = playerViewModel.repeatMode,

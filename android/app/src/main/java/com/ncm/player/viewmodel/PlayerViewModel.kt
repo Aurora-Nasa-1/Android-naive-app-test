@@ -55,6 +55,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var fadeDuration by mutableStateOf(2f)
     var repeatMode by mutableStateOf(Player.REPEAT_MODE_OFF)
     var shuffleMode by mutableStateOf(false)
+    var currentPosition by mutableStateOf(0L)
+    var duration by mutableStateOf(0L)
 
     private var mediaControllerFuture: ListenableFuture<MediaController>? = null
     private val mediaController: MediaController?
@@ -95,8 +97,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                                 albumArtUrl = metadata.artworkUri?.toString()
                             )
                         }
+                        duration = controller.duration.coerceAtLeast(0L)
+                    }
+
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_READY) {
+                            duration = controller.duration.coerceAtLeast(0L)
+                        }
                     }
                 })
+
+                // Start a coroutine to update position
+                viewModelScope.launch {
+                    while (true) {
+                        currentPosition = controller.currentPosition
+                        kotlinx.coroutines.delay(1000L)
+                    }
+                }
             }
         }, MoreExecutors.directExecutor())
     }
@@ -333,6 +350,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun skipPrevious() {
         mediaController?.seekToPrevious()
+    }
+
+    fun seekTo(position: Long) {
+        mediaController?.seekTo(position)
+        currentPosition = position
     }
 
     fun togglePlayPause() {

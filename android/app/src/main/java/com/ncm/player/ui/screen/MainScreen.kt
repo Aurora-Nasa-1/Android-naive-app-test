@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.ncm.player.model.Song
 import com.ncm.player.model.Playlist
+import com.ncm.player.util.ImageUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +100,7 @@ fun SongCard(song: Song, onClick: () -> Unit) {
         ) {
             if (song.albumArtUrl != null) {
                 AsyncImage(
-                    model = song.albumArtUrl,
+                    model = ImageUtils.getThumbnailUrl(song.albumArtUrl, 300),
                     contentDescription = null,
                     contentScale = ContentScale.Crop
                 )
@@ -146,7 +147,7 @@ fun SongItem(
             ) {
                 if (song.albumArtUrl != null) {
                     AsyncImage(
-                        model = song.albumArtUrl,
+                        model = ImageUtils.getThumbnailUrl(song.albumArtUrl, 100),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )
@@ -185,7 +186,7 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
             ) {
                 if (playlist.coverImgUrl != null) {
                     AsyncImage(
-                        model = playlist.coverImgUrl,
+                        model = ImageUtils.getThumbnailUrl(playlist.coverImgUrl, 100),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )

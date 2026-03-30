@@ -50,6 +50,7 @@ fun PlaylistDetailScreen(
     onAddToPlaylist: (List<String>, Long) -> Unit,
     onRemoveFromPlaylist: (List<String>) -> Unit,
     onBatchDownload: (List<Song>) -> Unit,
+    onSortChange: (String) -> Unit = {},
     onBackPressed: () -> Unit
 ) {
     val scrollState = rememberTopAppBarState()
@@ -57,6 +58,7 @@ fun PlaylistDetailScreen(
     var selectedSongs by remember { mutableStateOf(setOf<String>()) }
     var isSelectionMode by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
@@ -115,8 +117,42 @@ fun PlaylistDetailScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {}) {
+                        IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Sort by Name") },
+                                onClick = { onSortChange("name"); showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Sort by Artist") },
+                                onClick = { onSortChange("artist"); showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Default Sorting") },
+                                onClick = { onSortChange("default"); showSortMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Download All") },
+                                onClick = { onBatchDownload(songs); showSortMenu = false }
+                            )
+                            Divider()
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            DropdownMenuItem(
+                                text = { Text("Share Playlist") },
+                                onClick = {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: https://music.163.com/playlist?id=${playlist.id}")
+                                    }
+                                    context.startActivity(android.content.Intent.createChooser(intent, "Share Playlist"))
+                                    showSortMenu = false
+                                }
+                            )
                         }
                     },
                     scrollBehavior = scrollBehavior

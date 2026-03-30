@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -60,6 +61,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val context = LocalContext.current
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -79,7 +81,8 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     val items = listOf(
                         Triple("main", "Home", Icons.Filled.Home),
                         Triple("search", "Search", Icons.Filled.Search),
-                        Triple("library", "Library", Icons.Filled.LibraryMusic)
+                        Triple("library", "Library", Icons.Filled.LibraryMusic),
+                        Triple("downloads", "Offline", Icons.Filled.DownloadDone)
                     )
                     NavigationBar {
                         items.forEach { (route, label, icon) ->
@@ -206,9 +209,21 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         onBatchDownload = { songs ->
                             playerViewModel.batchDownload(songs, loginViewModel.cookie)
                         },
+                        onSortChange = { sort ->
+                            playerViewModel.fetchPlaylistSongs(playlistId, loginViewModel.cookie, sort)
+                            com.ncm.player.util.UserPreferences.savePlaylistSort(context, playlistId, sort)
+                        },
                         onBackPressed = { navController.popBackStack() }
                     )
                 }
+            }
+            composable("downloads") {
+                DownloadsScreen(
+                    onBackPressed = { navController.popBackStack() },
+                    onPlayLocalSong = { song, uri ->
+                        playerViewModel.playSong(song)
+                    }
+                )
             }
             composable("settings") {
                 SettingsScreen(
@@ -216,6 +231,13 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onQualityChange = { playerViewModel.setQuality(it) },
                     fadeDuration = playerViewModel.fadeDuration,
                     onFadeChange = { playerViewModel.setFade(it) },
+                    cacheSize = playerViewModel.cacheSize,
+                    onCacheSizeChange = { playerViewModel.setCache(it) },
+                    useCellularCache = playerViewModel.useCellularCache,
+                    onUseCellularCacheChange = { playerViewModel.setUseCellular(it) },
+                    downloadDir = playerViewModel.downloadDir,
+                    onDownloadDirChange = { playerViewModel.setDownloadPath(it) },
+                    onClearCache = { playerViewModel.clearCache() },
                     onBackPressed = { navController.popBackStack() }
                 )
             }
@@ -255,6 +277,10 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onAddToPlaylist = { songId, pid ->
                         playerViewModel.addSongsToPlaylist(pid, listOf(songId), loginViewModel.cookie)
                     },
+                    queue = playerViewModel.currentQueue,
+                    onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
+                    onRemoveQueueItem = { index -> playerViewModel.removeQueueItem(index) },
+                    onClearQueue = { playerViewModel.clearQueue() },
                     onBackPressed = { navController.popBackStack() }
                 )
             }

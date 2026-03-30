@@ -20,6 +20,7 @@ import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
+import java.io.File
 import java.net.URLEncoder
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
@@ -43,6 +44,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         .create(NcmApiService::class.java)
 
     var currentSong by mutableStateOf<Song?>(null)
+    var currentQueue by mutableStateOf<List<Song>>(emptyList())
     var isPlaying by mutableStateOf(false)
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
     var userPlaylists by mutableStateOf<List<Playlist>>(emptyList())
@@ -54,18 +56,25 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     var currentQuality by mutableStateOf("standard")
     var fadeDuration by mutableStateOf(2f)
+    var cacheSize by mutableStateOf(512)
+    var useCellularCache by mutableStateOf(false)
+    var downloadDir by mutableStateOf<String?>(null)
+
     var repeatMode by mutableStateOf(Player.REPEAT_MODE_OFF)
     var shuffleMode by mutableStateOf(false)
     var currentPosition by mutableStateOf(0L)
     var duration by mutableStateOf(0L)
 
     private var mediaControllerFuture: ListenableFuture<MediaController>? = null
-    private val mediaController: MediaController?
+    val mediaController: MediaController?
         get() = if (mediaControllerFuture?.isDone == true) mediaControllerFuture?.get() else null
 
     init {
         currentQuality = UserPreferences.getQuality(application)
         fadeDuration = UserPreferences.getFadeDuration(application)
+        cacheSize = UserPreferences.getCacheSize(application)
+        useCellularCache = UserPreferences.getUseCellularCache(application)
+        downloadDir = UserPreferences.getDownloadDir(application)
     }
 
     fun setQuality(quality: String) {
@@ -76,6 +85,32 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun setFade(duration: Float) {
         fadeDuration = duration
         UserPreferences.saveFadeDuration(getApplication(), duration)
+    }
+
+    fun setCache(size: Int) {
+        cacheSize = size
+        UserPreferences.saveCacheSize(getApplication(), size)
+    }
+
+    fun setUseCellular(use: Boolean) {
+        useCellularCache = use
+        UserPreferences.saveUseCellularCache(getApplication(), use)
+    }
+
+    fun setDownloadPath(path: String) {
+        downloadDir = path
+        UserPreferences.saveDownloadDir(getApplication(), path)
+    }
+
+    fun clearCache() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val cacheDir = File(getApplication<Application>().cacheDir, "media")
+                cacheDir.deleteRecursively()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun initController(context: Context) {
@@ -89,6 +124,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     }
 
                     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                            // Pre-fetch next song metadata or logic if needed
+                        }
+                        updateQueue()
                         mediaItem?.mediaMetadata?.let { metadata ->
                             currentSong = Song(
                                 id = mediaItem.mediaId,
@@ -104,7 +143,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_READY) {
                             duration = controller.duration.coerceAtLeast(0L)
+                            updateQueue()
                         }
+                    }
+
+                    override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                        updateQueue()
                     }
                 })
 
@@ -264,13 +308,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         songs.forEach { downloadSong(it, cookie) }
     }
 
-    fun fetchPlaylistSongs(playlistId: Long, cookie: String?) {
+    fun fetchPlaylistSongs(playlistId: Long, cookie: String?, sort: String? = null) {
         viewModelScope.launch {
             isLoading = true
             try {
                 val response = apiService.getPlaylistTracks(playlistId, cookie)
                 val songsJson = response.body()?.get("songs")?.asJsonArray
-                playlistSongs = songsJson?.map {
+                val unsortedSongs = songsJson?.map {
                     val obj = it.asJsonObject
                     Song(
                         id = obj.get("id").asString,
@@ -280,6 +324,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
                     )
                 } ?: emptyList()
+
+                val order = sort ?: UserPreferences.getPlaylistSort(getApplication(), playlistId)
+                playlistSongs = when (order) {
+                    "name" -> unsortedSongs.sortedBy { it.name }
+                    "artist" -> unsortedSongs.sortedBy { it.artist }
+                    else -> unsortedSongs
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -328,9 +379,27 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         .setTitle("Downloading ${song.name}")
                         .setDescription("${song.artist} - ${song.album}")
                         .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
                         .setAllowedOverMetered(true)
                         .setAllowedOverRoaming(true)
+
+                    val userDownloadDir = UserPreferences.getDownloadDir(getApplication())
+                    if (userDownloadDir != null) {
+                        try {
+                            val treeUri = android.net.Uri.parse(userDownloadDir)
+                            val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), treeUri)
+                            val file = tree?.createFile("audio/mpeg", "${song.name}.mp3")
+                            file?.uri?.let { destinationUri ->
+                                request.setDestinationUri(destinationUri)
+                            } ?: run {
+                                request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
+                        }
+                    } else {
+                        request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
+                    }
 
                     val downloadManager = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
                     downloadManager.enqueue(request)
@@ -442,6 +511,39 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 controller.play()
             }
         }
+    }
+
+    fun updateQueue() {
+        mediaController?.let { controller ->
+            val list = mutableListOf<Song>()
+            for (i in 0 until controller.mediaItemCount) {
+                val item = controller.getMediaItemAt(i)
+                val metadata = item.mediaMetadata
+                list.add(Song(
+                    id = item.mediaId,
+                    name = metadata.title?.toString() ?: "Unknown",
+                    artist = metadata.artist?.toString() ?: "Unknown",
+                    album = metadata.albumTitle?.toString() ?: "Unknown",
+                    albumArtUrl = metadata.artworkUri?.toString()
+                ))
+            }
+            currentQueue = list
+        }
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        mediaController?.moveMediaItem(fromIndex, toIndex)
+        updateQueue()
+    }
+
+    fun removeQueueItem(index: Int) {
+        mediaController?.removeMediaItem(index)
+        updateQueue()
+    }
+
+    fun clearQueue() {
+        mediaController?.clearMediaItems()
+        updateQueue()
     }
 
     override fun onCleared() {

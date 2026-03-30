@@ -5,12 +5,20 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import java.io.File
 import com.ncm.player.api.NcmApiService
 import com.ncm.player.util.UserPreferences
 import io.github.proify.lyricon.provider.LyriconFactory
@@ -31,6 +39,19 @@ import java.util.regex.Pattern
 class MusicService : MediaSessionService() {
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
+
+    companion object {
+        private var cache: SimpleCache? = null
+        fun getCache(context: android.content.Context): SimpleCache {
+            if (cache == null) {
+                val cacheDir = File(context.cacheDir, "media")
+                val cacheSize = UserPreferences.getCacheSize(context) * 1024L * 1024L
+                val evictor = LeastRecentlyUsedCacheEvictor(cacheSize)
+                cache = SimpleCache(cacheDir, evictor, androidx.media3.database.StandaloneDatabaseProvider(context))
+            }
+            return cache!!
+        }
+    }
     private var lyriconProvider: LyriconProvider? = null
     private var lyricJob: Job? = null
     private val fadeAudioProcessor = FadeAudioProcessor()
@@ -67,9 +88,23 @@ class MusicService : MediaSessionService() {
             }
         }
 
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+
+        val dataSourceFactory: DataSource.Factory = CacheDataSource.Factory()
+            .setCache(getCache(this))
+            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(this, httpDataSourceFactory))
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(this)
+            .setDataSourceFactory(dataSourceFactory)
+
+        // Preload next item
+
         player = ExoPlayer.Builder(this, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
+            .setMediaSourceFactory(mediaSourceFactory)
             .build()
 
         player?.addListener(object : Player.Listener {

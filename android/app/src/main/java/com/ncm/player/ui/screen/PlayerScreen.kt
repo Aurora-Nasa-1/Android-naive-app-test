@@ -21,6 +21,7 @@ import androidx.media3.common.Player
 import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
+import com.ncm.player.ui.component.QueueBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +44,10 @@ fun PlayerScreen(
     onDownloadClick: () -> Unit = {},
     onLyricClick: () -> Unit = {},
     onAddToPlaylist: (String, Long) -> Unit = { _, _ -> },
+    queue: List<Song> = emptyList(),
+    onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> },
+    onRemoveQueueItem: (Int) -> Unit = { _ -> },
+    onClearQueue: () -> Unit = {},
     onBackPressed: () -> Unit
 ) {
     if (song == null) {
@@ -53,6 +58,7 @@ fun PlayerScreen(
     }
 
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var showQueueBottomSheet by remember { mutableStateOf(false) }
 
     if (showAddToPlaylistDialog) {
         AlertDialog(
@@ -76,6 +82,17 @@ fun PlayerScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+
+    if (showQueueBottomSheet) {
+        QueueBottomSheet(
+            queue = queue,
+            currentSongId = song.id,
+            onMove = onMoveQueueItem,
+            onRemove = onRemoveQueueItem,
+            onClear = onClearQueue,
+            onClose = { showQueueBottomSheet = false }
         )
     }
 
@@ -256,6 +273,9 @@ fun PlayerScreen(
                     }
                     IconButton(onClick = { showAddToPlaylistDialog = true }) {
                         Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
+                    }
+                    IconButton(onClick = { showQueueBottomSheet = true }) {
+                        Icon(Icons.Default.QueueMusic, contentDescription = "Queue")
                     }
                 }
             }

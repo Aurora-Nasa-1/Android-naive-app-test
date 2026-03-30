@@ -165,16 +165,28 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
             enterTransition = {
-                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300))
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeIn(animationSpec = tween(300))
             },
             exitTransition = {
-                fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.95f, animationSpec = tween(300))
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeOut(animationSpec = tween(300))
             },
             popEnterTransition = {
-                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 1.05f, animationSpec = tween(300))
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeIn(animationSpec = tween(300))
             },
             popExitTransition = {
-                fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1.05f, animationSpec = tween(300))
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeOut(animationSpec = tween(300))
             }
         ) {
             composable("login") {
@@ -196,9 +208,25 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
 
                 MainScreen(
                     recommendedSongs = playerViewModel.recommendedSongs,
+                    userPlaylists = playerViewModel.userPlaylists,
                     onSongClick = { song ->
                         playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
                         navController.navigate("player")
+                    },
+                    onPlaylistClick = { playlist ->
+                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                        navController.navigate("playlist/${playlist.id}")
+                    },
+                    onPersonalFmClick = {
+                        playerViewModel.playPersonalFm(loginViewModel.cookie)
+                        navController.navigate("player")
+                    },
+                    onHeartbeatClick = {
+                        if (playerViewModel.favoriteSongs.isNotEmpty()) {
+                            // Use first favorite song to seed heartbeat
+                            playerViewModel.playHeartbeat(playerViewModel.favoriteSongs[0], 0L, loginViewModel.cookie)
+                            navController.navigate("player")
+                        }
                     },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
@@ -333,30 +361,26 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 enterTransition = {
                     slideInVertically(
                         initialOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeIn(animationSpec = tween(500)) +
-                    scaleIn(initialScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseOutQuart)
+                    ) + fadeIn(animationSpec = tween(400))
                 },
                 exitTransition = {
                     slideOutVertically(
                         targetOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeOut(animationSpec = tween(500)) +
-                    scaleOut(targetScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseInQuart)
+                    ) + fadeOut(animationSpec = tween(400))
                 },
                 popEnterTransition = {
                     slideInVertically(
                         initialOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeIn(animationSpec = tween(500)) +
-                    scaleIn(initialScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseOutQuart)
+                    ) + fadeIn(animationSpec = tween(400))
                 },
                 popExitTransition = {
                     slideOutVertically(
                         targetOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeOut(animationSpec = tween(500)) +
-                    scaleOut(targetScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseInQuart)
+                    ) + fadeOut(animationSpec = tween(400))
                 }
             ) {
                 val currentSong = playerViewModel.currentSong

@@ -28,12 +28,19 @@ fun LibraryScreen(
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Your Library") },
+                title = {
+                    Text(
+                        "Your Library",
+                        style = MaterialTheme.typography.headlineLarge,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
-                }
+                },
+                windowInsets = WindowInsets.statusBars.add(WindowInsets(top = 8.dp))
             )
         }
     ) { innerPadding ->

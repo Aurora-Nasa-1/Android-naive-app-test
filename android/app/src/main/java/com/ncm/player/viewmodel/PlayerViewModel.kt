@@ -629,6 +629,60 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun playPersonalFm(cookie: String?) {
+        viewModelScope.launch {
+            try {
+                isLoading = true
+                val response = apiService.getPersonalFm(cookie)
+                val songsJson = response.body()?.get("data")?.asJsonArray
+                val songs = songsJson?.map {
+                    val obj = it.asJsonObject
+                    Song(
+                        id = obj.get("id").asString,
+                        name = obj.get("name").asString,
+                        artist = obj.get("artists").asJsonArray.get(0).asJsonObject.get("name").asString,
+                        album = obj.get("album").asJsonObject.get("name").asString,
+                        albumArtUrl = obj.get("album").asJsonObject.get("picUrl").asString
+                    )
+                } ?: emptyList()
+                if (songs.isNotEmpty()) {
+                    playSong(songs[0], songs, cookie)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun playHeartbeat(songId: String, playlistId: Long, cookie: String?) {
+        viewModelScope.launch {
+            try {
+                isLoading = true
+                val response = apiService.getIntelligenceList(songId, playlistId, cookie)
+                val songsJson = response.body()?.get("data")?.asJsonArray
+                val songs = songsJson?.map {
+                    val obj = it.asJsonObject.get("songInfo").asJsonObject
+                    Song(
+                        id = obj.get("id").asString,
+                        name = obj.get("name").asString,
+                        artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
+                        album = obj.get("al").asJsonObject.get("name").asString,
+                        albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
+                    )
+                } ?: emptyList()
+                if (songs.isNotEmpty()) {
+                    playSong(songs[0], songs, cookie)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     fun updateQueue() {
         mediaController?.let { controller ->
             val list = mutableListOf<Song>()

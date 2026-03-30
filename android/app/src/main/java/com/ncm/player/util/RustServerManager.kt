@@ -15,15 +15,31 @@ object RustServerManager {
         }
 
         val outFile = java.io.File(context.filesDir, "ncm-server")
-        if (outFile.exists() && outFile.canExecute()) return outFile
+
+        // Check if the binary exists and has the correct size to avoid partial extractions
+        try {
+            val assetFileDescriptor = context.assets.openFd("bin/$assetName")
+            val assetSize = assetFileDescriptor.length
+            assetFileDescriptor.close()
+
+            if (outFile.exists() && outFile.length() == assetSize && outFile.canExecute()) {
+                Log.d(TAG, "Binary already exists with correct size, skipping extraction")
+                return outFile
+            }
+        } catch (e: Exception) {
+            // Fallback to simple check if openFd fails
+            if (outFile.exists() && outFile.canExecute()) return outFile
+        }
 
         try {
+            Log.d(TAG, "Extracting binary: bin/$assetName -> ${outFile.absolutePath}")
             context.assets.open("bin/$assetName").use { input ->
                 java.io.FileOutputStream(outFile).use { output ->
                     input.copyTo(output)
                 }
             }
             outFile.setExecutable(true, true)
+            Log.d(TAG, "Extraction complete and executable set")
             return outFile
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract binary", e)

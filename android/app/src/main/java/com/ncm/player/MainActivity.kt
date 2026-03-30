@@ -54,25 +54,40 @@ class MainActivity : ComponentActivity() {
 
                     LaunchedEffect(Unit) {
                         playerViewModel.initController(context)
+                        // Start the service explicitly if not running
+                        try {
+                            val serviceIntent = Intent(context, RustServerService::class.java)
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                context.startForegroundService(serviceIntent)
+                            } else {
+                                context.startService(serviceIntent)
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Failed to start RustServerService", e)
+                        }
+
                         // Simple check to wait for local server
                         var attempts = 0
                         android.util.Log.d("MainActivity", "Starting server check loop")
-                        while (attempts < 15) {
+                        val client = okhttp3.OkHttpClient.Builder()
+                            .connectTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
+                            .readTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
+                            .build()
+                        val request = okhttp3.Request.Builder().url("http://127.0.0.1:3000").build()
+
+                        while (attempts < 20) {
                             try {
-                                val client = okhttp3.OkHttpClient.Builder()
-                                    .connectTimeout(500, java.util.concurrent.TimeUnit.MILLISECONDS)
-                                    .build()
-                                val request = okhttp3.Request.Builder().url("http://127.0.0.1:3000").build()
                                 withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    client.newCall(request).execute().use {
-                                        if (it.isSuccessful || it.code == 404 || it.code == 200) {
+                                    client.newCall(request).execute().use { response ->
+                                        android.util.Log.d("MainActivity", "Server check response: ${response.code}")
+                                        if (response.isSuccessful || response.code == 404 || response.code == 200) {
                                             serverReady = true
                                         }
                                     }
                                 }
                                 if (serverReady) {
                                     android.util.Log.d("MainActivity", "Server ready after $attempts attempts")
-                                    return@LaunchedEffect
+                                    break
                                 }
                             } catch (e: Exception) {
                                 android.util.Log.d("MainActivity", "Attempt $attempts failed: ${e.message}")
@@ -80,6 +95,7 @@ class MainActivity : ComponentActivity() {
                             attempts++
                             kotlinx.coroutines.delay(1000)
                         }
+                        android.util.Log.w("MainActivity", "Server check timed out, proceeding anyway")
                         serverReady = true // Fallback to let UI try anyway
                     }
 

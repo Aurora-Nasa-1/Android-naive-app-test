@@ -8,12 +8,11 @@ repository = "https://github.com/imsyy/ncm-api-rs"
 homepage = "https://github.com/imsyy/ncm-api-rs"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [features]
 default = []
 server = ["axum", "tower", "tower-http", "tracing", "tracing-subscriber"]
-jni = ["dep:jni", "dep:tracing-android", "server"]
 
 [dependencies]
 # HTTP
@@ -22,9 +21,6 @@ reqwest = { version = "0.12", features = ["json", "cookies", "rustls-tls", "sock
 tokio = { version = "1", features = ["full"] }
 # Serialization
 serde = { version = "1", features = ["derive"] }
-# JNI for Android
-jni = { version = "0.21", optional = true }
-tracing-android = { version = "0.2", optional = true }
 serde_json = "1"
 serde_urlencoded = "0.7"
 # Crypto

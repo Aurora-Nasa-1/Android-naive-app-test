@@ -25,23 +25,31 @@ jobs:
       - name: Install cargo-ndk
         run: command -v cargo-ndk >/dev/null 2>&1 || cargo install cargo-ndk
 
-      - name: Build Rust JNI library
+      - name: Build Rust Binaries
         run: |
+          mkdir -p android/app/src/main/assets/bin
           mkdir -p android/app/src/main/jniLibs/arm64-v8a
 
           # Support 16KB page size for Android 15+ (AOSP 16kb page size support)
           # Ref: https://developer.android.com/guide/practices/page-alignment
           export RUSTFLAGS="-Clink-arg=-Wl,-z,max-page-size=16384"
 
-          # Build JNI library for arm64-v8a (aarch64-linux-android)
+          # Build only for arm64-v8a (aarch64-linux-android)
+          # 1. Build JNI library
           cargo ndk -t arm64-v8a --platform 24 build --release --features jni
           cp target/aarch64-linux-android/release/libncm_api.so android/app/src/main/jniLibs/arm64-v8a/libncm_api.so
 
-      - name: Upload JNI Library
+          # 2. Build executable binary (Fallback)
+          cargo ndk -t arm64-v8a --platform 24 build --release --features server --bin ncm-server
+          cp target/aarch64-linux-android/release/ncm-server android/app/src/main/assets/bin/ncm-server-aarch64
+
+      - name: Upload Rust Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: rust-jni-lib
-          path: android/app/src/main/jniLibs/
+          name: rust-binaries
+          path: |
+            android/app/src/main/assets/bin/
+            android/app/src/main/jniLibs/
 
   build_android:
     name: Build Android App
@@ -52,10 +60,10 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Download JNI Library
+      - name: Download Rust Binaries
         uses: actions/download-artifact@v4
         with:
-          name: rust-jni-lib
+          name: rust-binaries
           path: android/app/src/main/
 
       - name: Build with Gradle

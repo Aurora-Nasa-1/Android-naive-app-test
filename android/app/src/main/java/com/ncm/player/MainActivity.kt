@@ -24,6 +24,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.withContext
 import com.ncm.player.service.RustServerService
 import com.ncm.player.ui.component.BottomPlaybackBar
 import com.ncm.player.ui.component.DownloadIndicator
@@ -47,10 +48,44 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val context = LocalContext.current
+                    var serverReady by remember { mutableStateOf(false) }
+
                     LaunchedEffect(Unit) {
                         playerViewModel.initController(context)
+                        // Simple check to wait for local server
+                        var attempts = 0
+                        while (attempts < 15) {
+                            try {
+                                val client = okhttp3.OkHttpClient.Builder()
+                                    .connectTimeout(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                                    .build()
+                                val request = okhttp3.Request.Builder().url("http://127.0.0.1:3000").build()
+                                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    client.newCall(request).execute().use {
+                                        if (it.isSuccessful || it.code == 404 || it.code == 200) {
+                                            serverReady = true
+                                        }
+                                    }
+                                }
+                                if (serverReady) return@LaunchedEffect
+                            } catch (e: Exception) {}
+                            attempts++
+                            kotlinx.coroutines.delay(1000)
+                        }
+                        serverReady = true // Fallback to let UI try anyway
                     }
-                    AppNavigation(loginViewModel, playerViewModel)
+
+                    if (!serverReady) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                                CircularProgressIndicator()
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Starting local server...")
+                            }
+                        }
+                    } else {
+                        AppNavigation(loginViewModel, playerViewModel)
+                    }
                 }
             }
         }

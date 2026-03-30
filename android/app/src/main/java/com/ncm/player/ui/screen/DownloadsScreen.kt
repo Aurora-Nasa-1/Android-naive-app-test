@@ -54,11 +54,28 @@ fun DownloadsScreen(
                         headlineContent = { Text(task.song.name) },
                         supportingContent = {
                             Column {
-                                Text(task.song.artist)
-                                LinearProgressIndicator(
-                                    progress = { task.progress },
-                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(task.song.artist, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        if (task.progress >= 0f) "${(task.progress * 100).toInt()}%" else "Connecting...",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (task.progress >= 0f) {
+                                    LinearProgressIndicator(
+                                        progress = { task.progress },
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                    )
+                                } else {
+                                    LinearProgressIndicator(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                    )
+                                }
                             }
                         },
                         trailingContent = {

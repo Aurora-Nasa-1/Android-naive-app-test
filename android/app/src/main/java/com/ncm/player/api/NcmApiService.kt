@@ -39,8 +39,8 @@ interface NcmApiService {
     @GET("playlist/subscribe")
     suspend fun subscribePlaylist(@Query("id") id: Long, @Query("t") type: Int, @Query("cookie") cookie: String? = null): Response<JsonObject>
 
-    @GET("song/download/url")
-    suspend fun getDownloadUrl(@Query("id") id: String, @Query("br") br: Int = 999000, @Query("cookie") cookie: String? = null): Response<JsonObject>
+    @GET("song/download/url/v1")
+    suspend fun getDownloadUrl(@Query("id") id: String, @Query("level") level: String = "standard", @Query("cookie") cookie: String? = null): Response<JsonObject>
 
     @GET("lyric/new")
     suspend fun getLyric(@Query("id") id: String): Response<JsonObject>

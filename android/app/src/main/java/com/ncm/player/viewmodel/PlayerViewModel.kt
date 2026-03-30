@@ -94,9 +94,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun deleteLocalSong(uri: android.net.Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val context = getApplication<Application>()
                 val deleted = if (uri.scheme == "content") {
-                    val file = androidx.documentfile.provider.DocumentFile.fromSingleUri(getApplication(), uri)
-                    file?.delete() ?: false
+                    // Try content resolver first for system-managed files
+                    try {
+                        context.contentResolver.delete(uri, null, null) > 0
+                    } catch (e: Exception) {
+                        // Fallback to DocumentFile for SAF
+                        val file = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)
+                        file?.delete() ?: false
+                    }
                 } else {
                     val file = java.io.File(uri.path ?: "")
                     if (file.exists()) file.delete() else false
@@ -104,9 +111,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                 withContext(Dispatchers.Main) {
                     if (deleted) {
-                        android.widget.Toast.makeText(getApplication(), "Song deleted", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, "Song deleted", android.widget.Toast.LENGTH_SHORT).show()
                     } else {
-                        android.widget.Toast.makeText(getApplication(), "Failed to delete song", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, "Failed to delete song", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
                 refreshLocalSongs()

@@ -75,18 +75,9 @@ class NcmDownloadManager(private val application: Application, private val apiSe
 
         android.widget.Toast.makeText(application, "Starting download: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
 
-        val br = when (quality) {
-            "standard" -> 128000
-            "higher" -> 192000
-            "exhigh" -> 320000
-            "lossless" -> 999000
-            "hires" -> 999000
-            else -> 128000
-        }
-
         scope.launch {
             try {
-                val response = apiService.getDownloadUrl(song.id, br = br, cookie = cookie)
+                val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
                 val url = response.body()?.get("data")?.asJsonArray?.get(0)?.asJsonObject?.get("url")?.asString
 
                 url?.let { downloadUrl ->
@@ -142,56 +133,52 @@ class NcmDownloadManager(private val application: Application, private val apiSe
             while (downloading) {
                 val query = DownloadManager.Query().setFilterById(downloadId)
                 val cursor = downloadManager.query(query)
-                if (cursor.moveToFirst()) {
+                if (cursor != null && cursor.moveToFirst()) {
                     val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                    val status = cursor.getInt(statusIndex)
+                    val status = if (statusIndex != -1) cursor.getInt(statusIndex) else -1
 
                     val bytesDownloadedIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
                     val bytesTotalIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
 
-                    if (bytesDownloadedIndex != -1 && bytesTotalIndex != -1) {
-                        val bytesDownloaded = cursor.getLong(bytesDownloadedIndex)
-                        val bytesTotal = cursor.getLong(bytesTotalIndex)
-
-                        val progress = if (bytesTotal > 0) bytesDownloaded.toFloat() / bytesTotal else 0f
-
-                        val currentTask = _tasks.value[songId]
-                        if (currentTask == null) {
-                            downloading = false
-                        } else {
-                            when (status) {
-                                DownloadManager.STATUS_SUCCESSFUL -> {
-                                    _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
-                                    saveCompletedSong(currentTask.song)
-                                    downloading = false
-                                }
-                                DownloadManager.STATUS_FAILED -> {
-                                    _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
-                                    downloading = false
-                                }
-                                else -> {
-                                    _tasks.update { it + (songId to currentTask.copy(progress = progress.coerceIn(0f, 1f))) }
-                                }
-                            }
-                        }
+                    val currentTask = _tasks.value[songId]
+                    if (currentTask == null) {
+                        downloading = false
                     } else {
-                        val currentTask = _tasks.value[songId]
-                        if (currentTask == null) {
-                            downloading = false
-                        } else if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                            _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
-                            saveCompletedSong(currentTask.song)
-                            downloading = false
-                        } else if (status == DownloadManager.STATUS_FAILED) {
-                            _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
-                            downloading = false
+                        val bytesDownloaded = if (bytesDownloadedIndex != -1) cursor.getLong(bytesDownloadedIndex) else 0L
+                        val bytesTotal = if (bytesTotalIndex != -1) cursor.getLong(bytesTotalIndex) else -1L
+
+                        val progress = if (bytesTotal > 0) bytesDownloaded.toFloat() / bytesTotal else -1f
+
+                        when (status) {
+                            DownloadManager.STATUS_SUCCESSFUL -> {
+                                _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
+                                saveCompletedSong(currentTask.song)
+                                downloading = false
+                            }
+                            DownloadManager.STATUS_FAILED -> {
+                                _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
+                                downloading = false
+                            }
+                            DownloadManager.STATUS_PENDING, DownloadManager.STATUS_RUNNING -> {
+                                _tasks.update { it + (songId to currentTask.copy(
+                                    status = DownloadStatus.DOWNLOADING,
+                                    progress = progress
+                                )) }
+                            }
+                            else -> {
+                                // Keep previous state or progress
+                            }
                         }
                     }
                 } else {
-                    downloading = false
+                    // Check if task was completed via broadcast or removed
+                    val task = _tasks.value[songId]
+                    if (task?.status != DownloadStatus.COMPLETED) {
+                        downloading = false
+                    }
                 }
-                cursor.close()
-                delay(500)
+                cursor?.close()
+                delay(1000)
             }
         }
     }

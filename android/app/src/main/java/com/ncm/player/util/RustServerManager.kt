@@ -15,21 +15,7 @@ object RustServerManager {
         }
 
         val outFile = java.io.File(context.filesDir, "ncm-server")
-
-        // Check if the binary exists and has the correct size to avoid partial extractions
-        try {
-            val assetFileDescriptor = context.assets.openFd("bin/$assetName")
-            val assetSize = assetFileDescriptor.length
-            assetFileDescriptor.close()
-
-            if (outFile.exists() && outFile.length() == assetSize && outFile.canExecute()) {
-                Log.d(TAG, "Binary already exists with correct size, skipping extraction")
-                return outFile
-            }
-        } catch (e: Exception) {
-            // Fallback to simple check if openFd fails
-            if (outFile.exists() && outFile.canExecute()) return outFile
-        }
+        if (outFile.exists() && outFile.canExecute()) return outFile
 
         try {
             Log.d(TAG, "Extracting binary: bin/$assetName -> ${outFile.absolutePath}")
@@ -50,13 +36,13 @@ object RustServerManager {
     fun startServer(context: android.content.Context, port: Int = 3000) {
         if (process != null) return
 
-        val binary = extractServer(context) ?: run {
-            Log.e(TAG, "Fatal: No JNI and no binary available")
-            return
-        }
-
         Thread {
             try {
+                val binary = extractServer(context) ?: run {
+                    Log.e(TAG, "Fatal: No binary available for extraction")
+                    return@Thread
+                }
+
                 Log.d(TAG, "Starting server via binary: ${binary.absolutePath}")
                 val pb = ProcessBuilder(binary.absolutePath)
                 pb.environment()["NCM_PORT"] = port.toString()
@@ -72,7 +58,7 @@ object RustServerManager {
                 }
                 p.waitFor()
             } catch (e: Exception) {
-                Log.e(TAG, "Binary execution failed", e)
+                Log.e(TAG, "Binary execution or extraction failed", e)
             } finally {
                 process = null
             }

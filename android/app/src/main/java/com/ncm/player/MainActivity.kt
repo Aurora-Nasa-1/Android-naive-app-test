@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
 
                     LaunchedEffect(Unit) {
                         playerViewModel.initController(context)
-                        // Start the service explicitly if not running
+                        // Ensure service is running
                         try {
                             val serviceIntent = Intent(context, RustServerService::class.java)
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -65,51 +65,9 @@ class MainActivity : ComponentActivity() {
                         } catch (e: Exception) {
                             android.util.Log.e("MainActivity", "Failed to start RustServerService", e)
                         }
-
-                        // Simple check to wait for local server
-                        var attempts = 0
-                        android.util.Log.d("MainActivity", "Starting server check loop")
-                        val client = okhttp3.OkHttpClient.Builder()
-                            .connectTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
-                            .readTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
-                            .build()
-                        val request = okhttp3.Request.Builder().url("http://127.0.0.1:3000").build()
-
-                        while (attempts < 20) {
-                            try {
-                                withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    client.newCall(request).execute().use { response ->
-                                        android.util.Log.d("MainActivity", "Server check response: ${response.code}")
-                                        if (response.isSuccessful || response.code == 404 || response.code == 200) {
-                                            serverReady = true
-                                        }
-                                    }
-                                }
-                                if (serverReady) {
-                                    android.util.Log.d("MainActivity", "Server ready after $attempts attempts")
-                                    break
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.d("MainActivity", "Attempt $attempts failed: ${e.message}")
-                            }
-                            attempts++
-                            kotlinx.coroutines.delay(1000)
-                        }
-                        android.util.Log.w("MainActivity", "Server check timed out, proceeding anyway")
-                        serverReady = true // Fallback to let UI try anyway
                     }
 
-                    if (!serverReady) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                                CircularProgressIndicator()
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Starting local server...")
-                            }
-                        }
-                    } else {
-                        AppNavigation(loginViewModel, playerViewModel)
-                    }
+                    AppNavigation(loginViewModel, playerViewModel)
                 }
             }
         }

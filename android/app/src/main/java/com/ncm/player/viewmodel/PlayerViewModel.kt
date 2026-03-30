@@ -21,7 +21,7 @@ import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
 import java.net.URLEncoder
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -129,61 +129,78 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             while (retryCount < maxRetries) {
                 try {
-                    // Fetch Recommendations
-                    val recResponse = apiService.getRecommendSongs(cookie)
-                val recBody = recResponse.body()
-                val songsJson = recBody?.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
-                    ?: recBody?.get("dailySongs")?.asJsonArray
+                    coroutineScope {
+                        val recDeferred = async {
+                            val response = apiService.getRecommendSongs(cookie)
+                            val body = response.body()
+                            val songsJson = body?.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
+                                ?: body?.get("dailySongs")?.asJsonArray
 
-                recommendedSongs = songsJson?.map {
-                    val obj = it.asJsonObject
-                    Song(
-                        id = obj.get("id").asString,
-                        name = obj.get("name").asString,
-                        artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
-                        album = obj.get("al").asJsonObject.get("name").asString,
-                        albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
-                    )
-                } ?: emptyList()
+                            songsJson?.map {
+                                val obj = it.asJsonObject
+                                Song(
+                                    id = obj.get("id").asString,
+                                    name = obj.get("name").asString,
+                                    artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
+                                    album = obj.get("al").asJsonObject.get("name").asString,
+                                    albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
+                                )
+                            } ?: emptyList()
+                        }
 
-                // Fetch User Playlists
-                val statusResponse = apiService.loginStatus(cookie = cookie)
-                val statusBody = statusResponse.body()
-                val uid = statusBody?.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
-                    ?: statusBody?.get("account")?.asJsonObject?.get("id")?.asLong
-                    ?: statusBody?.get("profile")?.asJsonObject?.get("userId")?.asLong
-                    ?: 0L
+                        val userAndFavDeferred = async {
+                            val statusResponse = apiService.loginStatus(cookie = cookie)
+                            val statusBody = statusResponse.body()
+                            val uid = statusBody?.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
+                                ?: statusBody?.get("account")?.asJsonObject?.get("id")?.asLong
+                                ?: statusBody?.get("profile")?.asJsonObject?.get("userId")?.asLong
+                                ?: 0L
 
-                if (uid != 0L) {
-                    val plResponse = apiService.getUserPlaylist(uid, cookie)
-                    val playlistJson = plResponse.body()?.get("playlist")?.asJsonArray
-                    userPlaylists = playlistJson?.map {
-                        val obj = it.asJsonObject
-                        Playlist(
-                            id = obj.get("id").asLong,
-                            name = obj.get("name").asString,
-                            coverImgUrl = obj.get("coverImgUrl").asString,
-                            trackCount = obj.get("trackCount").asInt
-                        )
-                    } ?: emptyList()
+                            if (uid != 0L) {
+                                val plDeferred = async {
+                                    val plResponse = apiService.getUserPlaylist(uid, cookie)
+                                    val playlistJson = plResponse.body()?.get("playlist")?.asJsonArray
+                                    playlistJson?.map {
+                                        val obj = it.asJsonObject
+                                        Playlist(
+                                            id = obj.get("id").asLong,
+                                            name = obj.get("name").asString,
+                                            coverImgUrl = obj.get("coverImgUrl").asString,
+                                            trackCount = obj.get("trackCount").asInt
+                                        )
+                                    } ?: emptyList()
+                                }
 
-                    val favResponse = apiService.getLikeList(uid, cookie)
-                    val favJson = favResponse.body()?.get("ids")?.asJsonArray
-                    favoriteSongs = favJson?.map { it.asString } ?: emptyList()
-                }
-                isLoading = false
-                break // Success, exit retry loop
-            } catch (e: Exception) {
-                e.printStackTrace()
-                retryCount++
-                if (retryCount < maxRetries) {
-                    kotlinx.coroutines.delay(1000L * retryCount)
-                }
-            } finally {
-                if (retryCount == maxRetries) {
+                                val favDeferred = async {
+                                    val favResponse = apiService.getLikeList(uid, cookie)
+                                    val favJson = favResponse.body()?.get("ids")?.asJsonArray
+                                    favJson?.map { it.asString } ?: emptyList()
+                                }
+
+                                Pair(plDeferred.await(), favDeferred.await())
+                            } else {
+                                Pair(emptyList(), emptyList())
+                            }
+                        }
+
+                        recommendedSongs = recDeferred.await()
+                        val (playlists, favs) = userAndFavDeferred.await()
+                        userPlaylists = playlists
+                        favoriteSongs = favs
+                    }
                     isLoading = false
+                    break // Success, exit retry loop
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    retryCount++
+                    if (retryCount < maxRetries) {
+                        delay(1000L * retryCount)
+                    }
+                } finally {
+                    if (retryCount == maxRetries) {
+                        isLoading = false
+                    }
                 }
-            }
             }
         }
     }

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 import com.ncm.player.model.Playlist
 
@@ -99,7 +100,7 @@ fun SongCard(song: Song, onClick: () -> Unit) {
         ) {
             if (song.albumArtUrl != null) {
                 AsyncImage(
-                    model = song.albumArtUrl,
+                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 150),
                     contentDescription = null,
                     contentScale = ContentScale.Crop
                 )
@@ -146,7 +147,7 @@ fun SongItem(
             ) {
                 if (song.albumArtUrl != null) {
                     AsyncImage(
-                        model = song.albumArtUrl,
+                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 48),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )
@@ -185,7 +186,7 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
             ) {
                 if (playlist.coverImgUrl != null) {
                     AsyncImage(
-                        model = playlist.coverImgUrl,
+                        model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 48),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )

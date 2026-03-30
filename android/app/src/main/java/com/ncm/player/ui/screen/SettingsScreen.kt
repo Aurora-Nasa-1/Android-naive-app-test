@@ -1,6 +1,12 @@
 package com.ncm.player.ui.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -16,8 +22,28 @@ fun SettingsScreen(
     onQualityChange: (String) -> Unit,
     fadeDuration: Float,
     onFadeChange: (Float) -> Unit,
+    cacheSize: Int,
+    onCacheSizeChange: (Int) -> Unit,
+    useCellularCache: Boolean,
+    onUseCellularCacheChange: (Boolean) -> Unit,
+    downloadDir: String?,
+    onDownloadDirChange: (String) -> Unit,
+    onClearCache: () -> Unit,
     onBackPressed: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val dirPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            onDownloadDirChange(it.toString())
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -35,6 +61,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text("Sound Quality", style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.height(8.dp))
@@ -62,6 +89,49 @@ fun SettingsScreen(
                 onValueChange = onFadeChange,
                 valueRange = 0f..10f,
                 steps = 10
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+            Text("Playback Cache", style = MaterialTheme.typography.titleLarge)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Allow Cellular Data Caching")
+                Switch(
+                    checked = useCellularCache,
+                    onCheckedChange = onUseCellularCacheChange
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Max Cache Size: ${cacheSize}MB")
+            Slider(
+                value = cacheSize.toFloat(),
+                onValueChange = { onCacheSizeChange(it.toInt()) },
+                valueRange = 100f..2048f,
+                steps = 19
+            )
+
+            Button(
+                onClick = onClearCache,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Clear Playback Cache")
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+            Text("Download Settings", style = MaterialTheme.typography.titleLarge)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ListItem(
+                headlineContent = { Text("Download Directory") },
+                supportingContent = { Text(downloadDir ?: "Not set (Using system Music folder)") },
+                modifier = Modifier.clickable { dirPicker.launch(null) }
             )
         }
     }

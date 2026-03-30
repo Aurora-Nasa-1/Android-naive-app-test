@@ -8,6 +8,9 @@ object UserPreferences {
     private const val KEY_COOKIE = "cookie"
     private const val KEY_QUALITY = "quality"
     private const val KEY_FADE_DURATION = "fade_duration"
+    private const val KEY_CACHE_SIZE = "cache_size"
+    private const val KEY_USE_CELLULAR_CACHE = "use_cellular_cache"
+    private const val KEY_DOWNLOAD_DIR = "download_dir"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -35,5 +38,37 @@ object UserPreferences {
 
     fun getFadeDuration(context: Context): Float {
         return getPrefs(context).getFloat(KEY_FADE_DURATION, 2f)
+    }
+
+    fun saveCacheSize(context: Context, sizeMb: Int) {
+        getPrefs(context).edit().putInt(KEY_CACHE_SIZE, sizeMb).apply()
+    }
+
+    fun getCacheSize(context: Context): Int {
+        return getPrefs(context).getInt(KEY_CACHE_SIZE, 512) // Default 512MB
+    }
+
+    fun saveUseCellularCache(context: Context, use: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_USE_CELLULAR_CACHE, use).apply()
+    }
+
+    fun getUseCellularCache(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_USE_CELLULAR_CACHE, false)
+    }
+
+    fun saveDownloadDir(context: Context, uri: String) {
+        getPrefs(context).edit().putString(KEY_DOWNLOAD_DIR, uri).apply()
+    }
+
+    fun getDownloadDir(context: Context): String? {
+        return getPrefs(context).getString(KEY_DOWNLOAD_DIR, null)
+    }
+
+    fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {
+        getPrefs(context).edit().putString("sort_playlist_$playlistId", sortOrder).apply()
+    }
+
+    fun getPlaylistSort(context: Context, playlistId: Long): String {
+        return getPrefs(context).getString("sort_playlist_$playlistId", "default") ?: "default"
     }
 }

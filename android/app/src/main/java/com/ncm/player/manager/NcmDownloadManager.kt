@@ -73,6 +73,8 @@ class NcmDownloadManager(private val application: Application, private val apiSe
         if (_completedSongs.value.contains(song.id)) return
         if (_tasks.value.containsKey(song.id)) return
 
+        android.widget.Toast.makeText(application, "Starting download: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+
         val br = when (quality) {
             "standard" -> 128000
             "higher" -> 192000
@@ -119,8 +121,16 @@ class NcmDownloadManager(private val application: Application, private val apiSe
                     _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, downloadId)) }
 
                     trackProgress(song.id, downloadId)
+                } ?: run {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(application, "Failed to get download URL for ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
                 }
             } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(application, "Download failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
                 _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
             }
         }
@@ -139,33 +149,49 @@ class NcmDownloadManager(private val application: Application, private val apiSe
                     val bytesDownloadedIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
                     val bytesTotalIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
 
-                    val bytesDownloaded = cursor.getLong(bytesDownloadedIndex)
-                    val bytesTotal = cursor.getLong(bytesTotalIndex)
+                    if (bytesDownloadedIndex != -1 && bytesTotalIndex != -1) {
+                        val bytesDownloaded = cursor.getLong(bytesDownloadedIndex)
+                        val bytesTotal = cursor.getLong(bytesTotalIndex)
 
-                    val progress = if (bytesTotal > 0) bytesDownloaded.toFloat() / bytesTotal else 0f
+                        val progress = if (bytesTotal > 0) bytesDownloaded.toFloat() / bytesTotal else 0f
 
-                    val currentTask = _tasks.value[songId]
-                    if (currentTask == null) {
-                        downloading = false
-                    } else {
-                        when (status) {
-                            DownloadManager.STATUS_SUCCESSFUL -> {
-                                _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
-                                saveCompletedSong(currentTask.song)
-                                downloading = false
-                            }
-                            DownloadManager.STATUS_FAILED -> {
-                                _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
-                                downloading = false
-                            }
-                            else -> {
-                                _tasks.update { it + (songId to currentTask.copy(progress = progress)) }
+                        val currentTask = _tasks.value[songId]
+                        if (currentTask == null) {
+                            downloading = false
+                        } else {
+                            when (status) {
+                                DownloadManager.STATUS_SUCCESSFUL -> {
+                                    _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
+                                    saveCompletedSong(currentTask.song)
+                                    downloading = false
+                                }
+                                DownloadManager.STATUS_FAILED -> {
+                                    _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
+                                    downloading = false
+                                }
+                                else -> {
+                                    _tasks.update { it + (songId to currentTask.copy(progress = progress.coerceIn(0f, 1f))) }
+                                }
                             }
                         }
+                    } else {
+                        val currentTask = _tasks.value[songId]
+                        if (currentTask == null) {
+                            downloading = false
+                        } else if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                            _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
+                            saveCompletedSong(currentTask.song)
+                            downloading = false
+                        } else if (status == DownloadManager.STATUS_FAILED) {
+                            _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
+                            downloading = false
+                        }
                     }
+                } else {
+                    downloading = false
                 }
                 cursor.close()
-                delay(1000)
+                delay(500)
             }
         }
     }

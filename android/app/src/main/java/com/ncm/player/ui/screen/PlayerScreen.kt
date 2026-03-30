@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import coil3.compose.AsyncImage
+import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,7 +124,7 @@ fun PlayerScreen(
                 ) {
                 if (song.albumArtUrl != null) {
                     AsyncImage(
-                        model = song.albumArtUrl,
+                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 600),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )

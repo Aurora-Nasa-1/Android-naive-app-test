@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 
 @Composable
@@ -46,7 +47,7 @@ fun BottomPlaybackBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = song.albumArtUrl,
+                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)

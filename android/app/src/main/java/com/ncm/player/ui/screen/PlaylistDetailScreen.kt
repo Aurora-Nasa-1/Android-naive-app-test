@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
 
@@ -186,7 +187,7 @@ fun PlaylistDetailScreen(
                                 ) {
                                     if (song.albumArtUrl != null) {
                                         AsyncImage(
-                                            model = song.albumArtUrl,
+                                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop
                                         )
@@ -258,7 +259,7 @@ fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
         ) {
             if (playlist.coverImgUrl != null) {
                 AsyncImage(
-                    model = playlist.coverImgUrl,
+                    model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 400),
                     contentDescription = null,
                     contentScale = ContentScale.Crop
                 )

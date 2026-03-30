@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,30 +40,6 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            item {
-                ListItem(
-                    headlineContent = { Text("Liked Songs") },
-                    supportingContent = { Text("Playlist") },
-                    leadingContent = {
-                        Surface(
-                            modifier = Modifier.size(48.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Icon(
-                                Icons.Default.Favorite,
-                                contentDescription = null,
-                                modifier = Modifier.padding(8.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    },
-                    modifier = Modifier.clickable {
-                        // Typically, Liked Songs is a special playlist.
-                        // For now, let's assume the user can find it in their playlists or we handle it specially.
-                    }
-                )
-            }
             items(
                 items = userPlaylists,
                 key = { it.id },

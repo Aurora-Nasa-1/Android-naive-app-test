@@ -44,4 +44,13 @@ interface NcmApiService {
 
     @GET("lyric/new")
     suspend fun getLyric(@Query("id") id: String): Response<JsonObject>
+
+    @GET("cloudsearch")
+    suspend fun search(@Query("keywords") keywords: String, @Query("type") type: Int = 1, @Query("limit") limit: Int = 30): Response<JsonObject>
+
+    @GET("playlist/tracks")
+    suspend fun opPlaylistTracks(@Query("op") op: String, @Query("pid") pid: Long, @Query("tracks") tracks: String, @Query("cookie") cookie: String? = null): Response<JsonObject>
+
+    @GET("playlist/detail")
+    suspend fun getPlaylistDetail(@Query("id") id: Long, @Query("cookie") cookie: String? = null): Response<JsonObject>
 }

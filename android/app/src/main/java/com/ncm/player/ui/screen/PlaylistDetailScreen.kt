@@ -9,7 +9,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
@@ -36,17 +39,22 @@ fun PlaylistDetailScreen(
     playlist: Playlist,
     songs: List<Song>,
     favoriteSongs: List<String>,
+    allPlaylists: List<Playlist>,
     isLoading: Boolean,
     onSongClick: (Song) -> Unit,
     onPlayAllClick: (List<Song>) -> Unit,
     onQueueAllClick: (List<Song>) -> Unit,
     onLikeClick: (Song) -> Unit,
+    onAddToPlaylist: (List<String>, Long) -> Unit,
+    onRemoveFromPlaylist: (List<String>) -> Unit,
+    onBatchDownload: (List<Song>) -> Unit,
     onBackPressed: () -> Unit
 ) {
     val scrollState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(scrollState)
     var selectedSongs by remember { mutableStateOf(setOf<String>()) }
     var isSelectionMode by remember { mutableStateOf(false) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
 
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
@@ -76,6 +84,24 @@ fun PlaylistDetailScreen(
                         }) {
                             Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Queue")
                         }
+                        IconButton(onClick = { showAddToPlaylistDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add to Playlist")
+                        }
+                        IconButton(onClick = {
+                            onRemoveFromPlaylist(selectedSongs.toList())
+                            isSelectionMode = false
+                            selectedSongs = emptySet()
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Remove from Playlist")
+                        }
+                        IconButton(onClick = {
+                            val selectedList = songs.filter { selectedSongs.contains(it.id) }
+                            onBatchDownload(selectedList)
+                            isSelectionMode = false
+                            selectedSongs = emptySet()
+                        }) {
+                            Icon(Icons.Default.Download, contentDescription = "Download")
+                        }
                     }
                 )
             } else {
@@ -96,6 +122,32 @@ fun PlaylistDetailScreen(
             }
         }
     ) { innerPadding ->
+        if (showAddToPlaylistDialog) {
+            AlertDialog(
+                onDismissRequest = { showAddToPlaylistDialog = false },
+                title = { Text("Add to Playlist") },
+                text = {
+                    LazyColumn {
+                        items(allPlaylists) { p ->
+                            ListItem(
+                                headlineContent = { Text(p.name) },
+                                modifier = Modifier.clickable {
+                                    onAddToPlaylist(selectedSongs.toList(), p.id)
+                                    showAddToPlaylistDialog = false
+                                    isSelectionMode = false
+                                    selectedSongs = emptySet()
+                                }
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAddToPlaylistDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))

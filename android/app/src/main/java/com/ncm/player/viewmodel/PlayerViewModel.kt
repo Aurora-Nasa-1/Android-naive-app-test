@@ -634,15 +634,22 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 isLoading = true
                 val response = apiService.getPersonalFm(cookie)
-                val songsJson = response.body()?.get("data")?.asJsonArray
+                val body = response.body()
+                val songsJson = body?.get("data")?.asJsonArray ?: body?.get("result")?.asJsonArray
                 val songs = songsJson?.map {
                     val obj = it.asJsonObject
+                    val artists = obj.get("artists")?.asJsonArray ?: obj.get("ar")?.asJsonArray
+                    val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
+                    val album = obj.get("album")?.asJsonObject ?: obj.get("al")?.asJsonObject
+                    val albumName = album?.get("name")?.asString ?: "Unknown"
+                    val picUrl = album?.get("picUrl")?.asString
+
                     Song(
-                        id = obj.get("id").asString,
+                        id = obj.get("id").asJsonPrimitive.asString,
                         name = obj.get("name").asString,
-                        artist = obj.get("artists").asJsonArray.get(0).asJsonObject.get("name").asString,
-                        album = obj.get("album").asJsonObject.get("name").asString,
-                        albumArtUrl = obj.get("album").asJsonObject.get("picUrl").asString
+                        artist = artistName,
+                        album = albumName,
+                        albumArtUrl = picUrl
                     )
                 } ?: emptyList()
                 if (songs.isNotEmpty()) {
@@ -661,15 +668,24 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 isLoading = true
                 val response = apiService.getIntelligenceList(songId, playlistId, cookie)
-                val songsJson = response.body()?.get("data")?.asJsonArray
+                val body = response.body()
+                val songsJson = body?.get("data")?.asJsonArray
                 val songs = songsJson?.map {
-                    val obj = it.asJsonObject.get("songInfo").asJsonObject
+                    val item = it.asJsonObject
+                    val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
+
+                    val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
+                    val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
+                    val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
+                    val albumName = album?.get("name")?.asString ?: "Unknown"
+                    val picUrl = album?.get("picUrl")?.asString
+
                     Song(
-                        id = obj.get("id").asString,
+                        id = obj.get("id").asJsonPrimitive.asString,
                         name = obj.get("name").asString,
-                        artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
-                        album = obj.get("al").asJsonObject.get("name").asString,
-                        albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
+                        artist = artistName,
+                        album = albumName,
+                        albumArtUrl = picUrl
                     )
                 } ?: emptyList()
                 if (songs.isNotEmpty()) {

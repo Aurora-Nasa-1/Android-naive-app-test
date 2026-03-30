@@ -6,20 +6,6 @@ import android.util.Log
 object RustServerManager {
     private var process: Process? = null
     private const val TAG = "RustServer"
-    private var isNativeLoaded = false
-
-    init {
-        try {
-            System.loadLibrary("ncm_api")
-            isNativeLoaded = true
-            Log.i(TAG, "Native JNI library loaded successfully")
-        } catch (e: UnsatisfiedLinkError) {
-            Log.w(TAG, "Native library ncm_api not found, will fallback to binary")
-        }
-    }
-
-    @JvmStatic
-    private external fun startNativeServer(host: String, port: Int)
 
     fun extractServer(context: android.content.Context): java.io.File? {
         val abi = android.os.Build.SUPPORTED_ABIS[0]
@@ -46,16 +32,6 @@ object RustServerManager {
     }
 
     fun startServer(context: android.content.Context, port: Int = 3000) {
-        if (isNativeLoaded) {
-            Log.d(TAG, "Starting server via JNI on port $port")
-            try {
-                startNativeServer("127.0.0.1", port)
-                return
-            } catch (e: Exception) {
-                Log.e(TAG, "JNI start failed, trying binary fallback", e)
-            }
-        }
-
         if (process != null) return
 
         val binary = extractServer(context) ?: run {

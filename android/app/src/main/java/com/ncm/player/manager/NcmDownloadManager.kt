@@ -111,61 +111,60 @@ class NcmDownloadManager(private val application: Application, private val apiSe
 
         scope.launch {
             try {
-                // Construct the download URL manually to ensure it uses the local server's redirect logic
-                val encodedCookie = if (!cookie.isNullOrEmpty()) URLEncoder.encode(cookie, "UTF-8") else ""
-                val downloadUrl = "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$quality&cookie=$encodedCookie"
+                // Fetch the actual audio URL via the API first
+                val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
+                val body = response.body()
+                android.util.Log.d("NcmDownload", "API response: $body")
+                var url = com.ncm.player.util.JsonUtils.findUrl(body)
 
-                android.util.Log.d("NcmDownload", "Requesting download from: $downloadUrl")
-
-                val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-                val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-                val fileName = "$sanitizedName - $sanitizedArtist.mp3"
-
-                val request = DownloadManager.Request(Uri.parse(downloadUrl))
-                    .setTitle("Downloading ${song.name}")
-                    .setDescription("${song.artist} - ${song.album}")
-                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    .setAllowedOverMetered(true)
-                    .setAllowedOverRoaming(true)
-
-                // Ensure the directory exists
-                val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-                val ncmDir = File(musicDir, "NCMPlayer")
-                if (!ncmDir.exists()) {
-                    ncmDir.mkdirs()
+                if (url == null) {
+                    android.util.Log.d("NcmDownload", "Primary URL null, trying fallback")
+                    val fallbackResp = apiService.getSongUrl(song.id, level = quality)
+                    val fallbackBody = fallbackResp.body()
+                    android.util.Log.d("NcmDownload", "Fallback response: $fallbackBody")
+                    url = com.ncm.player.util.JsonUtils.findUrl(fallbackBody)
                 }
 
-                // Use a simpler destination approach to avoid URI issues
-                val destFile = File(ncmDir, fileName)
-                // DownloadManager expects a URI for the destination, but setDestinationInExternalPublicDir takes a relative path.
-                // The error "not a file URL" often comes from DownloadManager when the provided URI is not a "file://" scheme.
-                // However, setDestinationInExternalPublicDir should handle it.
-                // Let's try to use setDestinationUri with a proper file:// URI as a fallback if this is where it fails.
+                if (url != null && url.startsWith("http")) {
+                    val downloadUrl = url
+                    val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    val fileName = "$sanitizedName - $sanitizedArtist.mp3"
 
-                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
+                    val request = DownloadManager.Request(Uri.parse(downloadUrl))
+                        .setTitle("Downloading ${song.name}")
+                        .setDescription("${song.artist} - ${song.album}")
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setAllowedOverMetered(true)
+                        .setAllowedOverRoaming(true)
 
-                val downloadId = try {
-                    downloadManager.enqueue(request)
-                } catch (e: Exception) {
-                    if (e.message?.contains("not a file URL") == true) {
-                        android.util.Log.w("NcmDownload", "DownloadManager failed with 'not a file URL', trying setDestinationUri fallback")
-                        val fallbackRequest = DownloadManager.Request(Uri.parse(downloadUrl))
-                            .setTitle("Downloading ${song.name}")
-                            .setDescription("${song.artist} - ${song.album}")
-                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                            .setAllowedOverMetered(true)
-                            .setAllowedOverRoaming(true)
-                            .setDestinationUri(Uri.fromFile(destFile))
-                        downloadManager.enqueue(fallbackRequest)
-                    } else {
+                    // Ensure the directory exists
+                    val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+                    val ncmDir = File(musicDir, "NCMPlayer")
+                    if (!ncmDir.exists()) {
+                        ncmDir.mkdirs()
+                    }
+
+                    // Use setDestinationInExternalPublicDir.
+                    // The "not a file URL" issue is often because the path provided is already an absolute path
+                    // or somehow incorrectly formatted. Using the simple subPath should be correct.
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
+
+                    val downloadId = try {
+                        downloadManager.enqueue(request)
+                    } catch (e: Exception) {
                         android.util.Log.e("NcmDownload", "Failed to enqueue download", e)
                         throw e
                     }
+
+                    _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, downloadId)) }
+                    trackProgress(song.id, downloadId)
+                } else {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(application, "No valid audio URL found for ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
                 }
-
-                _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, downloadId)) }
-                trackProgress(song.id, downloadId)
-
             } catch (e: Exception) {
                 android.util.Log.e("NcmDownload", "Download error", e)
                 withContext(Dispatchers.Main) {

@@ -111,6 +111,7 @@ class NcmDownloadManager(private val application: Application, private val apiSe
 
         scope.launch {
             try {
+                // Fetch the actual audio URL via the API first
                 val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
                 val body = response.body()
                 android.util.Log.d("NcmDownload", "API response: $body")
@@ -137,12 +138,26 @@ class NcmDownloadManager(private val application: Application, private val apiSe
                         .setAllowedOverMetered(true)
                         .setAllowedOverRoaming(true)
 
-                    // Always download to standard public directory first to avoid SAF URI issues with DownloadManager
+                    // Ensure the directory exists
+                    val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+                    val ncmDir = File(musicDir, "NCMPlayer")
+                    if (!ncmDir.exists()) {
+                        ncmDir.mkdirs()
+                    }
+
+                    // Use setDestinationInExternalPublicDir.
+                    // The "not a file URL" issue is often because the path provided is already an absolute path
+                    // or somehow incorrectly formatted. Using the simple subPath should be correct.
                     request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
 
-                    val downloadId = downloadManager.enqueue(request)
-                    _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, downloadId)) }
+                    val downloadId = try {
+                        downloadManager.enqueue(request)
+                    } catch (e: Exception) {
+                        android.util.Log.e("NcmDownload", "Failed to enqueue download", e)
+                        throw e
+                    }
 
+                    _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, downloadId)) }
                     trackProgress(song.id, downloadId)
                 } else {
                     withContext(Dispatchers.Main) {
@@ -151,6 +166,7 @@ class NcmDownloadManager(private val application: Application, private val apiSe
                     _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("NcmDownload", "Download error", e)
                 withContext(Dispatchers.Main) {
                     android.widget.Toast.makeText(application, "Download failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                 }
@@ -224,7 +240,11 @@ class NcmDownloadManager(private val application: Application, private val apiSe
     fun cancelDownload(songId: String) {
         val task = _tasks.value[songId] ?: return
         if (task.downloadId != -1L) {
-            downloadManager.remove(task.downloadId)
+            try {
+                downloadManager.remove(task.downloadId)
+            } catch (e: Exception) {
+                android.util.Log.e("NcmDownload", "Failed to remove download: ${task.downloadId}", e)
+            }
         }
         _tasks.update { it - songId }
     }

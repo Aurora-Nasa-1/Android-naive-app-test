@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
                         playerViewModel.initController(context)
                         // Simple check to wait for local server
                         var attempts = 0
+                        android.util.Log.d("MainActivity", "Starting server check loop")
                         while (attempts < 15) {
                             try {
                                 val client = okhttp3.OkHttpClient.Builder()
@@ -67,8 +68,13 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 }
-                                if (serverReady) return@LaunchedEffect
-                            } catch (e: Exception) {}
+                                if (serverReady) {
+                                    android.util.Log.d("MainActivity", "Server ready after $attempts attempts")
+                                    return@LaunchedEffect
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.d("MainActivity", "Attempt $attempts failed: ${e.message}")
+                            }
                             attempts++
                             kotlinx.coroutines.delay(1000)
                         }

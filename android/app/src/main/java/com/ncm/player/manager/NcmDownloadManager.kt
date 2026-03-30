@@ -54,7 +54,7 @@ class NcmDownloadManager(private val application: Application, private val apiSe
         _completedSongs.value = completed
     }
 
-    private fun saveCompletedSong(song: Song) {
+    private fun saveCompletedSong(song: Song, downloadId: Long = -1) {
         val prefs = UserPreferences.getPrefs(application)
         val current = prefs.getStringSet("completed_downloads", emptySet())?.toMutableSet() ?: mutableSetOf()
         current.add(song.id)
@@ -67,6 +67,40 @@ class NcmDownloadManager(private val application: Application, private val apiSe
             .apply()
 
         _completedSongs.update { it + song.id }
+
+        // Copy to custom directory if set
+        if (downloadId != -1L) {
+            val userDownloadDir = UserPreferences.getDownloadDir(application)
+            if (userDownloadDir != null) {
+                scope.launch {
+                    try {
+                        val uri = downloadManager.getUriForDownloadedFile(downloadId)
+                        if (uri != null) {
+                            val treeUri = Uri.parse(userDownloadDir)
+                            val tree = DocumentFile.fromTreeUri(application, treeUri)
+                            val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                            val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                            val fileName = "$sanitizedName - $sanitizedArtist.mp3"
+                            val file = tree?.createFile("audio/mpeg", fileName)
+
+                            if (file != null) {
+                                application.contentResolver.openInputStream(uri)?.use { input ->
+                                    application.contentResolver.openOutputStream(file.uri)?.use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                                // Optionally delete from public music dir if copy was successful
+                                // application.contentResolver.delete(uri, null, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+
+        android.widget.Toast.makeText(application, "Download completed: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     fun downloadSong(song: Song, cookie: String?, quality: String = "standard") {
@@ -78,14 +112,24 @@ class NcmDownloadManager(private val application: Application, private val apiSe
         scope.launch {
             try {
                 val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
-                var url = com.ncm.player.util.JsonUtils.findUrl(response.body())
+                val body = response.body()
+                android.util.Log.d("NcmDownload", "API response: $body")
+                var url = com.ncm.player.util.JsonUtils.findUrl(body)
 
                 if (url == null) {
+                    android.util.Log.d("NcmDownload", "Primary URL null, trying fallback")
                     val fallbackResp = apiService.getSongUrl(song.id, level = quality)
-                    url = com.ncm.player.util.JsonUtils.findUrl(fallbackResp.body())
+                    val fallbackBody = fallbackResp.body()
+                    android.util.Log.d("NcmDownload", "Fallback response: $fallbackBody")
+                    url = com.ncm.player.util.JsonUtils.findUrl(fallbackBody)
                 }
 
-                url?.let { downloadUrl ->
+                if (url != null && url.startsWith("http")) {
+                    val downloadUrl = url
+                    val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    val fileName = "$sanitizedName - $sanitizedArtist.mp3"
+
                     val request = DownloadManager.Request(Uri.parse(downloadUrl))
                         .setTitle("Downloading ${song.name}")
                         .setDescription("${song.artist} - ${song.album}")
@@ -93,33 +137,16 @@ class NcmDownloadManager(private val application: Application, private val apiSe
                         .setAllowedOverMetered(true)
                         .setAllowedOverRoaming(true)
 
-                    val userDownloadDir = UserPreferences.getDownloadDir(application)
-                    val fileName = "${song.name} - ${song.artist}.mp3"
-
-                    if (userDownloadDir != null) {
-                        try {
-                            val treeUri = Uri.parse(userDownloadDir)
-                            val tree = DocumentFile.fromTreeUri(application, treeUri)
-                            val file = tree?.createFile("audio/mpeg", fileName)
-                            file?.uri?.let { destinationUri ->
-                                request.setDestinationUri(destinationUri)
-                            } ?: run {
-                                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
-                            }
-                        } catch (e: Exception) {
-                            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
-                        }
-                    } else {
-                        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
-                    }
+                    // Always download to standard public directory first to avoid SAF URI issues with DownloadManager
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
 
                     val downloadId = downloadManager.enqueue(request)
                     _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, downloadId)) }
 
                     trackProgress(song.id, downloadId)
-                } ?: run {
+                } else {
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(application, "Failed to get download URL for ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(application, "No valid audio URL found for ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
                     }
                     _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
                 }
@@ -157,7 +184,7 @@ class NcmDownloadManager(private val application: Application, private val apiSe
                         when (status) {
                             DownloadManager.STATUS_SUCCESSFUL -> {
                                 _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
-                                saveCompletedSong(currentTask.song)
+                                saveCompletedSong(currentTask.song, downloadId)
                                 downloading = false
                             }
                             DownloadManager.STATUS_FAILED -> {
@@ -188,8 +215,10 @@ class NcmDownloadManager(private val application: Application, private val apiSe
         val entry = _tasks.value.entries.find { it.value.downloadId == downloadId } ?: return
         val songId = entry.key
         val task = entry.value
-        _tasks.update { it + (songId to task.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
-        saveCompletedSong(task.song)
+        if (task.status != DownloadStatus.COMPLETED) {
+            _tasks.update { it + (songId to task.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
+            saveCompletedSong(task.song, downloadId)
+        }
     }
 
     fun cancelDownload(songId: String) {

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
@@ -50,6 +51,9 @@ fun PlaylistDetailScreen(
     onAddToPlaylist: (List<String>, Long) -> Unit,
     onRemoveFromPlaylist: (List<String>) -> Unit,
     onBatchDownload: (List<Song>) -> Unit,
+    completedSongs: Set<String> = emptySet(),
+    isFirstDownload: Boolean = false,
+    onDownloadQualityChange: (String) -> Unit = {},
     onSortChange: (String) -> Unit = {},
     onBackPressed: () -> Unit
 ) {
@@ -59,10 +63,36 @@ fun PlaylistDetailScreen(
     var isSelectionMode by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var pendingDownloadSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
     BackHandler(enabled = isSelectionMode) {
         isSelectionMode = false
         selectedSongs = emptySet()
+    }
+
+    if (showQualityDialog) {
+        AlertDialog(
+            onDismissRequest = { showQualityDialog = false },
+            title = { Text("Select Download Quality") },
+            text = {
+                val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
+                Column {
+                    Text("This will be saved as your default. You can change it in Settings.")
+                    qualities.forEach { q ->
+                        ListItem(
+                            headlineContent = { Text(q.replaceFirstChar { it.uppercase() }) },
+                            modifier = Modifier.clickable {
+                                onDownloadQualityChange(q)
+                                onBatchDownload(pendingDownloadSongs)
+                                showQualityDialog = false
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {}
+        )
     }
 
     Scaffold(
@@ -100,7 +130,12 @@ fun PlaylistDetailScreen(
                         }
                         IconButton(onClick = {
                             val selectedList = songs.filter { selectedSongs.contains(it.id) }
-                            onBatchDownload(selectedList)
+                            if (isFirstDownload) {
+                                pendingDownloadSongs = selectedList
+                                showQualityDialog = true
+                            } else {
+                                onBatchDownload(selectedList)
+                            }
                             isSelectionMode = false
                             selectedSongs = emptySet()
                         }) {
@@ -138,7 +173,15 @@ fun PlaylistDetailScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text("Download All") },
-                                onClick = { onBatchDownload(songs); showSortMenu = false }
+                                onClick = {
+                                    if (isFirstDownload) {
+                                        pendingDownloadSongs = songs
+                                        showQualityDialog = true
+                                    } else {
+                                        onBatchDownload(songs)
+                                    }
+                                    showSortMenu = false
+                                }
                             )
                             Divider()
                             val context = androidx.compose.ui.platform.LocalContext.current
@@ -207,9 +250,22 @@ fun PlaylistDetailScreen(
                     contentType = { "song" }
                 ) { song ->
                     val isSelected = selectedSongs.contains(song.id)
+                    val isDownloaded = completedSongs.contains(song.id)
                     ListItem(
                         headlineContent = { Text(song.name) },
-                        supportingContent = { Text(song.artist) },
+                        supportingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isDownloaded) {
+                                    Icon(
+                                        Icons.Default.DownloadDone,
+                                        contentDescription = "Downloaded",
+                                        modifier = Modifier.size(16.dp).padding(end = 4.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Text(song.artist)
+                            }
+                        },
                         leadingContent = {
                             if (isSelectionMode) {
                                 Checkbox(checked = isSelected, onCheckedChange = {

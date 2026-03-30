@@ -11,6 +11,8 @@ object UserPreferences {
     private const val KEY_CACHE_SIZE = "cache_size"
     private const val KEY_USE_CELLULAR_CACHE = "use_cellular_cache"
     private const val KEY_DOWNLOAD_DIR = "download_dir"
+    private const val KEY_DOWNLOAD_QUALITY = "download_quality"
+    private const val KEY_FIRST_DOWNLOAD = "first_download"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -62,6 +64,22 @@ object UserPreferences {
 
     fun getDownloadDir(context: Context): String? {
         return getPrefs(context).getString(KEY_DOWNLOAD_DIR, null)
+    }
+
+    fun saveDownloadQuality(context: Context, quality: String) {
+        getPrefs(context).edit().putString(KEY_DOWNLOAD_QUALITY, quality).apply()
+    }
+
+    fun getDownloadQuality(context: Context): String {
+        return getPrefs(context).getString(KEY_DOWNLOAD_QUALITY, "standard") ?: "standard"
+    }
+
+    fun isFirstDownload(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_FIRST_DOWNLOAD, true)
+    }
+
+    fun setFirstDownloadComplete(context: Context) {
+        getPrefs(context).edit().putBoolean(KEY_FIRST_DOWNLOAD, false).apply()
     }
 
     fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {

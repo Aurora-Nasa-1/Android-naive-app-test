@@ -39,6 +39,7 @@ fun PlayerScreen(
     repeatMode: Int = Player.REPEAT_MODE_OFF,
     shuffleMode: Boolean = false,
     isFavorite: Boolean = false,
+    isDownloaded: Boolean = false,
     allPlaylists: List<com.ncm.player.model.Playlist> = emptyList(),
     onLikeClick: () -> Unit = {},
     onDownloadClick: () -> Unit = {},
@@ -100,8 +101,13 @@ fun PlayerScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                title = { Text("Playing", color = Color.White) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                ),
+                title = { Text("Playing") },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -266,7 +272,11 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onDownloadClick) {
-                        Icon(Icons.Default.Download, contentDescription = "Download")
+                        Icon(
+                            if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
+                            contentDescription = "Download",
+                            tint = if (isDownloaded) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
                     }
                     IconButton(onClick = onLyricClick) {
                         Icon(Icons.Default.Lyrics, contentDescription = "Lyrics")

@@ -19,4 +19,4 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose --lib --tests error query
+      run: cargo test --verbose --lib --test error --test query

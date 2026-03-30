@@ -251,6 +251,10 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                             navController.navigate("lyrics")
                         }
                     },
+                    allPlaylists = playerViewModel.userPlaylists,
+                    onAddToPlaylist = { songId, pid ->
+                        playerViewModel.addSongsToPlaylist(pid, listOf(songId), loginViewModel.cookie)
+                    },
                     onBackPressed = { navController.popBackStack() }
                 )
             }

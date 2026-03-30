@@ -26,9 +26,7 @@ import com.ncm.player.model.Playlist
 @Composable
 fun MainScreen(
     recommendedSongs: List<Song>,
-    userPlaylists: List<Playlist>,
     onSongClick: (Song) -> Unit,
-    onPlaylistClick: (Playlist) -> Unit,
     onLikeClick: (Song) -> Unit,
     favoriteSongs: List<String>,
     onNavigateToSettings: () -> Unit
@@ -70,17 +68,18 @@ fun MainScreen(
 
             item(contentType = "header") {
                 Text(
-                    "My Playlists",
+                    "Recommended for you",
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
+                    modifier = Modifier.padding(16.dp)
                 )
             }
-            items(
-                items = userPlaylists,
-                key = { it.id },
-                contentType = { "playlist" }
-            ) { playlist ->
-                PlaylistItem(playlist, onClick = { onPlaylistClick(playlist) })
+            items(recommendedSongs.take(10)) { song ->
+                SongItem(
+                    song = song,
+                    isFavorite = favoriteSongs.contains(song.id),
+                    onLikeClick = { onLikeClick(song) },
+                    onClick = { onSongClick(song) }
+                )
             }
         }
     }

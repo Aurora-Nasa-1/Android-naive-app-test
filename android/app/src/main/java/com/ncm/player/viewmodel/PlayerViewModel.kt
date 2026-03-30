@@ -48,6 +48,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var userPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
     var playlistSongs by mutableStateOf<List<Song>>(emptyList())
+    var searchResults by mutableStateOf<List<Song>>(emptyList())
     var currentLyrics by mutableStateOf<String?>(null)
     var isLoading by mutableStateOf(false)
 
@@ -185,6 +186,65 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             }
             }
         }
+    }
+
+    fun searchSongs(keywords: String) {
+        if (keywords.isBlank()) {
+            searchResults = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                val response = apiService.search(keywords)
+                val songsJson = response.body()?.get("result")?.asJsonObject?.get("songs")?.asJsonArray
+                searchResults = songsJson?.map {
+                    val obj = it.asJsonObject
+                    Song(
+                        id = obj.get("id").asString,
+                        name = obj.get("name").asString,
+                        artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
+                        album = obj.get("al").asJsonObject.get("name").asString,
+                        albumArtUrl = obj.get("al").asJsonObject.get("picUrl")?.asString
+                    )
+                } ?: emptyList()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun addSongsToPlaylist(playlistId: Long, songIds: List<String>, cookie: String?) {
+        viewModelScope.launch {
+            try {
+                val tracks = songIds.joinToString(",")
+                apiService.opPlaylistTracks("add", playlistId, tracks, cookie)
+                // Optionally refresh playlist songs if we are viewing it
+                if (playlistSongs.any { songIds.contains(it.id) }) {
+                    fetchPlaylistSongs(playlistId, cookie)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun removeSongsFromPlaylist(playlistId: Long, songIds: List<String>, cookie: String?) {
+        viewModelScope.launch {
+            try {
+                val tracks = songIds.joinToString(",")
+                apiService.opPlaylistTracks("del", playlistId, tracks, cookie)
+                fetchPlaylistSongs(playlistId, cookie)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun batchDownload(songs: List<Song>, cookie: String?) {
+        songs.forEach { downloadSong(it, cookie) }
     }
 
     fun fetchPlaylistSongs(playlistId: Long, cookie: String?) {

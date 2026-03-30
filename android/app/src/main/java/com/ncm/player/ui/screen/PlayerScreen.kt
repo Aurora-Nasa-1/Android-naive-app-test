@@ -1,12 +1,14 @@
 package com.ncm.player.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,9 +37,11 @@ fun PlayerScreen(
     repeatMode: Int = Player.REPEAT_MODE_OFF,
     shuffleMode: Boolean = false,
     isFavorite: Boolean = false,
+    allPlaylists: List<com.ncm.player.model.Playlist> = emptyList(),
     onLikeClick: () -> Unit = {},
     onDownloadClick: () -> Unit = {},
     onLyricClick: () -> Unit = {},
+    onAddToPlaylist: (String, Long) -> Unit = { _, _ -> },
     onBackPressed: () -> Unit
 ) {
     if (song == null) {
@@ -45,6 +49,33 @@ fun PlayerScreen(
             CircularProgressIndicator()
         }
         return
+    }
+
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+
+    if (showAddToPlaylistDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddToPlaylistDialog = false },
+            title = { Text("Add to Playlist") },
+            text = {
+                androidx.compose.foundation.lazy.LazyColumn {
+                    items(allPlaylists) { p ->
+                        ListItem(
+                            headlineContent = { Text(p.name) },
+                            modifier = Modifier.clickable {
+                                onAddToPlaylist(song.id, p.id)
+                                showAddToPlaylistDialog = false
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAddToPlaylistDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -222,7 +253,7 @@ fun PlayerScreen(
                     IconButton(onClick = onLyricClick) {
                         Icon(Icons.Default.Lyrics, contentDescription = "Lyrics")
                     }
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = { showAddToPlaylistDialog = true }) {
                         Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
                     }
                 }

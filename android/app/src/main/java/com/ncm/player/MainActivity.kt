@@ -5,10 +5,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -37,6 +36,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         setContent {
             NCMPlayerTheme {
@@ -62,6 +62,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
     val currentDestination = navBackStackEntry?.destination
 
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (loginViewModel.isLogged) {
                 Column {
@@ -105,7 +106,10 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
         NavHost(
             navController = navController,
             startDestination = if (loginViewModel.isLogged) "main" else "login",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             composable("login") {
                 LoginScreen(loginViewModel, onLoginSuccess = {
@@ -123,14 +127,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 }
                 MainScreen(
                     recommendedSongs = playerViewModel.recommendedSongs,
-                    userPlaylists = playerViewModel.userPlaylists,
                     onSongClick = { song ->
                         playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
                         navController.navigate("player")
-                    },
-                    onPlaylistClick = { playlist ->
-                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
-                        navController.navigate("playlist/${playlist.id}")
                     },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
@@ -143,14 +142,32 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 )
             }
             composable("search") {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    Text("Search Screen", modifier = Modifier.padding(16.dp))
-                }
+                SearchScreen(
+                    searchResults = playerViewModel.searchResults,
+                    favoriteSongs = playerViewModel.favoriteSongs,
+                    isLoading = playerViewModel.isLoading,
+                    onSearch = { playerViewModel.searchSongs(it) },
+                    onSongClick = { song ->
+                        playerViewModel.playSong(song, playerViewModel.searchResults, loginViewModel.cookie)
+                        navController.navigate("player")
+                    },
+                    onLikeClick = { song ->
+                        val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                        playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                    }
+                )
             }
             composable("library") {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    Text("Library Screen", modifier = Modifier.padding(16.dp))
-                }
+                LibraryScreen(
+                    userPlaylists = playerViewModel.userPlaylists,
+                    onPlaylistClick = { playlist ->
+                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                        navController.navigate("playlist/${playlist.id}")
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate("settings")
+                    }
+                )
             }
             composable("playlist/{playlistId}") { backStackEntry ->
                 val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
@@ -161,6 +178,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         playlist = playlist,
                         songs = playerViewModel.playlistSongs,
                         favoriteSongs = playerViewModel.favoriteSongs,
+                        allPlaylists = playerViewModel.userPlaylists,
                         isLoading = playerViewModel.isLoading,
                         onSongClick = { song ->
                             playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
@@ -178,6 +196,15 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         onLikeClick = { song ->
                             val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
                             playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                        },
+                        onAddToPlaylist = { songIds, pid ->
+                            playerViewModel.addSongsToPlaylist(pid, songIds, loginViewModel.cookie)
+                        },
+                        onRemoveFromPlaylist = { songIds ->
+                            playerViewModel.removeSongsFromPlaylist(playlistId, songIds, loginViewModel.cookie)
+                        },
+                        onBatchDownload = { songs ->
+                            playerViewModel.batchDownload(songs, loginViewModel.cookie)
                         },
                         onBackPressed = { navController.popBackStack() }
                     )
@@ -223,6 +250,10 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                             playerViewModel.fetchLyrics(song.id)
                             navController.navigate("lyrics")
                         }
+                    },
+                    allPlaylists = playerViewModel.userPlaylists,
+                    onAddToPlaylist = { songId, pid ->
+                        playerViewModel.addSongsToPlaylist(pid, listOf(songId), loginViewModel.cookie)
                     },
                     onBackPressed = { navController.popBackStack() }
                 )

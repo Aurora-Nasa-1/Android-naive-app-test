@@ -95,6 +95,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, "Deleting song...", android.widget.Toast.LENGTH_SHORT).show()
+                }
                 val deleted = if (uri.scheme == "content") {
                     // Try content resolver first for system-managed files
                     try {

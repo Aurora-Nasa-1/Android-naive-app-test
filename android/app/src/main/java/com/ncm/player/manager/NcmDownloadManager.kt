@@ -78,7 +78,14 @@ class NcmDownloadManager(private val application: Application, private val apiSe
         scope.launch {
             try {
                 val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
-                val url = response.body()?.get("data")?.asJsonArray?.get(0)?.asJsonObject?.get("url")?.asString
+                val data = response.body()?.get("data")
+
+                val url = when {
+                    data == null -> null
+                    data.isJsonArray -> data.asJsonArray.get(0)?.asJsonObject?.get("url")?.asString
+                    data.isJsonObject -> data.asJsonObject.get("url")?.asString
+                    else -> null
+                }
 
                 url?.let { downloadUrl ->
                     val request = DownloadManager.Request(Uri.parse(downloadUrl))
@@ -159,26 +166,22 @@ class NcmDownloadManager(private val application: Application, private val apiSe
                                 _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
                                 downloading = false
                             }
-                            DownloadManager.STATUS_PENDING, DownloadManager.STATUS_RUNNING -> {
+                            DownloadManager.STATUS_PENDING, DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PAUSED -> {
                                 _tasks.update { it + (songId to currentTask.copy(
                                     status = DownloadStatus.DOWNLOADING,
                                     progress = progress
                                 )) }
                             }
-                            else -> {
-                                // Keep previous state or progress
-                            }
                         }
                     }
                 } else {
-                    // Check if task was completed via broadcast or removed
                     val task = _tasks.value[songId]
                     if (task?.status != DownloadStatus.COMPLETED) {
                         downloading = false
                     }
                 }
                 cursor?.close()
-                delay(1000)
+                delay(500)
             }
         }
     }

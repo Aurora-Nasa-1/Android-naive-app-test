@@ -1,5 +1,7 @@
 package com.ncm.player.ui.screen
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -180,12 +182,20 @@ fun PlayerScreen(
                             )
                         }
                         IconButton(onClick = onLikeClick) {
+                        AnimatedContent(
+                            targetState = isFavorite,
+                            transitionSpec = {
+                                scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
+                                scaleOut()
+                            }
+                        ) { targetFavorite ->
                             Icon(
-                                if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "Like",
                                 modifier = Modifier.size(32.dp),
-                                tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             )
+                        }
                         }
                     }
 
@@ -239,11 +249,19 @@ fun PlayerScreen(
                         containerColor = Color.White,
                         contentColor = Color.Black
                     ) {
-                        Icon(
-                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Play/Pause",
-                            modifier = Modifier.size(40.dp)
-                        )
+                        AnimatedContent(
+                            targetState = isPlaying,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
+                                fadeOut(animationSpec = tween(200)) + scaleOut()
+                            }
+                        ) { targetPlaying ->
+                            Icon(
+                                if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Play/Pause",
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
                     }
                     IconButton(onClick = onSkipNext) {
                         Icon(

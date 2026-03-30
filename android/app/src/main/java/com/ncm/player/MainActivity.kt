@@ -20,6 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -115,6 +117,8 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                             song = playerViewModel.currentSong,
                             isPlaying = playerViewModel.isPlaying,
                             onPlayPause = { playerViewModel.togglePlayPause() },
+                            onSkipNext = { playerViewModel.skipNext() },
+                            onSkipPrevious = { playerViewModel.skipPrevious() },
                             onClick = {
                                 navController.navigate("player")
                             }
@@ -153,7 +157,19 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .consumeWindowInsets(innerPadding)
+                .consumeWindowInsets(innerPadding),
+            enterTransition = {
+                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300))
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.95f, animationSpec = tween(300))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 1.05f, animationSpec = tween(300))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1.05f, animationSpec = tween(300))
+            }
         ) {
             composable("login") {
                 LoginScreen(loginViewModel, onLoginSuccess = {
@@ -306,7 +322,37 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onBackPressed = { navController.popBackStack() }
                 )
             }
-            composable("player") {
+            composable(
+                "player",
+                enterTransition = {
+                    slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = tween(600, easing = EaseInOutQuart)
+                    ) + fadeIn(animationSpec = tween(500)) +
+                    scaleIn(initialScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                },
+                exitTransition = {
+                    slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = tween(600, easing = EaseInOutQuart)
+                    ) + fadeOut(animationSpec = tween(500)) +
+                    scaleOut(targetScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                },
+                popEnterTransition = {
+                    slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = tween(600, easing = EaseInOutQuart)
+                    ) + fadeIn(animationSpec = tween(500)) +
+                    scaleIn(initialScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                },
+                popExitTransition = {
+                    slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = tween(600, easing = EaseInOutQuart)
+                    ) + fadeOut(animationSpec = tween(500)) +
+                    scaleOut(targetScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                }
+            ) {
                 val currentSong = playerViewModel.currentSong
                 val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
                 val isFavorite = currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false

@@ -78,13 +78,11 @@ class NcmDownloadManager(private val application: Application, private val apiSe
         scope.launch {
             try {
                 val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
-                val data = response.body()?.get("data")
+                var url = com.ncm.player.util.JsonUtils.findUrl(response.body())
 
-                val url = when {
-                    data == null -> null
-                    data.isJsonArray -> data.asJsonArray.get(0)?.asJsonObject?.get("url")?.asString
-                    data.isJsonObject -> data.asJsonObject.get("url")?.asString
-                    else -> null
+                if (url == null) {
+                    val fallbackResp = apiService.getSongUrl(song.id, level = quality)
+                    url = com.ncm.player.util.JsonUtils.findUrl(fallbackResp.body())
                 }
 
                 url?.let { downloadUrl ->

@@ -3,14 +3,17 @@ package com.ncm.player
 import android.app.Application
 import android.content.Intent
 import com.ncm.player.service.RustServerService
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.request.CachePolicy
-import coil.util.DebugLogger
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.PlatformContext
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
+import coil3.request.CachePolicy
+import coil3.request.crossfade
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 
-class NCMApplication : Application(), ImageLoaderFactory {
+class NCMApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         // Start Rust Backend Service at the earliest moment
@@ -22,24 +25,23 @@ class NCMApplication : Application(), ImageLoaderFactory {
         }
     }
 
-    override fun newImageLoader(): ImageLoader {
-        return ImageLoader.Builder(this)
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        return ImageLoader.Builder(context)
+            .components {
+                add(OkHttpNetworkFetcherFactory())
+            }
             .memoryCache {
-                MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.25)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
-                    .directory(this.cacheDir.resolve("image_cache"))
+                    .directory(context.cacheDir.resolve("image_cache"))
                     .maxSizePercent(0.02)
                     .build()
             }
-            .respectCacheHeaders(false)
             .crossfade(true)
-            .memoryCachePolicy(CachePolicy.ENABLED)
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .networkCachePolicy(CachePolicy.ENABLED)
             .build()
     }
 }

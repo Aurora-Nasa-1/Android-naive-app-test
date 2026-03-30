@@ -65,6 +65,38 @@ class MainActivity : ComponentActivity() {
                         } catch (e: Exception) {
                             android.util.Log.e("MainActivity", "Failed to start RustServerService", e)
                         }
+
+                        // Background check for server connectivity
+                        val client = okhttp3.OkHttpClient.Builder()
+                            .connectTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
+                            .build()
+                        val request = okhttp3.Request.Builder().url("http://127.0.0.1:3000").build()
+
+                        kotlinx.coroutines.delay(3000L) // Wait for server to start
+                        var responsive = false
+                        for (attempt in 1..15) {
+                            try {
+                                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    client.newCall(request).execute().use { response ->
+                                        if (response.isSuccessful || response.code == 404 || response.code == 200) {
+                                            responsive = true
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.w("MainActivity", "Server check $attempt: ${e.message}")
+                            }
+                            if (responsive) {
+                                android.util.Log.i("MainActivity", "Local server is up and running!")
+                                break
+                            }
+                            kotlinx.coroutines.delay(1000L)
+                        }
+
+                        if (!responsive) {
+                            android.util.Log.e("MainActivity", "Local server failed to respond after 15 attempts")
+                            android.widget.Toast.makeText(context, "Backend server not responding. Try restarting the app.", android.widget.Toast.LENGTH_LONG).show()
+                        }
                     }
 
                     AppNavigation(loginViewModel, playerViewModel)

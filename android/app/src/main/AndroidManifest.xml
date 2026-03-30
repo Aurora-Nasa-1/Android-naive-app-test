@@ -23,6 +23,11 @@
         android:theme="@style/Theme.NCMPlayer"
         android:usesCleartextTraffic="true">
 
+        <meta-data android:name="lyricon_module" android:value="true" />
+        <meta-data android:name="lyricon_module_author" android:value="NCM Player Team" />
+        <meta-data android:name="lyricon_module_description" android:value="NCM Music Player Lyric Provider" />
+        <meta-data android:name="lyricon_module_tags" android:resource="@array/lyricon_module_tags" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

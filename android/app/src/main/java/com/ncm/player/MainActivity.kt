@@ -24,8 +24,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.withContext
 import com.ncm.player.service.RustServerService
 import com.ncm.player.ui.component.BottomPlaybackBar
+import com.ncm.player.ui.component.DownloadIndicator
 import com.ncm.player.ui.screen.*
 import com.ncm.player.ui.theme.NCMPlayerTheme
 import com.ncm.player.viewmodel.LoginViewModel
@@ -46,10 +48,50 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val context = LocalContext.current
+                    var serverReady by remember { mutableStateOf(false) }
+
                     LaunchedEffect(Unit) {
                         playerViewModel.initController(context)
+                        // Simple check to wait for local server
+                        var attempts = 0
+                        android.util.Log.d("MainActivity", "Starting server check loop")
+                        while (attempts < 15) {
+                            try {
+                                val client = okhttp3.OkHttpClient.Builder()
+                                    .connectTimeout(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                                    .build()
+                                val request = okhttp3.Request.Builder().url("http://127.0.0.1:3000").build()
+                                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    client.newCall(request).execute().use {
+                                        if (it.isSuccessful || it.code == 404 || it.code == 200) {
+                                            serverReady = true
+                                        }
+                                    }
+                                }
+                                if (serverReady) {
+                                    android.util.Log.d("MainActivity", "Server ready after $attempts attempts")
+                                    return@LaunchedEffect
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.d("MainActivity", "Attempt $attempts failed: ${e.message}")
+                            }
+                            attempts++
+                            kotlinx.coroutines.delay(1000)
+                        }
+                        serverReady = true // Fallback to let UI try anyway
                     }
-                    AppNavigation(loginViewModel, playerViewModel)
+
+                    if (!serverReady) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                                CircularProgressIndicator()
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Starting local server...")
+                            }
+                        }
+                    } else {
+                        AppNavigation(loginViewModel, playerViewModel)
+                    }
                 }
             }
         }
@@ -81,8 +123,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     val items = listOf(
                         Triple("main", "Home", Icons.Filled.Home),
                         Triple("search", "Search", Icons.Filled.Search),
-                        Triple("library", "Library", Icons.Filled.LibraryMusic),
-                        Triple("downloads", "Offline", Icons.Filled.DownloadDone)
+                        Triple("library", "Library", Icons.Filled.LibraryMusic)
                     )
                     NavigationBar {
                         items.forEach { (route, label, icon) ->
@@ -128,6 +169,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         playerViewModel.fetchUserData(loginViewModel.cookie)
                     }
                 }
+                val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
+                val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
+
                 MainScreen(
                     recommendedSongs = playerViewModel.recommendedSongs,
                     onSongClick = { song ->
@@ -139,8 +183,14 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
                     },
                     favoriteSongs = playerViewModel.favoriteSongs,
+                    completedSongs = completedSongs,
                     onNavigateToSettings = {
                         navController.navigate("settings")
+                    },
+                    actions = {
+                        DownloadIndicator(tasks = tasks) {
+                            navController.navigate("downloads")
+                        }
                     }
                 )
             }
@@ -167,6 +217,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
                         navController.navigate("playlist/${playlist.id}")
                     },
+                    onNavigateToDownloads = {
+                        navController.navigate("downloads")
+                    },
                     onNavigateToSettings = {
                         navController.navigate("settings")
                     }
@@ -177,10 +230,14 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
 
                 if (playlist != null) {
+                    val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
                     PlaylistDetailScreen(
                         playlist = playlist,
                         songs = playerViewModel.playlistSongs,
                         favoriteSongs = playerViewModel.favoriteSongs,
+                        completedSongs = completedSongs,
+                        isFirstDownload = playerViewModel.isFirstDownload,
+                        onDownloadQualityChange = { playerViewModel.updateDownloadQuality(it) },
                         allPlaylists = playerViewModel.userPlaylists,
                         isLoading = playerViewModel.isLoading,
                         onSongClick = { song ->
@@ -218,17 +275,25 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 }
             }
             composable("downloads") {
+                val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
                 DownloadsScreen(
                     onBackPressed = { navController.popBackStack() },
                     onPlayLocalSong = { song, uri ->
-                        playerViewModel.playSong(song)
-                    }
+                        playerViewModel.playSong(song, localUri = uri)
+                        navController.navigate("player")
+                    },
+                    localSongs = playerViewModel.localSongs,
+                    tasks = tasks,
+                    onCancelDownload = { playerViewModel.ncmDownloadManager.cancelDownload(it) },
+                    onDeleteLocalSong = { playerViewModel.deleteLocalSong(it) }
                 )
             }
             composable("settings") {
                 SettingsScreen(
                     currentQuality = playerViewModel.currentQuality,
                     onQualityChange = { playerViewModel.setQuality(it) },
+                    downloadQuality = playerViewModel.downloadQuality,
+                    onDownloadQualityChange = { playerViewModel.updateDownloadQuality(it) },
                     fadeDuration = playerViewModel.fadeDuration,
                     onFadeChange = { playerViewModel.setFade(it) },
                     cacheSize = playerViewModel.cacheSize,
@@ -242,8 +307,13 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 )
             }
             composable("player") {
+                val currentSong = playerViewModel.currentSong
+                val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
+                val isFavorite = currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false
+                val isDownloaded = currentSong?.let { completedSongs.contains(it.id) } ?: false
+
                 PlayerScreen(
-                    song = playerViewModel.currentSong,
+                    song = currentSong,
                     isPlaying = playerViewModel.isPlaying,
                     currentPosition = playerViewModel.currentPosition,
                     duration = playerViewModel.duration,
@@ -255,18 +325,24 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onShuffleClick = { playerViewModel.toggleShuffleMode() },
                     repeatMode = playerViewModel.repeatMode,
                     shuffleMode = playerViewModel.shuffleMode,
-                    isFavorite = playerViewModel.currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false,
+                    isFavorite = isFavorite,
                     onLikeClick = {
-                        playerViewModel.currentSong?.let { song ->
-                            val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                        currentSong?.let { song ->
                             playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
                         }
                     },
                     onDownloadClick = {
-                        playerViewModel.currentSong?.let { song ->
-                            playerViewModel.downloadSong(song, loginViewModel.cookie)
+                        currentSong?.let { song ->
+                            if (!isDownloaded) {
+                                if (playerViewModel.isFirstDownload) {
+                                    navController.navigate("settings")
+                                } else {
+                                    playerViewModel.downloadSong(song, loginViewModel.cookie)
+                                }
+                            }
                         }
                     },
+                    isDownloaded = isDownloaded,
                     onLyricClick = {
                         playerViewModel.currentSong?.let { song ->
                             playerViewModel.fetchLyrics(song.id)

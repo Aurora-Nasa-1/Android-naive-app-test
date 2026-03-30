@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
@@ -24,14 +25,15 @@ import java.io.File
 @Composable
 fun DownloadsScreen(
     onBackPressed: () -> Unit,
-    onPlayLocalSong: (Song, android.net.Uri) -> Unit
+    onPlayLocalSong: (Song, android.net.Uri) -> Unit,
+    localSongs: List<Pair<Song, android.net.Uri>>,
+    tasks: Map<String, com.ncm.player.model.DownloadTask> = emptyMap(),
+    onCancelDownload: (String) -> Unit = {},
+    onDeleteLocalSong: (android.net.Uri) -> Unit = {}
 ) {
-    val context = LocalContext.current
-    var localSongs by remember { mutableStateOf(listLocalSongs(context)) }
-
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("Downloads") },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
@@ -41,13 +43,61 @@ fun DownloadsScreen(
             )
         }
     ) { innerPadding ->
-        if (localSongs.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Text("No downloaded songs found.")
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            val downloadingTasks = tasks.values.filter { it.status != com.ncm.player.model.DownloadStatus.COMPLETED }
+            if (downloadingTasks.isNotEmpty()) {
+                item {
+                    Text("Downloading", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+                }
+                items(downloadingTasks) { task ->
+                    ListItem(
+                        headlineContent = { Text(task.song.name) },
+                        supportingContent = {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(task.song.artist, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        if (task.progress >= 0f) "${(task.progress * 100).toInt()}%" else "Connecting...",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (task.progress >= 0f) {
+                                    LinearProgressIndicator(
+                                        progress = { task.progress },
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                    )
+                                } else {
+                                    LinearProgressIndicator(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                    )
+                                }
+                            }
+                        },
+                        trailingContent = {
+                            IconButton(onClick = { onCancelDownload(task.song.id) }) {
+                                Icon(Icons.Default.Close, contentDescription = "Cancel")
+                            }
+                        }
+                    )
+                }
             }
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                        items(localSongs) { (song, uri) ->
+
+            if (localSongs.isEmpty() && downloadingTasks.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text("No downloaded songs found.")
+                    }
+                }
+            } else if (localSongs.isNotEmpty()) {
+                item {
+                    Text("Downloaded", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+                }
+                items(localSongs) { (song, uri) ->
                     ListItem(
                         headlineContent = { Text(song.name) },
                         supportingContent = { Text(song.artist) },
@@ -61,10 +111,7 @@ fun DownloadsScreen(
                             }
                         },
                         trailingContent = {
-                            IconButton(onClick = {
-                                context.contentResolver.delete(uri, null, null)
-                                localSongs = listLocalSongs(context)
-                            }) {
+                            IconButton(onClick = { onDeleteLocalSong(uri) }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete")
                             }
                         },
@@ -76,34 +123,3 @@ fun DownloadsScreen(
     }
 }
 
-private fun listLocalSongs(context: android.content.Context): List<Pair<Song, android.net.Uri>> {
-    val userDirUri = com.ncm.player.util.UserPreferences.getDownloadDir(context)
-    val files = mutableListOf<Pair<Song, android.net.Uri>>()
-
-    if (userDirUri != null) {
-        val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, android.net.Uri.parse(userDirUri))
-        tree?.listFiles()?.forEach { file ->
-            if (file.name?.endsWith(".mp3") == true) {
-                files.add(Song(
-                    id = "local_${file.name}",
-                    name = file.name?.removeSuffix(".mp3") ?: "Unknown",
-                    artist = "Local",
-                    album = "Downloads"
-                ) to file.uri)
-            }
-        }
-    }
-
-    // Always check system Music folder as well
-    val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
-    musicDir.listFiles { _, name -> name.endsWith(".mp3") }?.forEach { file ->
-        files.add(Song(
-            id = "local_${file.name}",
-            name = file.nameWithoutExtension,
-            artist = "Local File",
-            album = "Downloads"
-        ) to android.net.Uri.fromFile(file))
-    }
-
-    return files.distinctBy { it.second }
-}

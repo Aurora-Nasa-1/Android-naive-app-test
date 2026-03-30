@@ -38,6 +38,7 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            crunchPngs false
         }
         release {
             minifyEnabled false

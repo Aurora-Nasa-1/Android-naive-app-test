@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -21,11 +22,12 @@ import com.ncm.player.model.Playlist
 fun LibraryScreen(
     userPlaylists: List<Playlist>,
     onPlaylistClick: (Playlist) -> Unit,
+    onNavigateToDownloads: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("Your Library") },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
@@ -40,6 +42,22 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            item {
+                ListItem(
+                    headlineContent = { Text("Downloads") },
+                    supportingContent = { Text("Offline music") },
+                    leadingContent = {
+                        Surface(
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Icon(Icons.Default.DownloadDone, contentDescription = null, modifier = Modifier.padding(8.dp))
+                        }
+                    },
+                    modifier = Modifier.clickable { onNavigateToDownloads() }
+                )
+            }
             items(
                 items = userPlaylists,
                 key = { it.id },

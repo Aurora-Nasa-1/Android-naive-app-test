@@ -59,6 +59,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var cacheSize by mutableStateOf(512)
     var useCellularCache by mutableStateOf(false)
     var downloadDir by mutableStateOf<String?>(null)
+    var downloadQuality by mutableStateOf("standard")
+    var isFirstDownload by mutableStateOf(true)
+
+    val ncmDownloadManager = com.ncm.player.manager.NcmDownloadManager(application, apiService)
+
+    var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
 
     var repeatMode by mutableStateOf(Player.REPEAT_MODE_OFF)
     var shuffleMode by mutableStateOf(false)
@@ -75,6 +81,126 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         cacheSize = UserPreferences.getCacheSize(application)
         useCellularCache = UserPreferences.getUseCellularCache(application)
         downloadDir = UserPreferences.getDownloadDir(application)
+        downloadQuality = UserPreferences.getDownloadQuality(application)
+        isFirstDownload = UserPreferences.isFirstDownload(application)
+
+        viewModelScope.launch {
+            ncmDownloadManager.completedSongs.collect {
+                refreshLocalSongs()
+            }
+        }
+    }
+
+    fun deleteLocalSong(uri: android.net.Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = getApplication<Application>()
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, "Deleting song...", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                val deleted = if (uri.scheme == "content") {
+                    // Try content resolver first for system-managed files
+                    try {
+                        context.contentResolver.delete(uri, null, null) > 0
+                    } catch (e: Exception) {
+                        // Fallback to DocumentFile for SAF
+                        val file = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)
+                        file?.delete() ?: false
+                    }
+                } else {
+                    val file = java.io.File(uri.path ?: "")
+                    if (file.exists()) file.delete() else false
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (deleted) {
+                        android.widget.Toast.makeText(context, "Song deleted", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(context, "Failed to delete song", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+                refreshLocalSongs()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(getApplication(), "Error deleting song: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun refreshLocalSongs() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val list = listLocalSongs(getApplication())
+            withContext(Dispatchers.Main) {
+                localSongs = list
+            }
+        }
+    }
+
+    private fun listLocalSongs(context: android.content.Context): List<Pair<Song, android.net.Uri>> {
+        val userDirUri = com.ncm.player.util.UserPreferences.getDownloadDir(context)
+        val files = mutableListOf<Pair<Song, android.net.Uri>>()
+        val prefs = com.ncm.player.util.UserPreferences.getPrefs(context)
+        val completedIds = prefs.getStringSet("completed_downloads", emptySet()) ?: emptySet()
+
+        val metadataMap = completedIds.associateWith { id ->
+            prefs.getString("metadata_$id", null)?.split("|")
+        }
+
+        fun findMetadata(fileName: String): Song? {
+            val cleanName = fileName.removeSuffix(".mp3")
+            metadataMap.forEach { (id, parts) ->
+                if (parts != null && parts.size >= 3) {
+                    val songName = parts[0]
+                    val artist = parts[1]
+                    if (cleanName.contains(songName) && cleanName.contains(artist)) {
+                        return Song(id, songName, artist, parts[2], parts.getOrNull(3))
+                    }
+                }
+            }
+            return null
+        }
+
+        if (userDirUri != null) {
+            try {
+                val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, android.net.Uri.parse(userDirUri))
+                tree?.listFiles()?.forEach { file ->
+                    val name = file.name
+                    if (name?.endsWith(".mp3") == true) {
+                        val matchedSong = findMetadata(name)
+                        files.add((matchedSong ?: Song(
+                            id = "local_$name",
+                            name = name.removeSuffix(".mp3"),
+                            artist = "Local",
+                            album = "Downloads"
+                        )) to file.uri)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
+        val ncmMusicDir = java.io.File(musicDir, "NCMPlayer")
+        val dirsToScan = listOf(musicDir, ncmMusicDir)
+
+        dirsToScan.forEach { dir ->
+            if (dir.exists()) {
+                dir.listFiles { _, name -> name.endsWith(".mp3") }?.forEach { file ->
+                    val matchedSong = findMetadata(file.name)
+                    files.add((matchedSong ?: Song(
+                        id = "local_${file.name}",
+                        name = file.nameWithoutExtension,
+                        artist = "Local File",
+                        album = "Downloads"
+                    )) to android.net.Uri.fromFile(file))
+                }
+            }
+        }
+
+        return files.distinctBy { it.second }
     }
 
     fun setQuality(quality: String) {
@@ -100,6 +226,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun setDownloadPath(path: String) {
         downloadDir = path
         UserPreferences.saveDownloadDir(getApplication(), path)
+    }
+
+    fun updateDownloadQuality(quality: String) {
+        downloadQuality = quality
+        UserPreferences.saveDownloadQuality(getApplication(), quality)
+        if (isFirstDownload) {
+            isFirstDownload = false
+            UserPreferences.setFirstDownloadComplete(getApplication())
+        }
     }
 
     fun clearCache() {
@@ -305,7 +440,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun batchDownload(songs: List<Song>, cookie: String?) {
-        songs.forEach { downloadSong(it, cookie) }
+        songs.forEach { ncmDownloadManager.downloadSong(it, cookie, downloadQuality) }
     }
 
     fun fetchPlaylistSongs(playlistId: Long, cookie: String?, sort: String? = null) {
@@ -369,48 +504,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun downloadSong(song: Song, cookie: String?) {
-        viewModelScope.launch {
-            try {
-                val response = apiService.getDownloadUrl(song.id, cookie = cookie)
-                val url = response.body()?.get("data")?.asJsonArray?.get(0)?.asJsonObject?.get("url")?.asString
-
-                url?.let { downloadUrl ->
-                    val request = android.app.DownloadManager.Request(android.net.Uri.parse(downloadUrl))
-                        .setTitle("Downloading ${song.name}")
-                        .setDescription("${song.artist} - ${song.album}")
-                        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                        .setAllowedOverMetered(true)
-                        .setAllowedOverRoaming(true)
-
-                    val userDownloadDir = UserPreferences.getDownloadDir(getApplication())
-                    if (userDownloadDir != null) {
-                        try {
-                            val treeUri = android.net.Uri.parse(userDownloadDir)
-                            val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(getApplication(), treeUri)
-                            val file = tree?.createFile("audio/mpeg", "${song.name}.mp3")
-                            file?.uri?.let { destinationUri ->
-                                request.setDestinationUri(destinationUri)
-                            } ?: run {
-                                request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
-                        }
-                    } else {
-                        request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MUSIC, "${song.name}.mp3")
-                    }
-
-                    val downloadManager = getApplication<Application>().getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-                    downloadManager.enqueue(request)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        ncmDownloadManager.downloadSong(song, cookie, downloadQuality)
     }
 
-    fun playSong(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null) {
+    fun playSong(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null, localUri: android.net.Uri? = null) {
         viewModelScope.launch {
             try {
                 mediaController?.let { controller ->
@@ -421,7 +518,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     val startIndex = targetPlaylist.indexOf(song).coerceAtLeast(0)
 
                     val mediaItems = targetPlaylist.map { s ->
-                        createMediaItem(s, cookie)
+                        if (s.id == song.id && localUri != null) {
+                            createLocalMediaItem(s, localUri)
+                        } else {
+                            createMediaItem(s, cookie)
+                        }
                     }
 
                     controller.setMediaItems(mediaItems, startIndex, 0L)
@@ -432,6 +533,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 e.printStackTrace()
             }
         }
+    }
+
+    private fun createLocalMediaItem(song: Song, uri: android.net.Uri): MediaItem {
+        val metadata = MediaMetadata.Builder()
+            .setTitle(song.name)
+            .setArtist(song.artist)
+            .setAlbumTitle(song.album)
+            .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
+            .build()
+
+        return MediaItem.Builder()
+            .setMediaId(song.id)
+            .setUri(uri)
+            .setMediaMetadata(metadata)
+            .build()
     }
 
     fun toggleRepeatMode() {

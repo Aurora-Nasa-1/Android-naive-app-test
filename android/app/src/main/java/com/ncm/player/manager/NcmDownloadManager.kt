@@ -1,0 +1,231 @@
+package com.ncm.player.manager
+
+import android.app.Application
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.Uri
+import android.os.Environment
+import androidx.compose.runtime.*
+import androidx.documentfile.provider.DocumentFile
+import com.ncm.player.api.NcmApiService
+import com.ncm.player.model.DownloadStatus
+import com.ncm.player.model.DownloadTask
+import com.ncm.player.model.Song
+import com.ncm.player.util.UserPreferences
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import java.io.File
+import java.net.URLEncoder
+
+class NcmDownloadManager(private val application: Application, private val apiService: NcmApiService) {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val downloadManager = application.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+
+    private val _tasks = MutableStateFlow<Map<String, DownloadTask>>(emptyMap())
+    val tasks = _tasks.asStateFlow()
+
+    private val _completedSongs = MutableStateFlow<Set<String>>(emptySet())
+    val completedSongs = _completedSongs.asStateFlow()
+
+    init {
+        application.registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: -1L
+                    if (id != -1L) {
+                        updateTaskCompletion(id)
+                    }
+                }
+            },
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            Context.RECEIVER_EXPORTED
+        )
+        loadCompletedSongs()
+    }
+
+    private fun loadCompletedSongs() {
+        val prefs = UserPreferences.getPrefs(application)
+        val completed = prefs.getStringSet("completed_downloads", emptySet()) ?: emptySet()
+        _completedSongs.value = completed
+    }
+
+    private fun saveCompletedSong(song: Song, downloadId: Long = -1) {
+        val prefs = UserPreferences.getPrefs(application)
+        val current = prefs.getStringSet("completed_downloads", emptySet())?.toMutableSet() ?: mutableSetOf()
+        current.add(song.id)
+
+        // Save metadata for local matching
+        val metadata = "${song.name}|${song.artist}|${song.album}|${song.albumArtUrl ?: ""}"
+        prefs.edit()
+            .putStringSet("completed_downloads", current)
+            .putString("metadata_${song.id}", metadata)
+            .apply()
+
+        _completedSongs.update { it + song.id }
+
+        // Copy to custom directory if set
+        if (downloadId != -1L) {
+            val userDownloadDir = UserPreferences.getDownloadDir(application)
+            if (userDownloadDir != null) {
+                scope.launch {
+                    try {
+                        val uri = downloadManager.getUriForDownloadedFile(downloadId)
+                        if (uri != null) {
+                            val treeUri = Uri.parse(userDownloadDir)
+                            val tree = DocumentFile.fromTreeUri(application, treeUri)
+                            val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                            val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                            val fileName = "$sanitizedName - $sanitizedArtist.mp3"
+                            val file = tree?.createFile("audio/mpeg", fileName)
+
+                            if (file != null) {
+                                application.contentResolver.openInputStream(uri)?.use { input ->
+                                    application.contentResolver.openOutputStream(file.uri)?.use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                                // Optionally delete from public music dir if copy was successful
+                                // application.contentResolver.delete(uri, null, null)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+
+        android.widget.Toast.makeText(application, "Download completed: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    fun downloadSong(song: Song, cookie: String?, quality: String = "standard") {
+        if (_completedSongs.value.contains(song.id)) return
+        if (_tasks.value.containsKey(song.id)) return
+
+        android.widget.Toast.makeText(application, "Starting download: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+
+        scope.launch {
+            try {
+                val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
+                val body = response.body()
+                android.util.Log.d("NcmDownload", "API response: $body")
+                var url = com.ncm.player.util.JsonUtils.findUrl(body)
+
+                if (url == null) {
+                    android.util.Log.d("NcmDownload", "Primary URL null, trying fallback")
+                    val fallbackResp = apiService.getSongUrl(song.id, level = quality)
+                    val fallbackBody = fallbackResp.body()
+                    android.util.Log.d("NcmDownload", "Fallback response: $fallbackBody")
+                    url = com.ncm.player.util.JsonUtils.findUrl(fallbackBody)
+                }
+
+                if (url != null && url.startsWith("http")) {
+                    val downloadUrl = url
+                    val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    val fileName = "$sanitizedName - $sanitizedArtist.mp3"
+
+                    val request = DownloadManager.Request(Uri.parse(downloadUrl))
+                        .setTitle("Downloading ${song.name}")
+                        .setDescription("${song.artist} - ${song.album}")
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setAllowedOverMetered(true)
+                        .setAllowedOverRoaming(true)
+
+                    // Always download to standard public directory first to avoid SAF URI issues with DownloadManager
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "NCMPlayer/$fileName")
+
+                    val downloadId = downloadManager.enqueue(request)
+                    _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, downloadId)) }
+
+                    trackProgress(song.id, downloadId)
+                } else {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(application, "No valid audio URL found for ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(application, "Download failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
+            }
+        }
+    }
+
+    private fun trackProgress(songId: String, downloadId: Long) {
+        scope.launch {
+            var downloading = true
+            while (downloading) {
+                val query = DownloadManager.Query().setFilterById(downloadId)
+                val cursor = downloadManager.query(query)
+                if (cursor != null && cursor.moveToFirst()) {
+                    val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                    val status = if (statusIndex != -1) cursor.getInt(statusIndex) else -1
+
+                    val bytesDownloadedIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                    val bytesTotalIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+
+                    val currentTask = _tasks.value[songId]
+                    if (currentTask == null) {
+                        downloading = false
+                    } else {
+                        val bytesDownloaded = if (bytesDownloadedIndex != -1) cursor.getLong(bytesDownloadedIndex) else 0L
+                        val bytesTotal = if (bytesTotalIndex != -1) cursor.getLong(bytesTotalIndex) else -1L
+
+                        val progress = if (bytesTotal > 0) bytesDownloaded.toFloat() / bytesTotal else -1f
+
+                        when (status) {
+                            DownloadManager.STATUS_SUCCESSFUL -> {
+                                _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
+                                saveCompletedSong(currentTask.song, downloadId)
+                                downloading = false
+                            }
+                            DownloadManager.STATUS_FAILED -> {
+                                _tasks.update { it + (songId to currentTask.copy(status = DownloadStatus.FAILED)) }
+                                downloading = false
+                            }
+                            DownloadManager.STATUS_PENDING, DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PAUSED -> {
+                                _tasks.update { it + (songId to currentTask.copy(
+                                    status = DownloadStatus.DOWNLOADING,
+                                    progress = progress
+                                )) }
+                            }
+                        }
+                    }
+                } else {
+                    val task = _tasks.value[songId]
+                    if (task?.status != DownloadStatus.COMPLETED) {
+                        downloading = false
+                    }
+                }
+                cursor?.close()
+                delay(500)
+            }
+        }
+    }
+
+    private fun updateTaskCompletion(downloadId: Long) {
+        val entry = _tasks.value.entries.find { it.value.downloadId == downloadId } ?: return
+        val songId = entry.key
+        val task = entry.value
+        if (task.status != DownloadStatus.COMPLETED) {
+            _tasks.update { it + (songId to task.copy(status = DownloadStatus.COMPLETED, progress = 1f)) }
+            saveCompletedSong(task.song, downloadId)
+        }
+    }
+
+    fun cancelDownload(songId: String) {
+        val task = _tasks.value[songId] ?: return
+        if (task.downloadId != -1L) {
+            downloadManager.remove(task.downloadId)
+        }
+        _tasks.update { it - songId }
+    }
+}

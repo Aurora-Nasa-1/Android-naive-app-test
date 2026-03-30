@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     currentQuality: String,
     onQualityChange: (String) -> Unit,
+    downloadQuality: String,
+    onDownloadQualityChange: (String) -> Unit,
     fadeDuration: Float,
     onFadeChange: (Float) -> Unit,
     cacheSize: Int,
@@ -46,7 +48,7 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
@@ -63,27 +65,59 @@ fun SettingsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text("Sound Quality", style = MaterialTheme.typography.titleLarge)
+            Text("Playback Quality", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
 
             val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
             qualities.forEach { quality ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    onClick = { onQualityChange(quality) },
+                    shape = MaterialTheme.shapes.medium,
+                    color = if (quality == currentQuality) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
                 ) {
-                    RadioButton(
-                        selected = (quality == currentQuality),
-                        onClick = { onQualityChange(quality) }
-                    )
-                    Text(quality.replaceFirstChar { it.uppercase() })
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (quality == currentQuality),
+                            onClick = null
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(quality.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Download Quality", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(8.dp))
+            qualities.forEach { quality ->
+                Surface(
+                    onClick = { onDownloadQualityChange(quality) },
+                    shape = MaterialTheme.shapes.medium,
+                    color = if (quality == downloadQuality) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (quality == downloadQuality),
+                            onClick = null
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(quality.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-            Text("Fade In/Out Duration (${fadeDuration.toInt()}s)", style = MaterialTheme.typography.titleLarge)
+            Text("Audio Effects", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Fade In/Out Duration (${fadeDuration.toInt()}s)", style = MaterialTheme.typography.bodyLarge)
             Slider(
                 value = fadeDuration,
                 onValueChange = onFadeChange,
@@ -92,7 +126,7 @@ fun SettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(32.dp))
-            Text("Playback Cache", style = MaterialTheme.typography.titleLarge)
+            Text("Storage", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -125,7 +159,7 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-            Text("Download Settings", style = MaterialTheme.typography.titleLarge)
+            Text("Download Location", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
 
             ListItem(

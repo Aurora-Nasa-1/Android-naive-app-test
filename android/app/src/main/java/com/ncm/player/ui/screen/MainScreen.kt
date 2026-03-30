@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
@@ -30,13 +31,16 @@ fun MainScreen(
     onSongClick: (Song) -> Unit,
     onLikeClick: (Song) -> Unit,
     favoriteSongs: List<String>,
-    onNavigateToSettings: () -> Unit
+    completedSongs: Set<String> = emptySet(),
+    onNavigateToSettings: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {}
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("Good day") },
                 actions = {
+                    actions()
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
@@ -78,6 +82,7 @@ fun MainScreen(
                 SongItem(
                     song = song,
                     isFavorite = favoriteSongs.contains(song.id),
+                    isDownloaded = completedSongs.contains(song.id),
                     onLikeClick = { onLikeClick(song) },
                     onClick = { onSongClick(song) }
                 )
@@ -133,12 +138,25 @@ fun SongCard(song: Song, onClick: () -> Unit) {
 fun SongItem(
     song: Song,
     isFavorite: Boolean = false,
+    isDownloaded: Boolean = false,
     onLikeClick: () -> Unit = {},
     onClick: () -> Unit
 ) {
     ListItem(
         headlineContent = { Text(song.name) },
-        supportingContent = { Text(song.artist) },
+        supportingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isDownloaded) {
+                    Icon(
+                        Icons.Default.DownloadDone,
+                        contentDescription = "Downloaded",
+                        modifier = Modifier.size(16.dp).padding(end = 4.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Text(song.artist)
+            }
+        },
         leadingContent = {
             Surface(
                 modifier = Modifier.size(48.dp),

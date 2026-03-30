@@ -187,7 +187,7 @@ fun PlaylistDetailScreen(
                                 ) {
                                     if (song.albumArtUrl != null) {
                                         AsyncImage(
-                                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 48),
+                                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop
                                         )

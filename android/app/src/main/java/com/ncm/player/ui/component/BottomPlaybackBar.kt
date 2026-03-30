@@ -47,7 +47,7 @@ fun BottomPlaybackBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 48),
+                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)

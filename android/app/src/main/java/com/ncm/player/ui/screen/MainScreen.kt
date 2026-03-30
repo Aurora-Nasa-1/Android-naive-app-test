@@ -100,7 +100,7 @@ fun SongCard(song: Song, onClick: () -> Unit) {
         ) {
             if (song.albumArtUrl != null) {
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 150),
+                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
                     contentDescription = null,
                     contentScale = ContentScale.Crop
                 )
@@ -147,7 +147,7 @@ fun SongItem(
             ) {
                 if (song.albumArtUrl != null) {
                     AsyncImage(
-                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 48),
+                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )
@@ -186,7 +186,7 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
             ) {
                 if (playlist.coverImgUrl != null) {
                     AsyncImage(
-                        model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 48),
+                        model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl, 180),
                         contentDescription = null,
                         contentScale = ContentScale.Crop
                     )

@@ -54,6 +54,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var searchResults by mutableStateOf<List<Song>>(emptyList())
     var currentLyrics by mutableStateOf<String?>(null)
     var isLoading by mutableStateOf(false)
+    var likedSongsPlaylistId by mutableStateOf(0L)
     var isFmMode by mutableStateOf(false)
     private var isFetchingMoreFm = false
 
@@ -377,6 +378,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         val (playlists, favs) = userAndFavDeferred.await()
                         userPlaylists = playlists
                         favoriteSongs = favs
+                                    likedSongsPlaylistId = playlists.find { it.name.contains("喜欢的音乐") }?.id ?: playlists.firstOrNull()?.id ?: 0L
                     }
                     isLoading = false
                     break // Success, exit retry loop
@@ -767,7 +769,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 isLoading = true
                 DebugLog.toast(getApplication(), "Starting Heartbeat Mode...")
                 DebugLog.d("Fetching Heartbeat for songId: $songId, playlistId: $playlistId")
-                val response = apiService.getIntelligenceList(songId, playlistId, songId, cookie)
+                val response = apiService.getIntelligenceList(songId, playlistId, songId, count = 20, cookie = cookie)
 
                 if (!response.isSuccessful) {
                     val errorMsg = "API Error ${response.code()}: ${response.errorBody()?.string()}"
@@ -780,15 +782,29 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 DebugLog.d("Heartbeat raw body: $body")
 
                 // Fix: NCM Intelligence API returns an object where "data" might be an array OR an object containing "data" as an array
-                val songsJson = if (body?.get("data")?.isJsonArray == true) {
-                    DebugLog.d("Heartbeat: Found data as JsonArray")
-                    body.get("data").asJsonArray
-                } else if (body?.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data")) {
-                    DebugLog.d("Heartbeat: Found data.data as JsonArray")
-                    body.get("data").asJsonObject.get("data").asJsonArray
-                } else {
-                    DebugLog.e("Heartbeat: No recognizable song list in response. Body: $body")
-                    null
+                val songsJson = when {
+                    body?.get("data")?.isJsonArray == true -> {
+                        DebugLog.d("Heartbeat: Found data as JsonArray")
+                        body.get("data").asJsonArray
+                    }
+                    body?.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data") -> {
+                        DebugLog.d("Heartbeat: Found data.data as JsonArray")
+                        body.get("data").asJsonObject.get("data").asJsonArray
+                    }
+                    body?.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("list") -> {
+                        DebugLog.d("Heartbeat: Found data.list as JsonArray")
+                        body.get("data").asJsonObject.get("list").asJsonArray
+                    }
+                    body?.has("list") == true && body.get("list").isJsonArray -> {
+                        DebugLog.d("Heartbeat: Found root.list as JsonArray")
+                        body.get("list").asJsonArray
+                    }
+                    else -> {
+                        val keys = body?.keySet()?.joinToString(", ") ?: "null"
+                        DebugLog.e("Heartbeat: No recognizable song list. Keys: $keys")
+                        DebugLog.toast(getApplication(), "Parsing failed. Keys: $keys")
+                        null
+                    }
                 }
 
                 DebugLog.d("Heartbeat JSON list size: ${songsJson?.size() ?: 0}")

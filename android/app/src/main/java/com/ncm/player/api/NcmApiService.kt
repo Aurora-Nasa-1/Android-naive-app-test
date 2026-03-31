@@ -62,6 +62,7 @@ interface NcmApiService {
         @Query("id") songId: String,
         @Query("pid") playlistId: Long,
         @Query("sid") startMusicId: String = "",
+        @Query("count") count: Int = 20,
         @Query("cookie") cookie: String? = null
     ): Response<JsonObject>
 }

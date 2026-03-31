@@ -224,8 +224,14 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onHeartbeatClick = {
                         if (playerViewModel.favoriteSongs.isNotEmpty()) {
                             // Use first favorite song to seed heartbeat
-                            playerViewModel.playHeartbeat(playerViewModel.favoriteSongs[0], 0L, loginViewModel.cookie)
+                            playerViewModel.playHeartbeat(
+                                songId = playerViewModel.favoriteSongs[0],
+                                playlistId = playerViewModel.likedSongsPlaylistId,
+                                cookie = loginViewModel.cookie
+                            )
                             navController.navigate("player")
+                        } else {
+                            com.ncm.player.util.DebugLog.toast(context, "No liked songs to start Heartbeat")
                         }
                     },
                     onLikeClick = { song ->

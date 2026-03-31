@@ -10,11 +10,11 @@ import android.net.Uri
 import android.os.Environment
 import androidx.compose.runtime.*
 import androidx.documentfile.provider.DocumentFile
-import com.ncm.player.api.NcmApiService
 import com.ncm.player.model.DownloadStatus
 import com.ncm.player.model.DownloadTask
 import com.ncm.player.model.Song
 import com.ncm.player.util.UserPreferences
+import com.ncm.player.util.RustServerManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.update
 import java.io.File
 import java.net.URLEncoder
 
-class NcmDownloadManager(private val application: Application, private val apiService: NcmApiService) {
+class NcmDownloadManager(private val application: Application) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val downloadManager = application.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
@@ -112,15 +112,18 @@ class NcmDownloadManager(private val application: Application, private val apiSe
         scope.launch {
             try {
                 // Fetch the actual audio URL via the API first
-                val response = apiService.getDownloadUrl(song.id, level = quality, cookie = cookie)
-                val body = response.body()
+                val params = mutableMapOf("id" to song.id, "level" to quality)
+                cookie?.let { params["cookie"] = it }
+                val result = RustServerManager.callApi("song/download/url/v1", params)
+                val body = com.google.gson.JsonParser.parseString(result).asJsonObject
+
                 android.util.Log.d("NcmDownload", "API response: $body")
                 var url = com.ncm.player.util.JsonUtils.findUrl(body)
 
                 if (url == null) {
                     android.util.Log.d("NcmDownload", "Primary URL null, trying fallback")
-                    val fallbackResp = apiService.getSongUrl(song.id, level = quality)
-                    val fallbackBody = fallbackResp.body()
+                    val fallbackResult = RustServerManager.callApi("song/url/v1", mapOf("id" to song.id, "level" to quality))
+                    val fallbackBody = com.google.gson.JsonParser.parseString(fallbackResult).asJsonObject
                     android.util.Log.d("NcmDownload", "Fallback response: $fallbackBody")
                     url = com.ncm.player.util.JsonUtils.findUrl(fallbackBody)
                 }

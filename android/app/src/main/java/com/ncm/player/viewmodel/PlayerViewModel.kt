@@ -15,34 +15,23 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import com.ncm.player.api.NcmApiService
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
 import com.ncm.player.util.DebugLog
+import com.ncm.player.util.RustServerManager
 import java.io.File
 import java.net.URLEncoder
 import kotlinx.coroutines.*
-import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true)
-        .build()
-
-    private val apiService = Retrofit.Builder()
-        .baseUrl("http://127.0.0.1:3000/")
-        .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(NcmApiService::class.java)
+    private fun callApi(method: String, params: Map<String, String> = emptyMap()): JsonObject {
+        val result = RustServerManager.callApi(method, params)
+        return JsonParser.parseString(result).asJsonObject
+    }
 
     var currentSong by mutableStateOf<Song?>(null)
     var currentQueue by mutableStateOf<List<Song>>(emptyList())
@@ -66,7 +55,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var downloadQuality by mutableStateOf("standard")
     var isFirstDownload by mutableStateOf(true)
 
-    val ncmDownloadManager = com.ncm.player.manager.NcmDownloadManager(application, apiService)
+    val ncmDownloadManager = com.ncm.player.manager.NcmDownloadManager(application)
 
     var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
 
@@ -315,84 +304,69 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             isLoading = true
-            var retryCount = 0
-            val maxRetries = 5
+            try {
+                coroutineScope {
+                    val recDeferred = async(Dispatchers.IO) {
+                        val body = callApi("recommend/songs", mapOf("cookie" to cookie))
+                        val songsJson = body.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
+                            ?: body.get("dailySongs")?.asJsonArray
 
-            while (retryCount < maxRetries) {
-                try {
-                    coroutineScope {
-                        val recDeferred = async {
-                            val response = apiService.getRecommendSongs(cookie)
-                            val body = response.body()
-                            val songsJson = body?.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
-                                ?: body?.get("dailySongs")?.asJsonArray
+                        songsJson?.map {
+                            val obj = it.asJsonObject
+                            Song(
+                                id = obj.get("id").asString,
+                                name = obj.get("name").asString,
+                                artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
+                                album = obj.get("al").asJsonObject.get("name").asString,
+                                albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
+                            )
+                        } ?: emptyList()
+                    }
 
-                            songsJson?.map {
-                                val obj = it.asJsonObject
-                                Song(
-                                    id = obj.get("id").asString,
-                                    name = obj.get("name").asString,
-                                    artist = obj.get("ar").asJsonArray.get(0).asJsonObject.get("name").asString,
-                                    album = obj.get("al").asJsonObject.get("name").asString,
-                                    albumArtUrl = obj.get("al").asJsonObject.get("picUrl").asString
-                                )
-                            } ?: emptyList()
-                        }
+                    val userAndFavDeferred = async(Dispatchers.IO) {
+                        val statusBody = callApi("login/status", mapOf("cookie" to cookie))
+                        val uid = statusBody.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
+                            ?: statusBody.get("account")?.asJsonObject?.get("id")?.asLong
+                            ?: statusBody.get("profile")?.asJsonObject?.get("userId")?.asLong
+                            ?: 0L
 
-                        val userAndFavDeferred = async {
-                            val statusResponse = apiService.loginStatus(cookie = cookie)
-                            val statusBody = statusResponse.body()
-                            val uid = statusBody?.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
-                                ?: statusBody?.get("account")?.asJsonObject?.get("id")?.asLong
-                                ?: statusBody?.get("profile")?.asJsonObject?.get("userId")?.asLong
-                                ?: 0L
-
-                            if (uid != 0L) {
-                                val plDeferred = async {
-                                    val plResponse = apiService.getUserPlaylist(uid, cookie)
-                                    val playlistJson = plResponse.body()?.get("playlist")?.asJsonArray
-                                    playlistJson?.map {
-                                        val obj = it.asJsonObject
-                                        Playlist(
-                                            id = obj.get("id").asLong,
-                                            name = obj.get("name").asString,
-                                            coverImgUrl = obj.get("coverImgUrl").asString,
-                                            trackCount = obj.get("trackCount").asInt
-                                        )
-                                    } ?: emptyList()
-                                }
-
-                                val favDeferred = async {
-                                    val favResponse = apiService.getLikeList(uid, cookie)
-                                    val favJson = favResponse.body()?.get("ids")?.asJsonArray
-                                    favJson?.map { it.asString } ?: emptyList()
-                                }
-
-                                Pair(plDeferred.await(), favDeferred.await())
-                            } else {
-                                Pair(emptyList(), emptyList())
+                        if (uid != 0L) {
+                            val plDeferred = async {
+                                val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "cookie" to cookie))
+                                val playlistJson = plBody.get("playlist")?.asJsonArray
+                                playlistJson?.map {
+                                    val obj = it.asJsonObject
+                                    Playlist(
+                                        id = obj.get("id").asLong,
+                                        name = obj.get("name").asString,
+                                        coverImgUrl = obj.get("coverImgUrl").asString,
+                                        trackCount = obj.get("trackCount").asInt
+                                    )
+                                } ?: emptyList()
                             }
-                        }
 
-                        recommendedSongs = recDeferred.await()
-                        val (playlists, favs) = userAndFavDeferred.await()
-                        userPlaylists = playlists
-                        favoriteSongs = favs
-                                    likedSongsPlaylistId = playlists.find { it.name.contains("喜欢的音乐") }?.id ?: playlists.firstOrNull()?.id ?: 0L
+                            val favDeferred = async {
+                                val favBody = callApi("likelist", mapOf("uid" to uid.toString(), "cookie" to cookie))
+                                val favJson = favBody.get("ids")?.asJsonArray
+                                favJson?.map { it.asString } ?: emptyList()
+                            }
+
+                            Pair(plDeferred.await(), favDeferred.await())
+                        } else {
+                            Pair(emptyList(), emptyList())
+                        }
                     }
-                    isLoading = false
-                    break // Success, exit retry loop
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    retryCount++
-                    if (retryCount < maxRetries) {
-                        delay(1000L * retryCount)
-                    }
-                } finally {
-                    if (retryCount == maxRetries) {
-                        isLoading = false
-                    }
+
+                    recommendedSongs = recDeferred.await()
+                    val (playlists, favs) = userAndFavDeferred.await()
+                    userPlaylists = playlists
+                    favoriteSongs = favs
+                    likedSongsPlaylistId = playlists.find { it.name.contains("喜欢的音乐") }?.id ?: playlists.firstOrNull()?.id ?: 0L
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -405,8 +379,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             isLoading = true
             try {
-                val response = apiService.search(keywords)
-                val songsJson = response.body()?.get("result")?.asJsonObject?.get("songs")?.asJsonArray
+                val body = withContext(Dispatchers.IO) { callApi("cloudsearch", mapOf("keywords" to keywords)) }
+                val songsJson = body.get("result")?.asJsonObject?.get("songs")?.asJsonArray
                 searchResults = songsJson?.map {
                     val obj = it.asJsonObject
                     Song(
@@ -429,7 +403,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val tracks = songIds.joinToString(",")
-                apiService.opPlaylistTracks("add", playlistId, tracks, cookie)
+                withContext(Dispatchers.IO) {
+                    callApi("playlist/tracks", mapOf("op" to "add", "pid" to playlistId.toString(), "tracks" to tracks, "cookie" to (cookie ?: "")))
+                }
                 // Optionally refresh playlist songs if we are viewing it
                 if (playlistSongs.any { songIds.contains(it.id) }) {
                     fetchPlaylistSongs(playlistId, cookie)
@@ -444,7 +420,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val tracks = songIds.joinToString(",")
-                apiService.opPlaylistTracks("del", playlistId, tracks, cookie)
+                withContext(Dispatchers.IO) {
+                    callApi("playlist/tracks", mapOf("op" to "del", "pid" to playlistId.toString(), "tracks" to tracks, "cookie" to (cookie ?: "")))
+                }
                 fetchPlaylistSongs(playlistId, cookie)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -460,8 +438,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             isLoading = true
             try {
-                val response = apiService.getPlaylistTracks(playlistId, cookie)
-                val songsJson = response.body()?.get("songs")?.asJsonArray
+                val body = withContext(Dispatchers.IO) { callApi("playlist/track/all", mapOf("id" to playlistId.toString(), "cookie" to (cookie ?: ""))) }
+                val songsJson = body.get("songs")?.asJsonArray
                 val unsortedSongs = songsJson?.map {
                     val obj = it.asJsonObject
                     Song(
@@ -490,8 +468,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun toggleLike(songId: String, like: Boolean, cookie: String?) {
         viewModelScope.launch {
             try {
-                val response = apiService.likeSong(songId, like, cookie)
-                if (response.isSuccessful) {
+                val body = withContext(Dispatchers.IO) { callApi("like", mapOf("id" to songId, "like" to like.toString(), "cookie" to (cookie ?: ""))) }
+                if (body.get("code")?.asInt == 200) {
                     favoriteSongs = if (like) {
                         favoriteSongs + songId
                     } else {
@@ -507,8 +485,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun fetchLyrics(songId: String) {
         viewModelScope.launch {
             try {
-                val response = apiService.getLyric(songId)
-                val lrc = response.body()?.get("lrc")?.asJsonObject?.get("lyric")?.asString
+                val body = withContext(Dispatchers.IO) { callApi("lyric/new", mapOf("id" to songId)) }
+                val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString
                 currentLyrics = lrc
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -649,16 +627,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 isLoading = true
                 DebugLog.toast(getApplication(), "Starting Private FM...")
                 DebugLog.d("Fetching Personal FM songs...")
-                val response = apiService.getPersonalFm(cookie)
+                val body = withContext(Dispatchers.IO) { callApi("personal_fm", mapOf("cookie" to (cookie ?: ""))) }
 
-                if (!response.isSuccessful) {
-                    val errorMsg = "API Error ${response.code()}: ${response.errorBody()?.string()}"
+                if (body.get("code")?.asInt != 200 && !body.has("data")) {
+                    val errorMsg = "API Error: ${body.get("msg")?.asString ?: "Unknown"}"
                     DebugLog.e(errorMsg)
                     DebugLog.toast(getApplication(), errorMsg)
                     return@launch
                 }
 
-                val body = response.body()
                 DebugLog.d("Personal FM raw body: $body")
 
                 val songsJson = body?.get("data")?.asJsonArray ?: body?.get("result")?.asJsonArray
@@ -708,10 +685,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 DebugLog.d("Fetching more Personal FM songs...")
-                val response = apiService.getPersonalFm(cookie)
-                if (response.isSuccessful) {
-                    val body = response.body()
-                    val songsJson = body?.get("data")?.asJsonArray ?: body?.get("result")?.asJsonArray
+                val body = withContext(Dispatchers.IO) { callApi("personal_fm", mapOf("cookie" to (cookie ?: ""))) }
+                if (body.has("data") || body.has("result")) {
+                    val songsJson = body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray
                     val songs = songsJson?.mapNotNull {
                         try {
                             val obj = it.asJsonObject
@@ -769,16 +745,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 isLoading = true
                 DebugLog.toast(getApplication(), "Starting Heartbeat Mode...")
                 DebugLog.d("Fetching Heartbeat for songId: $songId, playlistId: $playlistId")
-                val response = apiService.getIntelligenceList(songId, playlistId, songId, count = 20, cookie = cookie)
+                val body = withContext(Dispatchers.IO) {
+                    callApi("playmode/intelligence/list", mapOf(
+                        "id" to songId,
+                        "pid" to playlistId.toString(),
+                        "sid" to songId,
+                        "count" to "20",
+                        "cookie" to (cookie ?: "")
+                    ))
+                }
 
-                if (!response.isSuccessful) {
-                    val errorMsg = "API Error ${response.code()}: ${response.errorBody()?.string()}"
+                if (body.get("code")?.asInt != 200 && !body.has("data")) {
+                    val errorMsg = "API Error: ${body.get("msg")?.asString ?: "Unknown"}"
                     DebugLog.e(errorMsg)
                     DebugLog.toast(getApplication(), errorMsg)
                     return@launch
                 }
 
-                val body = response.body()
                 DebugLog.d("Heartbeat raw body: $body")
 
                 // Fix: NCM Intelligence API returns an object where "data" might be an array OR an object containing "data" as an array

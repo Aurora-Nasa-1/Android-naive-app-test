@@ -1,10 +1,20 @@
+use crate::api::Query;
+use crate::request::ApiClient;
 use crate::server::{start_server, ServerConfig};
 use jni::objects::{JClass, JString};
+use jni::sys::jstring;
 use jni::JNIEnv;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 use tracing_subscriber::prelude::*;
 
 static SERVER_STARTED: AtomicBool = AtomicBool::new(false);
+static API_CLIENT: OnceLock<ApiClient> = OnceLock::new();
+
+fn get_client() -> &'static ApiClient {
+    API_CLIENT.get_or_init(|| ApiClient::new(None))
+}
 
 /// # Safety
 ///
@@ -47,4 +57,46 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_startNa
             start_server(config).await;
         });
     });
+}
+
+/// # Safety
+///
+/// Direct API call via JNI.
+#[no_mangle]
+#[allow(unsafe_code)]
+pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_nativeCallApi(
+    mut env: JNIEnv,
+    _class: JClass,
+    method: JString,
+    params_json: JString,
+) -> jstring {
+    let method_str: String = env.get_string(&method).unwrap().into();
+    let params_json_str: String = env.get_string(&params_json).unwrap().into();
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(async move {
+        let client = get_client();
+        let mut query = Query::new();
+
+        if let Ok(params) = serde_json::from_str::<HashMap<String, String>>(&params_json_str) {
+            for (k, v) in params {
+                if k == "cookie" {
+                    query.cookie = Some(v);
+                } else {
+                    query.params.insert(k, v);
+                }
+            }
+        }
+
+        // Use build.rs generated route matching logic or a simplified version
+        // For now, use the `api` method which is a generic proxy
+        query.params.insert("uri".to_string(), method_str);
+
+        match client.api(&query).await {
+            Ok(resp) => serde_json::to_string(&resp.body).unwrap_or_else(|_| "{}".to_string()),
+            Err(e) => format!("{{\"code\": 500, \"msg\": \"{}\"}}", e),
+        }
+    });
+
+    env.new_string(result).unwrap().into_raw()
 }

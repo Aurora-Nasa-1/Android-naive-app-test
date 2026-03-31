@@ -88,11 +88,9 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_nativeC
             }
         }
 
-        // Use build.rs generated route matching logic or a simplified version
-        // For now, use the `api` method which is a generic proxy
-        query.params.insert("uri".to_string(), method_str);
+        let result = include!(concat!(env!("OUT_DIR"), "/jni_dispatcher_generated.rs"));
 
-        match client.api(&query).await {
+        match result {
             Ok(resp) => serde_json::to_string(&resp.body).unwrap_or_else(|_| "{}".to_string()),
             Err(e) => format!("{{\"code\": 500, \"msg\": \"{}\"}}", e),
         }

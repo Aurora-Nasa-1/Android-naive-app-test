@@ -205,7 +205,8 @@ class MusicService : MediaSessionService() {
         val title = metadata.title?.toString() ?: "Unknown"
         val artist = metadata.artist?.toString() ?: "Unknown"
 
-        // Set placeholder
+        // Reset state
+        lyriconProvider?.player?.setPlaybackState(player?.isPlaying ?: false)
         lyriconProvider?.player?.setSong(Song(id = songId, name = title, artist = artist))
 
         lyricJob?.cancel()
@@ -239,10 +240,11 @@ class MusicService : MediaSessionService() {
                             id = songId,
                             name = title,
                             artist = artist,
-                            duration = player?.duration ?: 0L,
+                            duration = player?.duration?.coerceAtLeast(0L) ?: 0L,
                             lyrics = finalLines
                         )
                     )
+                    lyriconProvider?.player?.setPosition(player?.currentPosition ?: 0L)
                     lyriconProvider?.player?.setDisplayTranslation(!tlyric.isNullOrEmpty())
                 }
             } catch (e: Exception) {

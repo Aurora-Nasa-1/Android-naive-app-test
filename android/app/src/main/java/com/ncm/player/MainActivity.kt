@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -107,67 +108,16 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
 
     val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
 
-    Scaffold(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-            if (loginViewModel.isLogged && !isPlayerScreen) {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = bottomBarHeight)
-                        .offset { IntOffset(x = 0, y = -bottomBarOffsetHeightPx.value.toInt()) }
-                ) {
-                    if (playerViewModel.currentSong != null) {
-                        BottomPlaybackBar(
-                            song = playerViewModel.currentSong,
-                            isPlaying = playerViewModel.isPlaying,
-                            onPlayPause = { playerViewModel.togglePlayPause() },
-                            onSkipNext = { playerViewModel.skipNext() },
-                            onSkipPrevious = { playerViewModel.skipPrevious() },
-                            onClick = {
-                                navController.navigate("player") {
-                                    launchSingleTop = true
-                                }
-                            }
-                        )
-                    }
-                    val items = listOf(
-                        Triple("main", "Home", Icons.Filled.Home),
-                        Triple("search", "Search", Icons.Filled.Search),
-                        Triple("library", "Library", Icons.Filled.LibraryMusic)
-                    )
-                    NavigationBar {
-                        items.forEach { (route, label, icon) ->
-                            NavigationBarItem(
-                                icon = { Icon(icon, contentDescription = label) },
-                                label = { Text(label) },
-                                selected = currentDestination?.hierarchy?.any { it.route == route } == true,
-                                onClick = {
-                                    navController.navigate(route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    ) { innerPadding ->
-        val finalPadding = if (isPlayerScreen) PaddingValues(0.dp) else innerPadding
+            .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
+    ) {
         NavHost(
             navController = navController,
             startDestination = if (loginViewModel.isLogged) "main" else "login",
             modifier = Modifier
-                .fillMaxSize()
-                .padding(finalPadding)
-                .consumeWindowInsets(finalPadding),
+                .fillMaxSize(),
             enterTransition = {
                 slideInHorizontally(
                     initialOffsetX = { it },
@@ -473,6 +423,55 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     currentPosition = playerViewModel.currentPosition,
                     onBackPressed = { navController.popBackStack() }
                 )
+            }
+        }
+
+        if (loginViewModel.isLogged && !isPlayerScreen) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset { IntOffset(x = 0, y = -bottomBarOffsetHeightPx.value.toInt()) }
+                    .navigationBarsPadding()
+            ) {
+                if (playerViewModel.currentSong != null) {
+                    BottomPlaybackBar(
+                        song = playerViewModel.currentSong,
+                        isPlaying = playerViewModel.isPlaying,
+                        onPlayPause = { playerViewModel.togglePlayPause() },
+                        onSkipNext = { playerViewModel.skipNext() },
+                        onSkipPrevious = { playerViewModel.skipPrevious() },
+                        onClick = {
+                            navController.navigate("player") {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+                val items = listOf(
+                    Triple("main", "Home", Icons.Filled.Home),
+                    Triple("search", "Search", Icons.Filled.Search),
+                    Triple("library", "Library", Icons.Filled.LibraryMusic)
+                )
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                ) {
+                    items.forEach { (route, label, icon) ->
+                        NavigationBarItem(
+                            icon = { Icon(icon, contentDescription = label) },
+                            label = { Text(label) },
+                            selected = currentDestination?.hierarchy?.any { it.route == route } == true,
+                            onClick = {
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
 

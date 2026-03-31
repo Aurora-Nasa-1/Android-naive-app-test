@@ -39,12 +39,15 @@ fun NCMPlayerTheme(
             surface = Color.Black,
             background = Color.Black,
             surfaceVariant = Color.Black,
-            secondaryContainer = Color.DarkGray.copy(alpha = 0.2f),
+            secondaryContainer = Color(0xFF121212),
+            onSecondaryContainer = Color.White,
             surfaceContainer = Color.Black,
             surfaceContainerHigh = Color.Black,
             surfaceContainerHighest = Color.Black,
             surfaceContainerLow = Color.Black,
-            surfaceContainerLowest = Color.Black
+            surfaceContainerLowest = Color.Black,
+            onSurface = Color.White,
+            onBackground = Color.White
         )
     }
 

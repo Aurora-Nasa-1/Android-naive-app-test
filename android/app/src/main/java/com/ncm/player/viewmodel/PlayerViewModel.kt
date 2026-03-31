@@ -54,6 +54,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var searchResults by mutableStateOf<List<Song>>(emptyList())
     var currentLyrics by mutableStateOf<String?>(null)
     var isLoading by mutableStateOf(false)
+    var isFmMode by mutableStateOf(false)
+    private var isFetchingMoreFm = false
 
     var currentQuality by mutableStateOf("standard")
     var fadeDuration by mutableStateOf(2f)
@@ -260,10 +262,18 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     }
 
                     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                            // Pre-fetch next song metadata or logic if needed
-                        }
                         updateQueue()
+
+                        // Handle infinite FM fetching
+                        if (isFmMode && !isFetchingMoreFm) {
+                            val currentIndex = controller.currentMediaItemIndex
+                            val totalItems = controller.mediaItemCount
+                            // Fetch more when we reach the last 2 songs
+                            if (currentIndex >= totalItems - 2) {
+                                fetchMoreFmSongs(UserPreferences.getCookie(getApplication()))
+                            }
+                        }
+
                         mediaItem?.mediaMetadata?.let { metadata ->
                             currentSong = Song(
                                 id = mediaItem.mediaId,
@@ -509,6 +519,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun playSong(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null, localUri: android.net.Uri? = null) {
+        isFmMode = false // Reset FM mode on normal song play
         viewModelScope.launch {
             try {
                 mediaController?.let { controller ->
@@ -675,7 +686,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (songs.isNotEmpty()) {
                     DebugLog.d("Playing ${songs.size} Personal FM songs")
-                    playSong(songs[0], songs, cookie)
+                    isFmMode = true
+                    playSongInternal(songs[0], songs, cookie)
                 } else {
                     DebugLog.toast(getApplication(), "No FM songs returned from server")
                 }
@@ -685,6 +697,67 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             } finally {
                 isLoading = false
             }
+        }
+    }
+
+    private fun fetchMoreFmSongs(cookie: String?) {
+        if (isFetchingMoreFm) return
+        isFetchingMoreFm = true
+        viewModelScope.launch {
+            try {
+                DebugLog.d("Fetching more Personal FM songs...")
+                val response = apiService.getPersonalFm(cookie)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val songsJson = body?.get("data")?.asJsonArray ?: body?.get("result")?.asJsonArray
+                    val songs = songsJson?.mapNotNull {
+                        try {
+                            val obj = it.asJsonObject
+                            val artists = obj.get("artists")?.asJsonArray ?: obj.get("ar")?.asJsonArray
+                            val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
+                            val album = obj.get("album")?.asJsonObject ?: obj.get("al")?.asJsonObject
+                            val albumName = album?.get("name")?.asString ?: "Unknown"
+                            val picUrl = album?.get("picUrl")?.asString
+
+                            Song(
+                                id = obj.get("id").asJsonPrimitive.asString,
+                                name = obj.get("name").asString,
+                                artist = artistName,
+                                album = albumName,
+                                albumArtUrl = picUrl
+                            )
+                        } catch (e: Exception) { null }
+                    } ?: emptyList()
+
+                    mediaController?.let { controller ->
+                        songs.forEach { song ->
+                            controller.addMediaItem(createMediaItem(song, cookie))
+                        }
+                        DebugLog.d("Added ${songs.size} more songs to FM queue")
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLog.e("Failed to fetch more FM songs", e)
+            } finally {
+                isFetchingMoreFm = false
+            }
+        }
+    }
+
+    private fun playSongInternal(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null) {
+        viewModelScope.launch {
+            try {
+                mediaController?.let { controller ->
+                    controller.stop()
+                    controller.clearMediaItems()
+                    val targetPlaylist = if (playlist.isNotEmpty()) playlist else listOf(song)
+                    val startIndex = targetPlaylist.indexOf(song).coerceAtLeast(0)
+                    val mediaItems = targetPlaylist.map { createMediaItem(it, cookie) }
+                    controller.setMediaItems(mediaItems, startIndex, 0L)
+                    controller.prepare()
+                    controller.play()
+                }
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
@@ -706,8 +779,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 val body = response.body()
                 DebugLog.d("Heartbeat raw body: $body")
 
-                val songsJson = body?.get("data")?.asJsonArray
-                DebugLog.d("Heartbeat JSON size: ${songsJson?.size() ?: 0}")
+                // Fix: NCM Intelligence API returns an object where "data" might be an array OR an object containing "data" as an array
+                val songsJson = if (body?.get("data")?.isJsonArray == true) {
+                    DebugLog.d("Heartbeat: Found data as JsonArray")
+                    body.get("data").asJsonArray
+                } else if (body?.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data")) {
+                    DebugLog.d("Heartbeat: Found data.data as JsonArray")
+                    body.get("data").asJsonObject.get("data").asJsonArray
+                } else {
+                    DebugLog.e("Heartbeat: No recognizable song list in response. Body: $body")
+                    null
+                }
+
+                DebugLog.d("Heartbeat JSON list size: ${songsJson?.size() ?: 0}")
 
                 val songs = songsJson?.mapNotNull {
                     try {

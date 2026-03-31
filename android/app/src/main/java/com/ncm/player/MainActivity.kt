@@ -16,7 +16,13 @@ import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -82,11 +88,33 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
     val currentDestination = navBackStackEntry?.destination
     val context = LocalContext.current
 
+    val bottomBarHeight = 80.dp
+    val bottomBarHeightPx = with(LocalDensity.current) { bottomBarHeight.roundToPx().toFloat() }
+    val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                val newOffset = bottomBarOffsetHeightPx.value + delta
+                bottomBarOffsetHeightPx.value = newOffset.coerceIn(-bottomBarHeightPx * 2, 0f)
+                return Offset.Zero
+            }
+        }
+    }
+
+    val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
+
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier),
         bottomBar = {
-            if (loginViewModel.isLogged) {
-                Column {
+            if (loginViewModel.isLogged && !isPlayerScreen) {
+                Column(
+                    modifier = Modifier
+                        .offset { IntOffset(x = 0, y = -bottomBarOffsetHeightPx.value.toInt()) }
+                ) {
                     if (playerViewModel.currentSong != null) {
                         BottomPlaybackBar(
                             song = playerViewModel.currentSong,
@@ -128,36 +156,25 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
             }
         }
     ) { innerPadding ->
+        val finalPadding = if (isPlayerScreen) PaddingValues(0.dp) else innerPadding
         NavHost(
             navController = navController,
             startDestination = if (loginViewModel.isLogged) "main" else "login",
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .consumeWindowInsets(innerPadding),
+                .padding(finalPadding)
+                .consumeWindowInsets(finalPadding),
             enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeIn(animationSpec = tween(300))
+                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300))
             },
             exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it / 3 },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeOut(animationSpec = tween(300))
+                fadeOut(animationSpec = tween(250))
             },
             popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it / 3 },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeIn(animationSpec = tween(300))
+                fadeIn(animationSpec = tween(300))
             },
             popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeOut(animationSpec = tween(300))
+                fadeOut(animationSpec = tween(250)) + scaleOut(targetScale = 0.95f, animationSpec = tween(250))
             }
         ) {
             composable("login") {
@@ -331,8 +348,10 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
             }
             composable("settings") {
                 SettingsScreen(
-                    currentQuality = playerViewModel.currentQuality,
-                    onQualityChange = { playerViewModel.setQuality(it) },
+                    currentQualityWifi = playerViewModel.currentQualityWifi,
+                    onQualityWifiChange = { playerViewModel.setQualityWifi(it) },
+                    currentQualityCellular = playerViewModel.currentQualityCellular,
+                    onQualityCellularChange = { playerViewModel.setQualityCellular(it) },
                     downloadQuality = playerViewModel.downloadQuality,
                     onDownloadQualityChange = { playerViewModel.updateDownloadQuality(it) },
                     fadeDuration = playerViewModel.fadeDuration,
@@ -341,6 +360,8 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onCacheSizeChange = { playerViewModel.setCache(it) },
                     useCellularCache = playerViewModel.useCellularCache,
                     onUseCellularCacheChange = { playerViewModel.setUseCellular(it) },
+                    allowCellularDownload = playerViewModel.allowCellularDownload,
+                    onAllowCellularDownloadChange = { playerViewModel.updateAllowCellularDownload(it) },
                     downloadDir = playerViewModel.downloadDir,
                     onDownloadDirChange = { playerViewModel.setDownloadPath(it) },
                     onClearCache = { playerViewModel.clearCache() },
@@ -431,9 +452,33 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 LyricsScreen(
                     lyrics = playerViewModel.currentLyrics,
                     songName = playerViewModel.currentSong?.name ?: "Lyrics",
+                    currentPosition = playerViewModel.currentPosition,
                     onBackPressed = { navController.popBackStack() }
                 )
             }
+        }
+
+        playerViewModel.showCellularDownloadDialog?.let { song ->
+            AlertDialog(
+                onDismissRequest = { playerViewModel.showCellularDownloadDialog = null },
+                title = { Text("Cellular Data Warning") },
+                text = { Text("You are currently on a mobile network. Do you want to download \"${song.name}\"?") },
+                confirmButton = {
+                    Column {
+                        TextButton(onClick = { playerViewModel.confirmCellularDownload(song, loginViewModel.cookie, false) }) {
+                            Text("Continue")
+                        }
+                        TextButton(onClick = { playerViewModel.confirmCellularDownload(song, loginViewModel.cookie, true) }) {
+                            Text("Don't remind me this session")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { playerViewModel.showCellularDownloadDialog = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

@@ -145,12 +145,19 @@ fun PlaylistDetailScreen(
                 )
             } else {
                 LargeTopAppBar(
-                    title = { Text(playlist.name) },
+                    title = {
+                        Text(
+                            playlist.name,
+                            style = MaterialTheme.typography.headlineLarge,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBackPressed) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
+                    windowInsets = WindowInsets.statusBars.add(WindowInsets(top = 8.dp)),
                     actions = {
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")

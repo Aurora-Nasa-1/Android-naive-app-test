@@ -16,11 +16,19 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import android.app.PendingIntent
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.CommandButton
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.Futures
+import androidx.media3.common.Rating
+import androidx.media3.common.HeartRating
 import java.io.File
-import com.ncm.player.api.NcmApiService
 import com.ncm.player.util.UserPreferences
+import com.ncm.player.util.RustServerManager
 import io.github.proify.lyricon.provider.LyriconFactory
 import io.github.proify.lyricon.provider.LyriconProvider
 import io.github.proify.lyricon.lyric.model.LyricWord
@@ -57,11 +65,6 @@ class MusicService : MediaSessionService() {
     private val fadeAudioProcessor = FadeAudioProcessor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val apiService = Retrofit.Builder()
-        .baseUrl("http://127.0.0.1:3000/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(NcmApiService::class.java)
 
     override fun onCreate() {
         super.onCreate()
@@ -125,8 +128,33 @@ class MusicService : MediaSessionService() {
             }
         })
 
+        val intent = Intent(this, com.ncm.player.MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+
         mediaSession = MediaSession.Builder(this, player!!)
-            .setCallback(object : MediaSession.Callback {})
+            .setSessionActivity(pendingIntent)
+            .setCallback(object : MediaSession.Callback {
+                override fun onCustomCommand(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                    customCommand: SessionCommand,
+                    args: android.os.Bundle
+                ): ListenableFuture<SessionResult> {
+                    if (customCommand.customAction == "ACTION_LIKE") {
+                        val mediaId = session.player.currentMediaItem?.mediaId
+                        if (mediaId != null) {
+                            val cookie = UserPreferences.getCookie(this@MusicService)
+                            serviceScope.launch(Dispatchers.IO) {
+                                // Toggle like logic
+                                val result = RustServerManager.callApi("like", mapOf("id" to mediaId, "like" to "true", "cookie" to (cookie ?: "")))
+                                // Ideally broadcast state change back
+                            }
+                        }
+                        return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                    }
+                    return super.onCustomCommand(session, controller, customCommand, args)
+                }
+            })
             .build()
 
         initLyricon()
@@ -183,9 +211,10 @@ class MusicService : MediaSessionService() {
         lyricJob?.cancel()
         lyricJob = serviceScope.launch {
             try {
-                val response = apiService.getLyric(songId)
-                if (response.isSuccessful) {
-                    val body = response.body()
+                val result = RustServerManager.callApi("lyric/new", mapOf("id" to songId))
+                val body = com.google.gson.JsonParser.parseString(result).asJsonObject
+
+                if (body.has("lrc") || body.has("yrc")) {
                     val lrc = body?.get("lrc")?.asJsonObject?.get("lyric")?.asString
                     val tlyric = body?.get("tlyric")?.asJsonObject?.get("lyric")?.asString
                     val yrc = body?.get("yrc")?.asJsonObject?.get("lyric")?.asString
@@ -312,7 +341,28 @@ class MusicService : MediaSessionService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+        val session = mediaSession ?: return null
+
+        // Update custom layout to include the Like button
+        val likeCommand = SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY)
+        val likeButton = CommandButton.Builder()
+            .setSessionCommand(likeCommand)
+            .setDisplayName("Like")
+            .setIconResId(com.ncm.player.R.drawable.ic_heart_filled)
+            .setEnabled(true)
+            .build()
+
+        session.setCustomLayout(listOf(likeButton))
+        return session
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val player = player ?: return
+        if (!player.playWhenReady || player.mediaItemCount == 0) {
+            stopSelf()
+        }
+    }
 
     override fun onDestroy() {
         mediaSession?.run {

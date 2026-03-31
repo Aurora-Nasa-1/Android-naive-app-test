@@ -74,4 +74,31 @@ fn main() {
     }
 
     writeln!(f, ")").unwrap();
+
+    // 生成 JNI 分发器
+    let jni_dest_path = Path::new(&out_dir).join("jni_dispatcher_generated.rs");
+    let mut f_jni = fs::File::create(&jni_dest_path).expect("Failed to create JNI dispatcher file");
+
+    writeln!(f_jni, "// 自动生成的 JNI 分发器").unwrap();
+    writeln!(f_jni, "match method_str.as_str() {{").unwrap();
+    for method in methods.iter() {
+        let route = method_to_route(method);
+        let route_trimmed = &route[1..];
+        writeln!(
+            f_jni,
+            "    {:?} | {:?} => {{ client.{}(&query).await }}",
+            route, route_trimmed, method
+        )
+        .unwrap();
+    }
+    // 特殊处理 EXCLUDED_MODULES 中的一些常用方法
+    writeln!(f_jni, "    \"/cloud/upload/check\" | \"cloud/upload/check\" => {{ client.cloud_upload_check(&query).await }}").unwrap();
+    writeln!(f_jni, "    \"/api\" | \"api\" => {{ client.api(&query).await }}").unwrap();
+
+    writeln!(
+        f_jni,
+        "    _ => Err(crate::error::NcmError::Unknown(format!(\"Method not found: {{}}\", method_str)))"
+    )
+    .unwrap();
+    writeln!(f_jni, "}}").unwrap();
 }

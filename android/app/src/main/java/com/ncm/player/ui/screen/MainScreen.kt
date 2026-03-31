@@ -5,19 +5,26 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
@@ -28,7 +35,11 @@ import com.ncm.player.model.Playlist
 @Composable
 fun MainScreen(
     recommendedSongs: List<Song>,
+    userPlaylists: List<Playlist>,
     onSongClick: (Song) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
+    onPersonalFmClick: () -> Unit,
+    onHeartbeatClick: () -> Unit,
     onLikeClick: (Song) -> Unit,
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
@@ -38,34 +49,96 @@ fun MainScreen(
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Good day") },
+                title = {
+                    Text(
+                        "Good day",
+                        style = MaterialTheme.typography.headlineLarge,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                },
                 actions = {
                     actions()
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
-                }
+                },
+                windowInsets = WindowInsets.statusBars.add(WindowInsets(top = 8.dp))
             )
         }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding() + 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Quick Access Grid (2 columns)
+            item {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        QuickAccessCard(
+                            title = "Private FM",
+                            icon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
+                            onClick = onPersonalFmClick,
+                            modifier = Modifier.weight(1f)
+                        )
+                        QuickAccessCard(
+                            title = "Heartbeat",
+                            icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
+                            onClick = onHeartbeatClick,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val displayPlaylists = userPlaylists.take(6)
+                    for (i in displayPlaylists.indices step 2) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            PlaylistQuickCard(
+                                playlist = displayPlaylists[i],
+                                onClick = { onPlaylistClick(displayPlaylists[i]) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (i + 1 < displayPlaylists.size) {
+                                PlaylistQuickCard(
+                                    playlist = displayPlaylists[i+1],
+                                    onClick = { onPlaylistClick(displayPlaylists[i+1]) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+
             item(contentType = "header") {
                 Text(
-                    "Daily Recommendations",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(16.dp)
+                    "Made For You",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
                 )
             }
+
             item {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(end = 16.dp)
                 ) {
-                    items(recommendedSongs) { song ->
+                    items(recommendedSongs.take(10)) { song ->
                         SongCard(song, onClick = { onSongClick(song) })
                     }
                 }
@@ -73,12 +146,13 @@ fun MainScreen(
 
             item(contentType = "header") {
                 Text(
-                    "Recommended for you",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(16.dp)
+                    "Recently Played",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            items(recommendedSongs.take(10)) { song ->
+
+            items(recommendedSongs.drop(10).take(5)) { song ->
                 SongItem(
                     song = song,
                     isFavorite = favoriteSongs.contains(song.id),
@@ -92,20 +166,87 @@ fun MainScreen(
 }
 
 @Composable
+fun QuickAccessCard(
+    title: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = modifier.height(56.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            icon()
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+fun PlaylistQuickCard(
+    playlist: Playlist,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = modifier.height(56.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl ?: "", 120),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(1f)
+                    .clip(MaterialTheme.shapes.medium),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun SongCard(song: Song, onClick: () -> Unit) {
     Column(
         modifier = Modifier
-            .width(150.dp)
+            .width(160.dp)
             .clickable { onClick() }
     ) {
         Surface(
-            modifier = Modifier.size(150.dp),
-            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier
+                .size(160.dp)
+                .aspectRatio(1f),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
             if (song.albumArtUrl != null) {
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
+                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 300),
                     contentDescription = null,
                     contentScale = ContentScale.Crop
                 )
@@ -113,23 +254,23 @@ fun SongCard(song: Song, onClick: () -> Unit) {
                 Icon(
                     Icons.Default.MusicNote,
                     contentDescription = null,
-                    modifier = Modifier.padding(32.dp)
+                    modifier = Modifier.padding(48.dp)
                 )
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = song.name,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis
         )
         Text(
             text = song.artist,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -143,25 +284,37 @@ fun SongItem(
     onClick: () -> Unit
 ) {
     ListItem(
-        headlineContent = { Text(song.name) },
+        headlineContent = {
+            Text(
+                song.name,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
         supportingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isDownloaded) {
                     Icon(
                         Icons.Default.DownloadDone,
                         contentDescription = "Downloaded",
-                        modifier = Modifier.size(16.dp).padding(end = 4.dp),
+                        modifier = Modifier.size(14.dp).padding(end = 4.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                Text(song.artist)
+                Text(
+                    song.artist,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         },
         leadingContent = {
             Surface(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(56.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
-                shape = MaterialTheme.shapes.small
+                shape = MaterialTheme.shapes.medium
             ) {
                 if (song.albumArtUrl != null) {
                     AsyncImage(
@@ -173,7 +326,7 @@ fun SongItem(
                     Icon(
                         Icons.Default.MusicNote,
                         contentDescription = null,
-                        modifier = Modifier.padding(8.dp)
+                        modifier = Modifier.padding(12.dp)
                     )
                 }
             }
@@ -187,20 +340,23 @@ fun SongItem(
                 )
             }
         },
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable { onClick() },
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
     )
 }
 
 @Composable
 fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(playlist.name) },
-        supportingContent = { Text("${playlist.trackCount} songs") },
+        headlineContent = { Text(playlist.name, style = MaterialTheme.typography.titleMedium) },
+        supportingContent = { Text("${playlist.trackCount} songs", style = MaterialTheme.typography.bodyMedium) },
         leadingContent = {
             Surface(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(56.dp),
                 color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = MaterialTheme.shapes.small
+                shape = MaterialTheme.shapes.medium
             ) {
                 if (playlist.coverImgUrl != null) {
                     AsyncImage(
@@ -212,11 +368,14 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
                     Icon(
                         Icons.Default.PlayArrow,
                         contentDescription = null,
-                        modifier = Modifier.padding(8.dp)
+                        modifier = Modifier.padding(12.dp)
                     )
                 }
             }
         },
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable { onClick() },
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
     )
 }

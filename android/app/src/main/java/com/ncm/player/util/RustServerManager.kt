@@ -21,7 +21,14 @@ object RustServerManager {
     @JvmStatic
     private external fun startNativeServer(host: String, port: Int)
 
+    @JvmStatic
+    private external fun nativeCallApi(method: String, paramsJson: String): String
 
+    fun callApi(method: String, params: Map<String, String>): String {
+        if (!isNativeLoaded) return "{\"code\": 500, \"msg\": \"Native library not loaded\"}"
+        val json = com.google.gson.Gson().toJson(params)
+        return nativeCallApi(method, json)
+    }
 
     fun startServer(context: android.content.Context, port: Int = 3000) {
         if (isNativeLoaded) {

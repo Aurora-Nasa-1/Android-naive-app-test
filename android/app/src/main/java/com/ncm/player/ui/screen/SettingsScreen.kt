@@ -49,12 +49,19 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Settings") },
+                title = {
+                    Text(
+                        "Settings",
+                        style = MaterialTheme.typography.headlineLarge,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                windowInsets = WindowInsets.statusBars.add(WindowInsets(top = 8.dp))
             )
         }
     ) { innerPadding ->

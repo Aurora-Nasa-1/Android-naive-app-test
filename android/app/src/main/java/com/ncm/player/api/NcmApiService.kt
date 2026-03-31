@@ -53,4 +53,16 @@ interface NcmApiService {
 
     @GET("playlist/detail")
     suspend fun getPlaylistDetail(@Query("id") id: Long, @Query("cookie") cookie: String? = null): Response<JsonObject>
+
+    @GET("personal_fm")
+    suspend fun getPersonalFm(@Query("cookie") cookie: String? = null): Response<JsonObject>
+
+    @GET("playmode/intelligence/list")
+    suspend fun getIntelligenceList(
+        @Query("id") songId: String,
+        @Query("pid") playlistId: Long,
+        @Query("sid") startMusicId: String = "",
+        @Query("count") count: Int = 20,
+        @Query("cookie") cookie: String? = null
+    ): Response<JsonObject>
 }

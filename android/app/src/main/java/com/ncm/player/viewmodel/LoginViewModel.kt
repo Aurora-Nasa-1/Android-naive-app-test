@@ -11,29 +11,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.ncm.player.api.NcmApiService
 import com.ncm.player.util.UserPreferences
+import com.ncm.player.util.RustServerManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.google.gson.JsonParser
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true)
-        .build()
-
-    private val apiService = Retrofit.Builder()
-        .baseUrl("http://127.0.0.1:3000/")
-        .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(NcmApiService::class.java)
 
     var qrCodeBitmap by mutableStateOf<Bitmap?>(null)
     var qrUrl by mutableStateOf<String?>(null)
@@ -62,8 +49,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         fetchJob = viewModelScope.launch {
             try {
                 Log.d("LoginVM", "Fetching QR key...")
-                val keyResponse = apiService.getQrKey()
-                val keyBody = keyResponse.body()
+                val keyResult = withContext(Dispatchers.IO) { RustServerManager.callApi("login/qr/key", emptyMap()) }
+                val keyBody = JsonParser.parseString(keyResult).asJsonObject
                 val key = keyBody?.get("data")?.asJsonObject?.get("unikey")?.asString
                     ?: keyBody?.get("unikey")?.asString
                     ?: run {
@@ -73,8 +60,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                 Log.d("LoginVM", "Creating QR image for key: $key")
-                val qrResponse = apiService.createQr(key)
-                val qrBody = qrResponse.body()
+                val qrResult = withContext(Dispatchers.IO) { RustServerManager.callApi("login/qr/create", mapOf("key" to key, "qrimg" to "true")) }
+                val qrBody = JsonParser.parseString(qrResult).asJsonObject
                 val qrData = qrBody?.get("data")?.asJsonObject
                 val qrImg = qrData?.get("qrimg")?.asString
                 val qrUrlFromApi = qrData?.get("qrurl")?.asString
@@ -120,8 +107,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 delay(3000)
                 try {
-                    val statusResponse = apiService.checkQr(key)
-                    val body = statusResponse.body()
+                    val statusResult = withContext(Dispatchers.IO) { RustServerManager.callApi("login/qr/check", mapOf("key" to key)) }
+                    val body = JsonParser.parseString(statusResult).asJsonObject
                     val code = body?.get("code")?.asInt ?: 0
                     Log.d("LoginVM", "QR status code: $code")
                     when (code) {

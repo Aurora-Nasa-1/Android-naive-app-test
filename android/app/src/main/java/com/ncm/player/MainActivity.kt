@@ -66,37 +66,6 @@ class MainActivity : ComponentActivity() {
                             android.util.Log.e("MainActivity", "Failed to start RustServerService", e)
                         }
 
-                        // Background check for server connectivity
-                        val client = okhttp3.OkHttpClient.Builder()
-                            .connectTimeout(1, java.util.concurrent.TimeUnit.SECONDS)
-                            .build()
-                        val request = okhttp3.Request.Builder().url("http://127.0.0.1:3000").build()
-
-                        kotlinx.coroutines.delay(3000L) // Wait for server to start
-                        var responsive = false
-                        for (attempt in 1..15) {
-                            try {
-                                withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    client.newCall(request).execute().use { response ->
-                                        if (response.isSuccessful || response.code == 404 || response.code == 200) {
-                                            responsive = true
-                                        }
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.w("MainActivity", "Server check $attempt: ${e.message}")
-                            }
-                            if (responsive) {
-                                android.util.Log.i("MainActivity", "Local server is up and running!")
-                                break
-                            }
-                            kotlinx.coroutines.delay(1000L)
-                        }
-
-                        if (!responsive) {
-                            android.util.Log.e("MainActivity", "Local server failed to respond after 15 attempts")
-                            android.widget.Toast.makeText(context, "Backend server not responding. Try restarting the app.", android.widget.Toast.LENGTH_LONG).show()
-                        }
                     }
 
                     AppNavigation(loginViewModel, playerViewModel)
@@ -126,7 +95,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                             onSkipNext = { playerViewModel.skipNext() },
                             onSkipPrevious = { playerViewModel.skipPrevious() },
                             onClick = {
-                                navController.navigate("player")
+                                navController.navigate("player") {
+                                    launchSingleTop = true
+                                }
                             }
                         )
                     }
@@ -165,16 +136,28 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
             enterTransition = {
-                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300))
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeIn(animationSpec = tween(300))
             },
             exitTransition = {
-                fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.95f, animationSpec = tween(300))
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeOut(animationSpec = tween(300))
             },
             popEnterTransition = {
-                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 1.05f, animationSpec = tween(300))
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeIn(animationSpec = tween(300))
             },
             popExitTransition = {
-                fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 1.05f, animationSpec = tween(300))
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeOut(animationSpec = tween(300))
             }
         ) {
             composable("login") {
@@ -196,9 +179,37 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
 
                 MainScreen(
                     recommendedSongs = playerViewModel.recommendedSongs,
+                    userPlaylists = playerViewModel.userPlaylists,
                     onSongClick = { song ->
                         playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
-                        navController.navigate("player")
+                        navController.navigate("player") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onPlaylistClick = { playlist ->
+                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                        navController.navigate("playlist/${playlist.id}")
+                    },
+                    onPersonalFmClick = {
+                        playerViewModel.playPersonalFm(loginViewModel.cookie)
+                        navController.navigate("player") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onHeartbeatClick = {
+                        if (playerViewModel.favoriteSongs.isNotEmpty()) {
+                            // Use first favorite song to seed heartbeat
+                            playerViewModel.playHeartbeat(
+                                songId = playerViewModel.favoriteSongs[0],
+                                playlistId = playerViewModel.likedSongsPlaylistId,
+                                cookie = loginViewModel.cookie
+                            )
+                            navController.navigate("player") {
+                                launchSingleTop = true
+                            }
+                        } else {
+                            com.ncm.player.util.DebugLog.toast(context, "No liked songs to start Heartbeat")
+                        }
                     },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
@@ -224,7 +235,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onSearch = { playerViewModel.searchSongs(it) },
                     onSongClick = { song ->
                         playerViewModel.playSong(song, playerViewModel.searchResults, loginViewModel.cookie)
-                        navController.navigate("player")
+                        navController.navigate("player") {
+                            launchSingleTop = true
+                        }
                     },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
@@ -264,12 +277,16 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         isLoading = playerViewModel.isLoading,
                         onSongClick = { song ->
                             playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
-                            navController.navigate("player")
+                            navController.navigate("player") {
+                                launchSingleTop = true
+                            }
                         },
                         onPlayAllClick = { songs ->
                             if (songs.isNotEmpty()) {
                                 playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
-                                navController.navigate("player")
+                                navController.navigate("player") {
+                                    launchSingleTop = true
+                                }
                             }
                         },
                         onQueueAllClick = { songs ->
@@ -302,7 +319,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onBackPressed = { navController.popBackStack() },
                     onPlayLocalSong = { song, uri ->
                         playerViewModel.playSong(song, localUri = uri)
-                        navController.navigate("player")
+                        navController.navigate("player") {
+                            launchSingleTop = true
+                        }
                     },
                     localSongs = playerViewModel.localSongs,
                     tasks = tasks,
@@ -333,30 +352,26 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 enterTransition = {
                     slideInVertically(
                         initialOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeIn(animationSpec = tween(500)) +
-                    scaleIn(initialScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseOutQuart)
+                    ) + fadeIn(animationSpec = tween(400))
                 },
                 exitTransition = {
                     slideOutVertically(
                         targetOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeOut(animationSpec = tween(500)) +
-                    scaleOut(targetScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseInQuart)
+                    ) + fadeOut(animationSpec = tween(400))
                 },
                 popEnterTransition = {
                     slideInVertically(
                         initialOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeIn(animationSpec = tween(500)) +
-                    scaleIn(initialScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseOutQuart)
+                    ) + fadeIn(animationSpec = tween(400))
                 },
                 popExitTransition = {
                     slideOutVertically(
                         targetOffsetY = { it },
-                        animationSpec = tween(600, easing = EaseInOutQuart)
-                    ) + fadeOut(animationSpec = tween(500)) +
-                    scaleOut(targetScale = 0.85f, animationSpec = tween(600, easing = EaseInOutQuart))
+                        animationSpec = tween(500, easing = EaseInQuart)
+                    ) + fadeOut(animationSpec = tween(400))
                 }
             ) {
                 val currentSong = playerViewModel.currentSong

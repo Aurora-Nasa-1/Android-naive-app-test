@@ -61,6 +61,7 @@ interface NcmApiService {
     suspend fun getIntelligenceList(
         @Query("id") songId: String,
         @Query("pid") playlistId: Long,
+        @Query("sid") startMusicId: String = "",
         @Query("cookie") cookie: String? = null
     ): Response<JsonObject>
 }

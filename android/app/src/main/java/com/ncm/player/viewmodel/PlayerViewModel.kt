@@ -20,6 +20,7 @@ import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
+import com.ncm.player.util.DebugLog
 import java.io.File
 import java.net.URLEncoder
 import kotlinx.coroutines.*
@@ -633,30 +634,54 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 isLoading = true
+                DebugLog.toast(getApplication(), "Starting Private FM...")
+                DebugLog.d("Fetching Personal FM songs...")
                 val response = apiService.getPersonalFm(cookie)
-                val body = response.body()
-                val songsJson = body?.get("data")?.asJsonArray ?: body?.get("result")?.asJsonArray
-                val songs = songsJson?.map {
-                    val obj = it.asJsonObject
-                    val artists = obj.get("artists")?.asJsonArray ?: obj.get("ar")?.asJsonArray
-                    val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
-                    val album = obj.get("album")?.asJsonObject ?: obj.get("al")?.asJsonObject
-                    val albumName = album?.get("name")?.asString ?: "Unknown"
-                    val picUrl = album?.get("picUrl")?.asString
 
-                    Song(
-                        id = obj.get("id").asJsonPrimitive.asString,
-                        name = obj.get("name").asString,
-                        artist = artistName,
-                        album = albumName,
-                        albumArtUrl = picUrl
-                    )
+                if (!response.isSuccessful) {
+                    val errorMsg = "API Error ${response.code()}: ${response.errorBody()?.string()}"
+                    DebugLog.e(errorMsg)
+                    DebugLog.toast(getApplication(), errorMsg)
+                    return@launch
+                }
+
+                val body = response.body()
+                DebugLog.d("Personal FM raw body: $body")
+
+                val songsJson = body?.get("data")?.asJsonArray ?: body?.get("result")?.asJsonArray
+                DebugLog.d("Songs JSON size: ${songsJson?.size() ?: 0}")
+
+                val songs = songsJson?.mapNotNull {
+                    try {
+                        val obj = it.asJsonObject
+                        val artists = obj.get("artists")?.asJsonArray ?: obj.get("ar")?.asJsonArray
+                        val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
+                        val album = obj.get("album")?.asJsonObject ?: obj.get("al")?.asJsonObject
+                        val albumName = album?.get("name")?.asString ?: "Unknown"
+                        val picUrl = album?.get("picUrl")?.asString
+
+                        Song(
+                            id = obj.get("id").asJsonPrimitive.asString,
+                            name = obj.get("name").asString,
+                            artist = artistName,
+                            album = albumName,
+                            albumArtUrl = picUrl
+                        )
+                    } catch (e: Exception) {
+                        DebugLog.e("Error parsing FM song", e)
+                        null
+                    }
                 } ?: emptyList()
+
                 if (songs.isNotEmpty()) {
+                    DebugLog.d("Playing ${songs.size} Personal FM songs")
                     playSong(songs[0], songs, cookie)
+                } else {
+                    DebugLog.toast(getApplication(), "No FM songs returned from server")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                DebugLog.e("Personal FM Exception", e)
+                DebugLog.toast(getApplication(), "Personal FM Failed: ${e.message}")
             } finally {
                 isLoading = false
             }
@@ -667,32 +692,56 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 isLoading = true
-                val response = apiService.getIntelligenceList(songId, playlistId, cookie)
+                DebugLog.toast(getApplication(), "Starting Heartbeat Mode...")
+                DebugLog.d("Fetching Heartbeat for songId: $songId, playlistId: $playlistId")
+                val response = apiService.getIntelligenceList(songId, playlistId, songId, cookie)
+
+                if (!response.isSuccessful) {
+                    val errorMsg = "API Error ${response.code()}: ${response.errorBody()?.string()}"
+                    DebugLog.e(errorMsg)
+                    DebugLog.toast(getApplication(), errorMsg)
+                    return@launch
+                }
+
                 val body = response.body()
+                DebugLog.d("Heartbeat raw body: $body")
+
                 val songsJson = body?.get("data")?.asJsonArray
-                val songs = songsJson?.map {
-                    val item = it.asJsonObject
-                    val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
+                DebugLog.d("Heartbeat JSON size: ${songsJson?.size() ?: 0}")
 
-                    val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
-                    val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
-                    val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
-                    val albumName = album?.get("name")?.asString ?: "Unknown"
-                    val picUrl = album?.get("picUrl")?.asString
+                val songs = songsJson?.mapNotNull {
+                    try {
+                        val item = it.asJsonObject
+                        val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
 
-                    Song(
-                        id = obj.get("id").asJsonPrimitive.asString,
-                        name = obj.get("name").asString,
-                        artist = artistName,
-                        album = albumName,
-                        albumArtUrl = picUrl
-                    )
+                        val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
+                        val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
+                        val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
+                        val albumName = album?.get("name")?.asString ?: "Unknown"
+                        val picUrl = album?.get("picUrl")?.asString
+
+                        Song(
+                            id = obj.get("id").asJsonPrimitive.asString,
+                            name = obj.get("name").asString,
+                            artist = artistName,
+                            album = albumName,
+                            albumArtUrl = picUrl
+                        )
+                    } catch (e: Exception) {
+                        DebugLog.e("Error parsing Heartbeat song", e)
+                        null
+                    }
                 } ?: emptyList()
+
                 if (songs.isNotEmpty()) {
+                    DebugLog.d("Playing ${songs.size} Heartbeat songs")
                     playSong(songs[0], songs, cookie)
+                } else {
+                    DebugLog.toast(getApplication(), "No Heartbeat songs returned from server")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                DebugLog.e("Heartbeat Exception", e)
+                DebugLog.toast(getApplication(), "Heartbeat Failed: ${e.message}")
             } finally {
                 isLoading = false
             }

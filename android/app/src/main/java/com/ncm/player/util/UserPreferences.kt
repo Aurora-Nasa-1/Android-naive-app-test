@@ -15,6 +15,7 @@ object UserPreferences {
     private const val KEY_DOWNLOAD_QUALITY = "download_quality"
     private const val KEY_FIRST_DOWNLOAD = "first_download"
     private const val KEY_ALLOW_CELLULAR_DOWNLOAD = "allow_cellular_download"
+    private const val KEY_PURE_BLACK_MODE = "pure_black_mode"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -98,6 +99,14 @@ object UserPreferences {
 
     fun getAllowCellularDownload(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_ALLOW_CELLULAR_DOWNLOAD, false)
+    }
+
+    fun savePureBlackMode(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_PURE_BLACK_MODE, enabled).apply()
+    }
+
+    fun getPureBlackMode(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_PURE_BLACK_MODE, false)
     }
 
     fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {

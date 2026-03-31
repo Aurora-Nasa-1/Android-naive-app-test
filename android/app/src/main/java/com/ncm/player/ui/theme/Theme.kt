@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
@@ -21,15 +22,30 @@ private val LightColorScheme = lightColorScheme()
 fun NCMPlayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    pureBlack: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
+    var colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
+    }
+
+    if (darkTheme && pureBlack) {
+        colorScheme = colorScheme.copy(
+            surface = Color.Black,
+            background = Color.Black,
+            surfaceVariant = Color.Black,
+            secondaryContainer = Color.DarkGray.copy(alpha = 0.2f),
+            surfaceContainer = Color.Black,
+            surfaceContainerHigh = Color.Black,
+            surfaceContainerHighest = Color.Black,
+            surfaceContainerLow = Color.Black,
+            surfaceContainerLowest = Color.Black
+        )
     }
 
     val expressiveShapes = Shapes(

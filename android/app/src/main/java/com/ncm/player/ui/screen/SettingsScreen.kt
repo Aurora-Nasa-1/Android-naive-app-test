@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Cached
 import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.Download
@@ -39,6 +40,8 @@ fun SettingsScreen(
     onUseCellularCacheChange: (Boolean) -> Unit,
     allowCellularDownload: Boolean,
     onAllowCellularDownloadChange: (Boolean) -> Unit,
+    pureBlackMode: Boolean,
+    onPureBlackModeChange: (Boolean) -> Unit,
     downloadDir: String?,
     onDownloadDirChange: (String) -> Unit,
     onClearCache: () -> Unit,
@@ -83,6 +86,16 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            SettingsCategory("Appearance") {
+                SwitchSettingItem(
+                    icon = Icons.Default.Brightness4,
+                    title = "Pure Black Mode",
+                    subtitle = "Use pitch black for OLED screens in dark mode",
+                    checked = pureBlackMode,
+                    onCheckedChange = onPureBlackModeChange
+                )
+            }
+
             SettingsCategory("Playback Quality") {
                 QualitySettingItem(
                     icon = Icons.Default.Wifi,
@@ -118,7 +131,8 @@ fun SettingsScreen(
                     headlineContent = { Text("Download Directory") },
                     supportingContent = { Text(downloadDir?.substringAfterLast("%2F") ?: "System Music folder") },
                     leadingContent = { Icon(Icons.Default.Folder, null) },
-                    modifier = Modifier.clickable { dirPicker.launch(null) }
+                    modifier = Modifier.clickable { dirPicker.launch(null) },
+                    colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
                 )
             }
 

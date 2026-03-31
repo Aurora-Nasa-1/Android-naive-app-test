@@ -56,6 +56,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var downloadQuality by mutableStateOf("standard")
     var isFirstDownload by mutableStateOf(true)
     var allowCellularDownload by mutableStateOf(false)
+    var pureBlackMode by mutableStateOf(false)
     var showCellularDownloadDialog by mutableStateOf<Song?>(null)
     private var skipCellularPromptForSession = false
 
@@ -85,6 +86,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         downloadQuality = UserPreferences.getDownloadQuality(application)
         isFirstDownload = UserPreferences.isFirstDownload(application)
         allowCellularDownload = UserPreferences.getAllowCellularDownload(application)
+        pureBlackMode = UserPreferences.getPureBlackMode(application)
 
         viewModelScope.launch {
             ncmDownloadManager.completedSongs.collect {
@@ -260,6 +262,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun updateAllowCellularDownload(allow: Boolean) {
         allowCellularDownload = allow
         UserPreferences.saveAllowCellularDownload(getApplication(), allow)
+    }
+
+    fun updatePureBlackMode(enabled: Boolean) {
+        pureBlackMode = enabled
+        UserPreferences.savePureBlackMode(getApplication(), enabled)
     }
 
     fun clearCache() {

@@ -50,7 +50,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            NCMPlayerTheme {
+            NCMPlayerTheme(
+                pureBlack = playerViewModel.pureBlackMode
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -109,10 +111,12 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
         modifier = Modifier
             .fillMaxSize()
             .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (loginViewModel.isLogged && !isPlayerScreen) {
                 Column(
                     modifier = Modifier
+                        .heightIn(max = bottomBarHeight)
                         .offset { IntOffset(x = 0, y = -bottomBarOffsetHeightPx.value.toInt()) }
                 ) {
                     if (playerViewModel.currentSong != null) {
@@ -165,16 +169,28 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 .padding(finalPadding)
                 .consumeWindowInsets(finalPadding),
             enterTransition = {
-                fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300))
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeIn(animationSpec = tween(300))
             },
             exitTransition = {
-                fadeOut(animationSpec = tween(250))
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeOut(animationSpec = tween(300))
             },
             popEnterTransition = {
-                fadeIn(animationSpec = tween(300))
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeIn(animationSpec = tween(300))
             },
             popExitTransition = {
-                fadeOut(animationSpec = tween(250)) + scaleOut(targetScale = 0.95f, animationSpec = tween(250))
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(400, easing = EaseOutQuart)
+                ) + fadeOut(animationSpec = tween(300))
             }
         ) {
             composable("login") {
@@ -362,6 +378,8 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onUseCellularCacheChange = { playerViewModel.setUseCellular(it) },
                     allowCellularDownload = playerViewModel.allowCellularDownload,
                     onAllowCellularDownloadChange = { playerViewModel.updateAllowCellularDownload(it) },
+                    pureBlackMode = playerViewModel.pureBlackMode,
+                    onPureBlackModeChange = { playerViewModel.updatePureBlackMode(it) },
                     downloadDir = playerViewModel.downloadDir,
                     onDownloadDirChange = { playerViewModel.setDownloadPath(it) },
                     onClearCache = { playerViewModel.clearCache() },

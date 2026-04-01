@@ -8,12 +8,25 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use tracing_subscriber::prelude::*;
+use tokio::runtime::Runtime;
 
 static SERVER_STARTED: AtomicBool = AtomicBool::new(false);
 static API_CLIENT: OnceLock<ApiClient> = OnceLock::new();
+static TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
 fn get_client() -> &'static ApiClient {
     API_CLIENT.get_or_init(|| ApiClient::new(None))
+}
+
+fn get_runtime() -> &'static Runtime {
+    TOKIO_RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(4)
+            .thread_name("ncm-worker")
+            .build()
+            .expect("Failed to create Tokio runtime")
+    })
 }
 
 /// # Safety
@@ -51,11 +64,9 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_startNa
         ..Default::default()
     };
 
-    std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            start_server(config).await;
-        });
+    let rt = get_runtime();
+    rt.spawn(async move {
+        start_server(config).await;
     });
 }
 
@@ -73,7 +84,7 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_nativeC
     let method_str: String = env.get_string(&method).unwrap().into();
     let params_json_str: String = env.get_string(&params_json).unwrap().into();
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = get_runtime();
     let result = rt.block_on(async move {
         let client = get_client();
         let mut query = Query::new();

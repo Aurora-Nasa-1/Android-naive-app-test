@@ -41,19 +41,24 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
     var playlistSongs by mutableStateOf<List<Song>>(emptyList())
     var searchResults by mutableStateOf<List<Song>>(emptyList())
-    var currentLyrics by mutableStateOf<String?>(null)
+    var currentLyrics by mutableStateOf<List<LyricLine>>(emptyList())
     var isLoading by mutableStateOf(false)
     var likedSongsPlaylistId by mutableStateOf(0L)
     var isFmMode by mutableStateOf(false)
     private var isFetchingMoreFm = false
 
-    var currentQuality by mutableStateOf("standard")
+    var currentQualityWifi by mutableStateOf("exhigh")
+    var currentQualityCellular by mutableStateOf("standard")
     var fadeDuration by mutableStateOf(2f)
     var cacheSize by mutableStateOf(512)
     var useCellularCache by mutableStateOf(false)
     var downloadDir by mutableStateOf<String?>(null)
     var downloadQuality by mutableStateOf("standard")
     var isFirstDownload by mutableStateOf(true)
+    var allowCellularDownload by mutableStateOf(false)
+    var pureBlackMode by mutableStateOf(false)
+    var showCellularDownloadDialog by mutableStateOf<Song?>(null)
+    private var skipCellularPromptForSession = false
 
     val ncmDownloadManager = com.ncm.player.manager.NcmDownloadManager(application)
 
@@ -68,18 +73,37 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val mediaController: MediaController?
         get() = if (mediaControllerFuture?.isDone == true) mediaControllerFuture?.get() else null
 
+    val networkManager = com.ncm.player.util.NetworkManager(application)
+    var currentNetworkType by mutableStateOf(com.ncm.player.util.NetworkType.NONE)
+
     init {
-        currentQuality = UserPreferences.getQuality(application)
+        currentQualityWifi = UserPreferences.getQualityWifi(application)
+        currentQualityCellular = UserPreferences.getQualityCellular(application)
         fadeDuration = UserPreferences.getFadeDuration(application)
         cacheSize = UserPreferences.getCacheSize(application)
         useCellularCache = UserPreferences.getUseCellularCache(application)
         downloadDir = UserPreferences.getDownloadDir(application)
         downloadQuality = UserPreferences.getDownloadQuality(application)
         isFirstDownload = UserPreferences.isFirstDownload(application)
+        allowCellularDownload = UserPreferences.getAllowCellularDownload(application)
+        pureBlackMode = UserPreferences.getPureBlackMode(application)
 
         viewModelScope.launch {
             ncmDownloadManager.completedSongs.collect {
                 refreshLocalSongs()
+            }
+        }
+        viewModelScope.launch {
+            networkManager.networkType.collect { type ->
+                currentNetworkType = type
+                if (type == com.ncm.player.util.NetworkType.CELLULAR && !allowCellularDownload && !skipCellularPromptForSession) {
+                    val activeTasks = ncmDownloadManager.tasks.value.values.filter {
+                        it.status == com.ncm.player.model.DownloadStatus.DOWNLOADING
+                    }
+                    if (activeTasks.isNotEmpty()) {
+                        showCellularDownloadDialog = activeTasks.first().song
+                    }
+                }
             }
         }
     }
@@ -196,9 +220,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         return files.distinctBy { it.second }
     }
 
-    fun setQuality(quality: String) {
-        currentQuality = quality
-        UserPreferences.saveQuality(getApplication(), quality)
+    fun setQualityWifi(quality: String) {
+        currentQualityWifi = quality
+        UserPreferences.saveQualityWifi(getApplication(), quality)
+    }
+
+    fun setQualityCellular(quality: String) {
+        currentQualityCellular = quality
+        UserPreferences.saveQualityCellular(getApplication(), quality)
     }
 
     fun setFade(duration: Float) {
@@ -228,6 +257,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             isFirstDownload = false
             UserPreferences.setFirstDownloadComplete(getApplication())
         }
+    }
+
+    fun updateAllowCellularDownload(allow: Boolean) {
+        allowCellularDownload = allow
+        UserPreferences.saveAllowCellularDownload(getApplication(), allow)
+    }
+
+    fun updatePureBlackMode(enabled: Boolean) {
+        pureBlackMode = enabled
+        UserPreferences.savePureBlackMode(getApplication(), enabled)
     }
 
     fun clearCache() {
@@ -486,16 +525,64 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val body = withContext(Dispatchers.IO) { callApi("lyric/new", mapOf("id" to songId)) }
-                val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString
-                currentLyrics = lrc
+                val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                val tlyric = body.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
+
+                currentLyrics = parseLyrics(lrc, tlyric)
             } catch (e: Exception) {
                 e.printStackTrace()
+                currentLyrics = emptyList()
             }
         }
     }
 
-    fun downloadSong(song: Song, cookie: String?) {
-        ncmDownloadManager.downloadSong(song, cookie, downloadQuality)
+    private fun parseLyrics(lrc: String, tlyric: String): List<LyricLine> {
+        val lineRegex = Regex("\\[(\\d+):(\\d+)\\.(\\d+)\\](.*)")
+        val lines = lrc.lines().mapNotNull { line ->
+            val match = lineRegex.find(line)
+            if (match != null) {
+                val min = match.groupValues[1].toLong()
+                val sec = match.groupValues[2].toLong()
+                val ms = match.groupValues[3].padEnd(3, '0').substring(0, 3).toLong()
+                val time = min * 60 * 1000 + sec * 1000 + ms
+                val text = match.groupValues[4].trim()
+                if (text.isNotEmpty()) LyricLine(time, text) else null
+            } else null
+        }
+
+        if (tlyric.isEmpty()) return lines
+
+        val tlines = tlyric.lines().mapNotNull { line ->
+            val match = lineRegex.find(line)
+            if (match != null) {
+                val min = match.groupValues[1].toLong()
+                val sec = match.groupValues[2].toLong()
+                val ms = match.groupValues[3].padEnd(3, '0').substring(0, 3).toLong()
+                val time = min * 60 * 1000 + sec * 1000 + ms
+                val text = match.groupValues[4].trim()
+                time to text
+            } else null
+        }.toMap()
+
+        return lines.map { it.copy(translation = tlines[it.time]) }
+    }
+
+    data class LyricLine(val time: Long, val text: String, val translation: String? = null)
+
+    fun downloadSong(song: Song, cookie: String?, ignoreNetwork: Boolean = false) {
+        if (!ignoreNetwork && currentNetworkType == com.ncm.player.util.NetworkType.CELLULAR && !allowCellularDownload && !skipCellularPromptForSession) {
+            showCellularDownloadDialog = song
+            return
+        }
+        ncmDownloadManager.downloadSong(song, cookie, downloadQuality, allowCellular = allowCellularDownload || ignoreNetwork)
+    }
+
+    fun confirmCellularDownload(song: Song, cookie: String?, skipForSession: Boolean) {
+        if (skipForSession) {
+            skipCellularPromptForSession = true
+        }
+        showCellularDownloadDialog = null
+        ncmDownloadManager.downloadSong(song, cookie, downloadQuality, allowCellular = true)
     }
 
     fun playSong(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null, localUri: android.net.Uri? = null) {
@@ -585,10 +672,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
             .build()
 
+        val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
+
         val uri = if (!cookie.isNullOrEmpty()) {
-            "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$currentQuality&cookie=${URLEncoder.encode(cookie, "UTF-8")}"
+            "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$quality&cookie=${URLEncoder.encode(cookie, "UTF-8")}"
         } else {
-            "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$currentQuality"
+            "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$quality"
         }
 
         return MediaItem.Builder()

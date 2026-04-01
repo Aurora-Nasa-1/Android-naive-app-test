@@ -34,7 +34,7 @@ fun SearchScreen(
                             onSearch(it)
                         },
                         placeholder = { Text("Search songs") },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -44,7 +44,7 @@ fun SearchScreen(
                         singleLine = true
                     )
                 },
-                windowInsets = WindowInsets.statusBars.add(WindowInsets(top = 8.dp))
+                windowInsets = WindowInsets.statusBars
             )
         }
     ) { innerPadding ->

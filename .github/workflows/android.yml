@@ -65,14 +65,15 @@ jobs:
           name: rust-binaries
           path: android/app/src/main/jniLibs/
 
-      - name: Build with Gradle
+      - name: Build Release APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --parallel --build-cache
+          # We use assembleRelease to build the optimized production package
+          ./gradlew assembleRelease --parallel --build-cache
 
-      - name: Upload APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: ncm-player-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: ncm-player-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk

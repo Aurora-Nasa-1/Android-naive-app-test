@@ -246,6 +246,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         mediaControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         mediaControllerFuture?.addListener({
             mediaController?.let { controller ->
+                // Sync initial state when connected
+                isPlaying = controller.isPlaying
+                currentPosition = controller.currentPosition
+                duration = controller.duration.coerceAtLeast(0L)
+                repeatMode = controller.repeatMode
+                shuffleMode = controller.shuffleModeEnabled
+                controller.currentMediaItem?.let { mediaItem ->
+                    currentSong = Song(
+                        id = mediaItem.mediaId,
+                        name = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
+                        artist = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
+                        album = mediaItem.mediaMetadata.albumTitle?.toString() ?: "Unknown",
+                        albumArtUrl = mediaItem.mediaMetadata.artworkUri?.toString()
+                    )
+                }
+                updateQueue()
+
                 controller.addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         this@PlayerViewModel.isPlaying = isPlaying

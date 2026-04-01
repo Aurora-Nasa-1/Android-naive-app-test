@@ -68,19 +68,33 @@ class MainActivity : ComponentActivity() {
 
                     }
 
-                    AppNavigation(loginViewModel, playerViewModel)
+                    AppNavigation(loginViewModel, playerViewModel, intent)
                 }
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        recreate()
+    }
 }
 
 @Composable
-fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewModel) {
+fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewModel, intent: Intent? = null) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val context = LocalContext.current
+
+    LaunchedEffect(intent) {
+        if (intent?.action == "ACTION_SHOW_PLAYER") {
+            navController.navigate("player") {
+                launchSingleTop = true
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

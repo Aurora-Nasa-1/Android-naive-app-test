@@ -128,8 +128,10 @@ class MusicService : MediaSessionService() {
             }
         })
 
-        val intent = Intent(this, com.ncm.player.MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        val intent = Intent(this, com.ncm.player.MainActivity::class.java).apply {
+            action = "ACTION_SHOW_PLAYER"
+        }
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
         mediaSession = MediaSession.Builder(this, player!!)
             .setSessionActivity(pendingIntent)
@@ -162,7 +164,16 @@ class MusicService : MediaSessionService() {
 
     private fun initLyricon() {
         lyriconProvider = LyriconFactory.createProvider(this).apply {
-            // service.addConnectionListener { ... }
+            service.addConnectionListener(object : io.github.proify.lyricon.provider.ConnectionListener {
+                override fun onConnected(provider: LyriconProvider) {
+                    syncToLyricon()
+                }
+                override fun onReconnected(provider: LyriconProvider) {
+                    syncToLyricon()
+                }
+                override fun onDisconnected(provider: LyriconProvider) {}
+                override fun onConnectTimeout(provider: LyriconProvider) {}
+            })
             register()
         }
 
@@ -197,6 +208,15 @@ class MusicService : MediaSessionService() {
                 delay(500)
             }
         }
+    }
+
+    private fun syncToLyricon() {
+        val p = player ?: return
+        val provider = lyriconProvider ?: return
+
+        provider.player.setPlaybackState(p.isPlaying)
+        provider.player.setPosition(p.currentPosition)
+        p.currentMediaItem?.let { updateLyriconSong(it) }
     }
 
     private fun updateLyriconSong(mediaItem: MediaItem) {
@@ -359,7 +379,9 @@ class MusicService : MediaSessionService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = player ?: return
-        if (!player.playWhenReady || player.mediaItemCount == 0) {
+        // If not playing or queue is empty, stop the service to clean up.
+        // Otherwise, keep it running for background playback.
+        if (!player.isPlaying || player.mediaItemCount == 0) {
             stopSelf()
         }
     }

@@ -59,7 +59,6 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val context = LocalContext.current
-                    var serverReady by remember { mutableStateOf(false) }
 
                     LaunchedEffect(Unit) {
                         playerViewModel.initController(context)
@@ -105,11 +104,31 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
         }
     }
 
+    val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
+    val bottomBarHeight = 80.dp
+    val bottomBarHeightPx = with(LocalDensity.current) { bottomBarHeight.roundToPx().toFloat() }
+    val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                val newOffset = bottomBarOffsetHeightPx.value + delta
+                bottomBarOffsetHeightPx.value = newOffset.coerceIn(-bottomBarHeightPx * 2, 0f)
+                return Offset.Zero
+            }
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            if (loginViewModel.isLogged) {
-                Column {
+            if (loginViewModel.isLogged && !isPlayerScreen) {
+                Column(
+                    modifier = Modifier
+                        .offset { IntOffset(x = 0, y = -bottomBarOffsetHeightPx.value.toInt()) }
+                        .navigationBarsPadding()
+                ) {
                     if (playerViewModel.currentSong != null) {
                         BottomPlaybackBar(
                             song = playerViewModel.currentSong,
@@ -129,7 +148,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         Triple("search", "Search", Icons.Filled.Search),
                         Triple("library", "Library", Icons.Filled.LibraryMusic)
                     )
-                    NavigationBar {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    ) {
                         items.forEach { (route, label, icon) ->
                             NavigationBarItem(
                                 icon = { Icon(icon, contentDescription = label) },
@@ -148,411 +169,359 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         }
                     }
                 }
-    val bottomBarHeight = 80.dp
-    val bottomBarHeightPx = with(LocalDensity.current) { bottomBarHeight.roundToPx().toFloat() }
-    val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
-
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                val newOffset = bottomBarOffsetHeightPx.value + delta
-                bottomBarOffsetHeightPx.value = newOffset.coerceIn(-bottomBarHeightPx * 2, 0f)
-                return Offset.Zero
             }
         }
-    }
-
-    val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
-    ) {
-        NavHost(
-            navController = navController,
-            startDestination = if (loginViewModel.isLogged) "main" else "login",
+    ) { innerPadding ->
+        Box(
             modifier = Modifier
-                .fillMaxSize(),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeIn(animationSpec = tween(300))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it / 3 },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeOut(animationSpec = tween(300))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it / 3 },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeIn(animationSpec = tween(300))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(400, easing = EaseOutQuart)
-                ) + fadeOut(animationSpec = tween(300))
-            }
+                .fillMaxSize()
+                .padding(innerPadding)
+                .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
         ) {
-            composable("login") {
-                LoginScreen(loginViewModel, onLoginSuccess = {
-                    playerViewModel.fetchUserData(loginViewModel.cookie)
-                    navController.navigate("main") {
-                        popUpTo("login") { inclusive = true }
-                    }
-                })
-            }
-            composable("main") {
-                LaunchedEffect(Unit) {
-                    if (playerViewModel.recommendedSongs.isEmpty()) {
-                        playerViewModel.fetchUserData(loginViewModel.cookie)
-                    }
+            NavHost(
+                navController = navController,
+                startDestination = if (loginViewModel.isLogged) "main" else "login",
+                modifier = Modifier.fillMaxSize(),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(400, easing = EaseOutQuart)
+                    ) + fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it / 3 },
+                        animationSpec = tween(400, easing = EaseOutQuart)
+                    ) + fadeOut(animationSpec = tween(300))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it / 3 },
+                        animationSpec = tween(400, easing = EaseOutQuart)
+                    ) + fadeIn(animationSpec = tween(300))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(400, easing = EaseOutQuart)
+                    ) + fadeOut(animationSpec = tween(300))
                 }
-                val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
-                val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
-
-                MainScreen(
-                    recommendedSongs = playerViewModel.recommendedSongs,
-                    userPlaylists = playerViewModel.userPlaylists,
-                    onSongClick = { song ->
-                        playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
-                        navController.navigate("player") {
-                            launchSingleTop = true
+            ) {
+                composable("login") {
+                    LoginScreen(loginViewModel, onLoginSuccess = {
+                        playerViewModel.fetchUserData(loginViewModel.cookie)
+                        navController.navigate("main") {
+                            popUpTo("login") { inclusive = true }
                         }
-                    },
-                    onPlaylistClick = { playlist ->
-                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
-                        navController.navigate("playlist/${playlist.id}")
-                    },
-                    onPersonalFmClick = {
-                        playerViewModel.playPersonalFm(loginViewModel.cookie)
-                        navController.navigate("player") {
-                            launchSingleTop = true
-                        }
-                    },
-                    onHeartbeatClick = {
-                        if (playerViewModel.favoriteSongs.isNotEmpty()) {
-                            // Use first favorite song to seed heartbeat
-                            playerViewModel.playHeartbeat(
-                                songId = playerViewModel.favoriteSongs[0],
-                                playlistId = playerViewModel.likedSongsPlaylistId,
-                                cookie = loginViewModel.cookie
-                            )
-                            navController.navigate("player") {
-                                launchSingleTop = true
-                            }
-                        } else {
-                            com.ncm.player.util.DebugLog.toast(context, "No liked songs to start Heartbeat")
-                        }
-                    },
-                    onLikeClick = { song ->
-                        val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
-                        playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
-                    },
-                    favoriteSongs = playerViewModel.favoriteSongs,
-                    completedSongs = completedSongs,
-                    onNavigateToSettings = {
-                        navController.navigate("settings")
-                    },
-                    actions = {
-                        DownloadIndicator(tasks = tasks) {
-                            navController.navigate("downloads")
+                    })
+                }
+                composable("main") {
+                    LaunchedEffect(Unit) {
+                        if (playerViewModel.recommendedSongs.isEmpty()) {
+                            playerViewModel.fetchUserData(loginViewModel.cookie)
                         }
                     }
-                )
-            }
-            composable("search") {
-                SearchScreen(
-                    searchResults = playerViewModel.searchResults,
-                    favoriteSongs = playerViewModel.favoriteSongs,
-                    isLoading = playerViewModel.isLoading,
-                    onSearch = { playerViewModel.searchSongs(it) },
-                    onSongClick = { song ->
-                        playerViewModel.playSong(song, playerViewModel.searchResults, loginViewModel.cookie)
-                        navController.navigate("player") {
-                            launchSingleTop = true
-                        }
-                    },
-                    onLikeClick = { song ->
-                        val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
-                        playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
-                    }
-                )
-            }
-            composable("library") {
-                LibraryScreen(
-                    userPlaylists = playerViewModel.userPlaylists,
-                    onPlaylistClick = { playlist ->
-                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
-                        navController.navigate("playlist/${playlist.id}")
-                    },
-                    onNavigateToDownloads = {
-                        navController.navigate("downloads")
-                    },
-                    onNavigateToSettings = {
-                        navController.navigate("settings")
-                    }
-                )
-            }
-            composable("playlist/{playlistId}") { backStackEntry ->
-                val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
-                val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
-
-                if (playlist != null) {
+                    val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
                     val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
-                    PlaylistDetailScreen(
-                        playlist = playlist,
-                        songs = playerViewModel.playlistSongs,
-                        favoriteSongs = playerViewModel.favoriteSongs,
-                        completedSongs = completedSongs,
-                        isFirstDownload = playerViewModel.isFirstDownload,
-                        onDownloadQualityChange = { playerViewModel.updateDownloadQuality(it) },
-                        allPlaylists = playerViewModel.userPlaylists,
-                        isLoading = playerViewModel.isLoading,
+
+                    MainScreen(
+                        recommendedSongs = playerViewModel.recommendedSongs,
+                        userPlaylists = playerViewModel.userPlaylists,
                         onSongClick = { song ->
-                            playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
+                            playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
                             navController.navigate("player") {
                                 launchSingleTop = true
                             }
                         },
-                        onPlayAllClick = { songs ->
-                            if (songs.isNotEmpty()) {
-                                playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
+                        onPlaylistClick = { playlist ->
+                            playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                            navController.navigate("playlist/${playlist.id}")
+                        },
+                        onPersonalFmClick = {
+                            playerViewModel.playPersonalFm(loginViewModel.cookie)
+                            navController.navigate("player") {
+                                launchSingleTop = true
+                            }
+                        },
+                        onHeartbeatClick = {
+                            if (playerViewModel.favoriteSongs.isNotEmpty()) {
+                                playerViewModel.playHeartbeat(
+                                    songId = playerViewModel.favoriteSongs[0],
+                                    playlistId = playerViewModel.likedSongsPlaylistId,
+                                    cookie = loginViewModel.cookie
+                                )
                                 navController.navigate("player") {
                                     launchSingleTop = true
                                 }
+                            } else {
+                                com.ncm.player.util.DebugLog.toast(context, "No liked songs to start Heartbeat")
                             }
-                        },
-                        onQueueAllClick = { songs ->
-                            songs.forEach { playerViewModel.addToQueue(it, loginViewModel.cookie) }
                         },
                         onLikeClick = { song ->
                             val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
                             playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
                         },
-                        onAddToPlaylist = { songIds, pid ->
-                            playerViewModel.addSongsToPlaylist(pid, songIds, loginViewModel.cookie)
+                        favoriteSongs = playerViewModel.favoriteSongs,
+                        completedSongs = completedSongs,
+                        onNavigateToSettings = {
+                            navController.navigate("settings")
                         },
-                        onRemoveFromPlaylist = { songIds ->
-                            playerViewModel.removeSongsFromPlaylist(playlistId, songIds, loginViewModel.cookie)
+                        actions = {
+                            DownloadIndicator(tasks = tasks) {
+                                navController.navigate("downloads")
+                            }
+                        }
+                    )
+                }
+                composable("search") {
+                    SearchScreen(
+                        searchResults = playerViewModel.searchResults,
+                        searchPlaylists = playerViewModel.searchPlaylists,
+                        favoriteSongs = playerViewModel.favoriteSongs,
+                        hotSearches = playerViewModel.hotSearches,
+                        searchHistory = playerViewModel.searchHistory,
+                        suggestions = playerViewModel.searchSuggestions,
+                        searchType = playerViewModel.searchType,
+                        isLoading = playerViewModel.isLoading,
+                        onSearch = { kw, type -> playerViewModel.search(kw, type) },
+                        onSuggestionFetch = { playerViewModel.fetchSearchSuggestions(it) },
+                        onClearHistory = { playerViewModel.clearSearchHistory() },
+                        onSongClick = { song ->
+                            playerViewModel.playSong(song, playerViewModel.searchResults, loginViewModel.cookie)
+                            navController.navigate("player") {
+                                launchSingleTop = true
+                            }
                         },
-                        onBatchDownload = { songs ->
-                            playerViewModel.batchDownload(songs, loginViewModel.cookie)
+                        onPlaylistClick = { playlist ->
+                            playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                            navController.navigate("playlist/${playlist.id}")
                         },
-                        onSortChange = { sort ->
-                            playerViewModel.fetchPlaylistSongs(playlistId, loginViewModel.cookie, sort)
-                            com.ncm.player.util.UserPreferences.savePlaylistSort(context, playlistId, sort)
+                        onLikeClick = { song ->
+                            val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                            playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                        }
+                    )
+                }
+                composable("library") {
+                    LibraryScreen(
+                        userPlaylists = playerViewModel.userPlaylists,
+                        onPlaylistClick = { playlist ->
+                            playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                            navController.navigate("playlist/${playlist.id}")
                         },
+                        onNavigateToDownloads = {
+                            navController.navigate("downloads")
+                        },
+                        onNavigateToSettings = {
+                            navController.navigate("settings")
+                        }
+                    )
+                }
+                composable("playlist/{playlistId}") { backStackEntry ->
+                    val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
+                    val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
+
+                    if (playlist != null) {
+                        val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
+                        PlaylistDetailScreen(
+                            playlist = playlist,
+                            songs = playerViewModel.playlistSongs,
+                            favoriteSongs = playerViewModel.favoriteSongs,
+                            completedSongs = completedSongs,
+                            isFirstDownload = playerViewModel.isFirstDownload,
+                            onDownloadQualityChange = { playerViewModel.updateDownloadQuality(it) },
+                            allPlaylists = playerViewModel.userPlaylists,
+                            isLoading = playerViewModel.isLoading,
+                            onSongClick = { song ->
+                                playerViewModel.playSong(song, playerViewModel.playlistSongs, loginViewModel.cookie)
+                                navController.navigate("player") {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onPlayAllClick = { songs ->
+                                if (songs.isNotEmpty()) {
+                                    playerViewModel.playSong(songs[0], songs, loginViewModel.cookie)
+                                    navController.navigate("player") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            onQueueAllClick = { songs ->
+                                songs.forEach { playerViewModel.addToQueue(it, loginViewModel.cookie) }
+                            },
+                            onLikeClick = { song ->
+                                val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
+                                playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                            },
+                            onAddToPlaylist = { songIds, pid ->
+                                playerViewModel.addSongsToPlaylist(pid, songIds, loginViewModel.cookie)
+                            },
+                            onRemoveFromPlaylist = { songIds ->
+                                playerViewModel.removeSongsFromPlaylist(playlistId, songIds, loginViewModel.cookie)
+                            },
+                            onBatchDownload = { songs ->
+                                playerViewModel.batchDownload(songs, loginViewModel.cookie)
+                            },
+                            onSortChange = { sort ->
+                                playerViewModel.fetchPlaylistSongs(playlistId, loginViewModel.cookie, sort)
+                                com.ncm.player.util.UserPreferences.savePlaylistSort(context, playlistId, sort)
+                            },
+                            onBackPressed = { navController.popBackStack() }
+                        )
+                    }
+                }
+                composable("downloads") {
+                    val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
+                    DownloadsScreen(
+                        onBackPressed = { navController.popBackStack() },
+                        onPlayLocalSong = { song, uri ->
+                            playerViewModel.playSong(song, localUri = uri)
+                            navController.navigate("player") {
+                                launchSingleTop = true
+                            }
+                        },
+                        localSongs = playerViewModel.localSongs,
+                        tasks = tasks,
+                        onCancelDownload = { playerViewModel.ncmDownloadManager.cancelDownload(it) },
+                        onDeleteLocalSong = { playerViewModel.deleteLocalSong(it) }
+                    )
+                }
+                composable("settings") {
+                    SettingsScreen(
+                        currentQualityWifi = playerViewModel.currentQualityWifi,
+                        onQualityWifiChange = { playerViewModel.setQualityWifi(it) },
+                        currentQualityCellular = playerViewModel.currentQualityCellular,
+                        onQualityCellularChange = { playerViewModel.setQualityCellular(it) },
+                        downloadQuality = playerViewModel.downloadQuality,
+                        onDownloadQualityChange = { playerViewModel.updateDownloadQuality(it) },
+                        fadeDuration = playerViewModel.fadeDuration,
+                        onFadeChange = { playerViewModel.setFade(it) },
+                        cacheSize = playerViewModel.cacheSize,
+                        onCacheSizeChange = { playerViewModel.setCache(it) },
+                        useCellularCache = playerViewModel.useCellularCache,
+                        onUseCellularCacheChange = { playerViewModel.setUseCellular(it) },
+                        allowCellularDownload = playerViewModel.allowCellularDownload,
+                        onAllowCellularDownloadChange = { playerViewModel.updateAllowCellularDownload(it) },
+                        pureBlackMode = playerViewModel.pureBlackMode,
+                        onPureBlackModeChange = { playerViewModel.updatePureBlackMode(it) },
+                        downloadDir = playerViewModel.downloadDir,
+                        onDownloadDirChange = { playerViewModel.setDownloadPath(it) },
+                        onClearCache = { playerViewModel.clearCache() },
+                        onBackPressed = { navController.popBackStack() }
+                    )
+                }
+                composable(
+                    "player",
+                    enterTransition = {
+                        slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = tween(500, easing = EaseOutQuart)
+                        ) + fadeIn(animationSpec = tween(400))
+                    },
+                    exitTransition = {
+                        slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(500, easing = EaseInQuart)
+                        ) + fadeOut(animationSpec = tween(400))
+                    },
+                    popEnterTransition = {
+                        slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = tween(500, easing = EaseOutQuart)
+                        ) + fadeIn(animationSpec = tween(400))
+                    },
+                    popExitTransition = {
+                        slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(500, easing = EaseInQuart)
+                        ) + fadeOut(animationSpec = tween(400))
+                    }
+                ) {
+                    val currentSong = playerViewModel.currentSong
+                    val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
+                    val isFavorite = currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false
+                    val isDownloaded = currentSong?.let { completedSongs.contains(it.id) } ?: false
+
+                    PlayerScreen(
+                        song = currentSong,
+                        isPlaying = playerViewModel.isPlaying,
+                        currentPosition = playerViewModel.currentPosition,
+                        duration = playerViewModel.duration,
+                        onPlayPause = { playerViewModel.togglePlayPause() },
+                        onSkipNext = { playerViewModel.skipNext() },
+                        onSkipPrevious = { playerViewModel.skipPrevious() },
+                        onSeek = { playerViewModel.seekTo(it) },
+                        onRepeatClick = { playerViewModel.toggleRepeatMode() },
+                        onShuffleClick = { playerViewModel.toggleShuffleMode() },
+                        repeatMode = playerViewModel.repeatMode,
+                        shuffleMode = playerViewModel.shuffleMode,
+                        isFavorite = isFavorite,
+                        onLikeClick = {
+                            currentSong?.let { song ->
+                                playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                            }
+                        },
+                        onDownloadClick = {
+                            currentSong?.let { song ->
+                                if (!isDownloaded) {
+                                    if (playerViewModel.isFirstDownload) {
+                                        navController.navigate("settings")
+                                    } else {
+                                        playerViewModel.downloadSong(song, loginViewModel.cookie)
+                                    }
+                                }
+                            }
+                        },
+                        isDownloaded = isDownloaded,
+                        onLyricClick = {
+                            playerViewModel.currentSong?.let { song ->
+                                playerViewModel.fetchLyrics(song.id)
+                                navController.navigate("lyrics")
+                            }
+                        },
+                        allPlaylists = playerViewModel.userPlaylists,
+                        onAddToPlaylist = { songId, pid ->
+                            playerViewModel.addSongsToPlaylist(pid, listOf(songId), loginViewModel.cookie)
+                        },
+                        queue = playerViewModel.currentQueue,
+                        onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
+                        onRemoveQueueItem = { index -> playerViewModel.removeQueueItem(index) },
+                        onClearQueue = { playerViewModel.clearQueue() },
+                        onBackPressed = { navController.popBackStack() }
+                    )
+                }
+                composable("lyrics") {
+                    LyricsScreen(
+                        lyrics = playerViewModel.currentLyrics,
+                        songName = playerViewModel.currentSong?.name ?: "Lyrics",
+                        currentPosition = playerViewModel.currentPosition,
                         onBackPressed = { navController.popBackStack() }
                     )
                 }
             }
-            composable("downloads") {
-                val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
-                DownloadsScreen(
-                    onBackPressed = { navController.popBackStack() },
-                    onPlayLocalSong = { song, uri ->
-                        playerViewModel.playSong(song, localUri = uri)
-                        navController.navigate("player") {
-                            launchSingleTop = true
-                        }
-                    },
-                    localSongs = playerViewModel.localSongs,
-                    tasks = tasks,
-                    onCancelDownload = { playerViewModel.ncmDownloadManager.cancelDownload(it) },
-                    onDeleteLocalSong = { playerViewModel.deleteLocalSong(it) }
-                )
-            }
-            composable("settings") {
-                SettingsScreen(
-                    currentQualityWifi = playerViewModel.currentQualityWifi,
-                    onQualityWifiChange = { playerViewModel.setQualityWifi(it) },
-                    currentQualityCellular = playerViewModel.currentQualityCellular,
-                    onQualityCellularChange = { playerViewModel.setQualityCellular(it) },
-                    downloadQuality = playerViewModel.downloadQuality,
-                    onDownloadQualityChange = { playerViewModel.updateDownloadQuality(it) },
-                    fadeDuration = playerViewModel.fadeDuration,
-                    onFadeChange = { playerViewModel.setFade(it) },
-                    cacheSize = playerViewModel.cacheSize,
-                    onCacheSizeChange = { playerViewModel.setCache(it) },
-                    useCellularCache = playerViewModel.useCellularCache,
-                    onUseCellularCacheChange = { playerViewModel.setUseCellular(it) },
-                    allowCellularDownload = playerViewModel.allowCellularDownload,
-                    onAllowCellularDownloadChange = { playerViewModel.updateAllowCellularDownload(it) },
-                    pureBlackMode = playerViewModel.pureBlackMode,
-                    onPureBlackModeChange = { playerViewModel.updatePureBlackMode(it) },
-                    downloadDir = playerViewModel.downloadDir,
-                    onDownloadDirChange = { playerViewModel.setDownloadPath(it) },
-                    onClearCache = { playerViewModel.clearCache() },
-                    onBackPressed = { navController.popBackStack() }
-                )
-            }
-            composable(
-                "player",
-                enterTransition = {
-                    slideInVertically(
-                        initialOffsetY = { it },
-                        animationSpec = tween(500, easing = EaseOutQuart)
-                    ) + fadeIn(animationSpec = tween(400))
-                },
-                exitTransition = {
-                    slideOutVertically(
-                        targetOffsetY = { it },
-                        animationSpec = tween(500, easing = EaseInQuart)
-                    ) + fadeOut(animationSpec = tween(400))
-                },
-                popEnterTransition = {
-                    slideInVertically(
-                        initialOffsetY = { it },
-                        animationSpec = tween(500, easing = EaseOutQuart)
-                    ) + fadeIn(animationSpec = tween(400))
-                },
-                popExitTransition = {
-                    slideOutVertically(
-                        targetOffsetY = { it },
-                        animationSpec = tween(500, easing = EaseInQuart)
-                    ) + fadeOut(animationSpec = tween(400))
-                }
-            ) {
-                val currentSong = playerViewModel.currentSong
-                val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
-                val isFavorite = currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false
-                val isDownloaded = currentSong?.let { completedSongs.contains(it.id) } ?: false
 
-                PlayerScreen(
-                    song = currentSong,
-                    isPlaying = playerViewModel.isPlaying,
-                    currentPosition = playerViewModel.currentPosition,
-                    duration = playerViewModel.duration,
-                    onPlayPause = { playerViewModel.togglePlayPause() },
-                    onSkipNext = { playerViewModel.skipNext() },
-                    onSkipPrevious = { playerViewModel.skipPrevious() },
-                    onSeek = { playerViewModel.seekTo(it) },
-                    onRepeatClick = { playerViewModel.toggleRepeatMode() },
-                    onShuffleClick = { playerViewModel.toggleShuffleMode() },
-                    repeatMode = playerViewModel.repeatMode,
-                    shuffleMode = playerViewModel.shuffleMode,
-                    isFavorite = isFavorite,
-                    onLikeClick = {
-                        currentSong?.let { song ->
-                            playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
-                        }
-                    },
-                    onDownloadClick = {
-                        currentSong?.let { song ->
-                            if (!isDownloaded) {
-                                if (playerViewModel.isFirstDownload) {
-                                    navController.navigate("settings")
-                                } else {
-                                    playerViewModel.downloadSong(song, loginViewModel.cookie)
-                                }
+            playerViewModel.showCellularDownloadDialog?.let { song ->
+                AlertDialog(
+                    onDismissRequest = { playerViewModel.showCellularDownloadDialog = null },
+                    title = { Text("Cellular Data Warning") },
+                    text = { Text("You are currently on a mobile network. Do you want to download \"${song.name}\"?") },
+                    confirmButton = {
+                        Column {
+                            TextButton(onClick = { playerViewModel.confirmCellularDownload(song, loginViewModel.cookie, false) }) {
+                                Text("Continue")
+                            }
+                            TextButton(onClick = { playerViewModel.confirmCellularDownload(song, loginViewModel.cookie, true) }) {
+                                Text("Don't remind me this session")
                             }
                         }
                     },
-                    isDownloaded = isDownloaded,
-                    onLyricClick = {
-                        playerViewModel.currentSong?.let { song ->
-                            playerViewModel.fetchLyrics(song.id)
-                            navController.navigate("lyrics")
-                        }
-                    },
-                    allPlaylists = playerViewModel.userPlaylists,
-                    onAddToPlaylist = { songId, pid ->
-                        playerViewModel.addSongsToPlaylist(pid, listOf(songId), loginViewModel.cookie)
-                    },
-                    queue = playerViewModel.currentQueue,
-                    onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
-                    onRemoveQueueItem = { index -> playerViewModel.removeQueueItem(index) },
-                    onClearQueue = { playerViewModel.clearQueue() },
-                    onBackPressed = { navController.popBackStack() }
-                )
-            }
-            composable("lyrics") {
-                LyricsScreen(
-                    lyrics = playerViewModel.currentLyrics,
-                    songName = playerViewModel.currentSong?.name ?: "Lyrics",
-                    currentPosition = playerViewModel.currentPosition,
-                    onBackPressed = { navController.popBackStack() }
-                )
-            }
-        }
-
-        if (loginViewModel.isLogged && !isPlayerScreen) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset { IntOffset(x = 0, y = -bottomBarOffsetHeightPx.value.toInt()) }
-                    .navigationBarsPadding()
-            ) {
-                if (playerViewModel.currentSong != null) {
-                    BottomPlaybackBar(
-                        song = playerViewModel.currentSong,
-                        isPlaying = playerViewModel.isPlaying,
-                        onPlayPause = { playerViewModel.togglePlayPause() },
-                        onSkipNext = { playerViewModel.skipNext() },
-                        onSkipPrevious = { playerViewModel.skipPrevious() },
-                        onClick = {
-                            navController.navigate("player") {
-                                launchSingleTop = true
-                            }
-                        }
-                    )
-                }
-                val items = listOf(
-                    Triple("main", "Home", Icons.Filled.Home),
-                    Triple("search", "Search", Icons.Filled.Search),
-                    Triple("library", "Library", Icons.Filled.LibraryMusic)
-                )
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                ) {
-                    items.forEach { (route, label, icon) ->
-                        NavigationBarItem(
-                            icon = { Icon(icon, contentDescription = label) },
-                            label = { Text(label) },
-                            selected = currentDestination?.hierarchy?.any { it.route == route } == true,
-                            onClick = {
-                                navController.navigate(route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        playerViewModel.showCellularDownloadDialog?.let { song ->
-            AlertDialog(
-                onDismissRequest = { playerViewModel.showCellularDownloadDialog = null },
-                title = { Text("Cellular Data Warning") },
-                text = { Text("You are currently on a mobile network. Do you want to download \"${song.name}\"?") },
-                confirmButton = {
-                    Column {
-                        TextButton(onClick = { playerViewModel.confirmCellularDownload(song, loginViewModel.cookie, false) }) {
-                            Text("Continue")
-                        }
-                        TextButton(onClick = { playerViewModel.confirmCellularDownload(song, loginViewModel.cookie, true) }) {
-                            Text("Don't remind me this session")
+                    dismissButton = {
+                        TextButton(onClick = { playerViewModel.showCellularDownloadDialog = null }) {
+                            Text("Cancel")
                         }
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { playerViewModel.showCellularDownloadDialog = null }) {
-                        Text("Cancel")
-                    }
-                }
-            )
+                )
+            }
         }
     }
 }

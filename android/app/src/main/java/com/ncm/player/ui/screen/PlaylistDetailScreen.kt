@@ -148,8 +148,7 @@ fun PlaylistDetailScreen(
                     title = {
                         Text(
                             playlist.name,
-                            style = MaterialTheme.typography.headlineLarge,
-                            modifier = Modifier.padding(top = 8.dp)
+                            style = MaterialTheme.typography.headlineLarge
                         )
                     },
                     navigationIcon = {

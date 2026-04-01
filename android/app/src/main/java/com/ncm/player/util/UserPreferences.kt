@@ -116,4 +116,49 @@ object UserPreferences {
     fun getPlaylistSort(context: Context, playlistId: Long): String {
         return getPrefs(context).getString("sort_playlist_$playlistId", "default") ?: "default"
     }
+
+    fun savePlaylistCache(context: Context, playlistId: Long, json: String) {
+        getPrefs(context).edit().putString("cache_playlist_$playlistId", json).apply()
+    }
+
+    fun getPlaylistCache(context: Context, playlistId: Long): String? {
+        return getPrefs(context).getString("cache_playlist_$playlistId", null)
+    }
+
+    fun saveUserPlaylistsCache(context: Context, json: String) {
+        getPrefs(context).edit().putString("cache_user_playlists", json).apply()
+    }
+
+    fun getUserPlaylistsCache(context: Context): String? {
+        return getPrefs(context).getString("cache_user_playlists", null)
+    }
+
+    fun saveRecommendedSongsCache(context: Context, json: String) {
+        getPrefs(context).edit().putString("cache_recommended_songs", json).apply()
+    }
+
+    fun getRecommendedSongsCache(context: Context): String? {
+        return getPrefs(context).getString("cache_recommended_songs", null)
+    }
+
+    fun saveSearchHistory(context: Context, history: List<String>) {
+        val json = com.google.gson.Gson().toJson(history)
+        getPrefs(context).edit().putString("search_history_v2", json).apply()
+    }
+
+    fun getSearchHistory(context: Context): List<String> {
+        val json = getPrefs(context).getString("search_history_v2", null)
+        return if (json != null) {
+            try {
+                val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                com.google.gson.Gson().fromJson(json, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            // Migration from v1
+            val set = getPrefs(context).getStringSet("search_history", emptySet()) ?: emptySet()
+            set.toList()
+        }
+    }
 }

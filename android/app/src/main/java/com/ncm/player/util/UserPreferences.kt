@@ -16,6 +16,7 @@ object UserPreferences {
     private const val KEY_FIRST_DOWNLOAD = "first_download"
     private const val KEY_ALLOW_CELLULAR_DOWNLOAD = "allow_cellular_download"
     private const val KEY_PURE_BLACK_MODE = "pure_black_mode"
+    private const val KEY_USER_PROFILE_CACHE = "user_profile_cache"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -160,5 +161,13 @@ object UserPreferences {
             val set = getPrefs(context).getStringSet("search_history", emptySet()) ?: emptySet()
             set.toList()
         }
+    }
+
+    fun saveUserProfileCache(context: Context, json: String) {
+        getPrefs(context).edit().putString(KEY_USER_PROFILE_CACHE, json).apply()
+    }
+
+    fun getUserProfileCache(context: Context): String? {
+        return getPrefs(context).getString(KEY_USER_PROFILE_CACHE, null)
     }
 }

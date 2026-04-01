@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
+import com.ncm.player.model.UserProfile
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
 import com.ncm.player.util.DebugLog
@@ -35,6 +36,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     var currentSong by mutableStateOf<Song?>(null)
+    var userProfile by mutableStateOf<UserProfile?>(null)
     var currentQueue by mutableStateOf<List<Song>>(emptyList())
     var isPlaying by mutableStateOf(false)
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
@@ -373,6 +375,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             } catch (e: Exception) { e.printStackTrace() }
         }
 
+        val upCache = UserPreferences.getUserProfileCache(application)
+        if (upCache != null) {
+            try {
+                userProfile = com.google.gson.Gson().fromJson(upCache, UserProfile::class.java)
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+
         val plCache = UserPreferences.getUserPlaylistsCache(application)
         if (plCache != null) {
             try {
@@ -412,12 +421,28 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                     val userAndFavDeferred = async(Dispatchers.IO) {
                         val statusBody = callApi("login/status", mapOf("cookie" to cookie))
+                        val profileJson = statusBody.get("data")?.asJsonObject?.get("profile")?.asJsonObject
+                            ?: statusBody.get("profile")?.asJsonObject
+
                         val uid = statusBody.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
                             ?: statusBody.get("account")?.asJsonObject?.get("id")?.asLong
-                            ?: statusBody.get("profile")?.asJsonObject?.get("userId")?.asLong
+                            ?: profileJson?.get("userId")?.asLong
                             ?: 0L
 
                         if (uid != 0L) {
+                            if (profileJson != null) {
+                                val up = UserProfile(
+                                    userId = uid,
+                                    nickname = profileJson.get("nickname").asString,
+                                    avatarUrl = profileJson.get("avatarUrl").asString,
+                                    signature = profileJson.get("signature")?.asString
+                                )
+                                withContext(Dispatchers.Main) {
+                                    userProfile = up
+                                }
+                                UserPreferences.saveUserProfileCache(getApplication(), com.google.gson.Gson().toJson(up))
+                            }
+
                             val plDeferred = async {
                                 val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "cookie" to cookie))
                                 val playlistJson = plBody.get("playlist")?.asJsonArray
@@ -656,8 +681,41 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 val body = withContext(Dispatchers.IO) { callApi("lyric/new", mapOf("id" to songId)) }
                 val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
                 val tlyric = body.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
+                val yrc = body.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                val romanyric = body.get("romanyric")?.asJsonObject?.get("lyric")?.asString ?: ""
 
-                currentLyrics = parseLyrics(lrc, tlyric)
+                var lyricLines = if (yrc.isNotEmpty()) {
+                    com.ncm.player.util.LyricUtils.parseYrc(yrc)
+                } else {
+                    com.ncm.player.util.LyricUtils.parseLrc(lrc, duration)
+                }
+
+                if (tlyric.isNotEmpty()) {
+                    val tlines = com.ncm.player.util.LyricUtils.parseLrc(tlyric).associateBy { it.time }
+                    lyricLines = lyricLines.map { line ->
+                        val trans = tlines.entries.find { it.key >= line.time - 500 && it.key <= line.time + 500 }
+                        if (trans != null) {
+                            line.copy(translation = trans.value.text)
+                        } else {
+                            line
+                        }
+                    }
+                }
+
+                if (romanyric.isNotEmpty()) {
+                    val rlines = com.ncm.player.util.LyricUtils.parseLrc(romanyric).associateBy { it.time }
+                    lyricLines = lyricLines.map { line ->
+                        val roma = rlines.entries.find { it.key >= line.time - 500 && it.key <= line.time + 500 }
+                        if (roma != null) {
+                            line.copy(romanization = roma.value.text)
+                        } else {
+                            line
+                        }
+                    }
+                }
+
+                currentLyrics = lyricLines
+
             } catch (e: Exception) {
                 e.printStackTrace()
                 currentLyrics = emptyList()
@@ -665,38 +723,17 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private fun parseLyrics(lrc: String, tlyric: String): List<LyricLine> {
-        val lineRegex = Regex("\\[(\\d+):(\\d+)\\.(\\d+)\\](.*)")
-        val lines = lrc.lines().mapNotNull { line ->
-            val match = lineRegex.find(line)
-            if (match != null) {
-                val min = match.groupValues[1].toLong()
-                val sec = match.groupValues[2].toLong()
-                val ms = match.groupValues[3].padEnd(3, '0').substring(0, 3).toLong()
-                val time = min * 60 * 1000 + sec * 1000 + ms
-                val text = match.groupValues[4].trim()
-                if (text.isNotEmpty()) LyricLine(time, text) else null
-            } else null
-        }
-
-        if (tlyric.isEmpty()) return lines
-
-        val tlines = tlyric.lines().mapNotNull { line ->
-            val match = lineRegex.find(line)
-            if (match != null) {
-                val min = match.groupValues[1].toLong()
-                val sec = match.groupValues[2].toLong()
-                val ms = match.groupValues[3].padEnd(3, '0').substring(0, 3).toLong()
-                val time = min * 60 * 1000 + sec * 1000 + ms
-                val text = match.groupValues[4].trim()
-                time to text
-            } else null
-        }.toMap()
-
-        return lines.map { it.copy(translation = tlines[it.time]) }
+    data class LyricLine(
+        val time: Long,
+        val text: String,
+        val translation: String? = null,
+        val romanization: String? = null,
+        val secondary: String? = null,
+        val endTime: Long? = null,
+        val words: List<Word>? = null
+    ) {
+        data class Word(val text: String, val beginTime: Long, val endTime: Long)
     }
-
-    data class LyricLine(val time: Long, val text: String, val translation: String? = null)
 
     fun downloadSong(song: Song, cookie: String?, ignoreNetwork: Boolean = false) {
         if (!ignoreNetwork && currentNetworkType == com.ncm.player.util.NetworkType.CELLULAR && !allowCellularDownload && !skipCellularPromptForSession) {

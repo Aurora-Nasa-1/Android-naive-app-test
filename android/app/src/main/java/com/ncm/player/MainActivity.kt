@@ -224,9 +224,14 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
                     val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
 
+                    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                    val versionName = packageInfo.versionName ?: "1.0.0"
+
                     MainScreen(
                         recommendedSongs = playerViewModel.recommendedSongs,
                         userPlaylists = playerViewModel.userPlaylists,
+                        userProfile = playerViewModel.userProfile,
+                        versionName = versionName,
                         onSongClick = { song ->
                             playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
                             navController.navigate("player") {

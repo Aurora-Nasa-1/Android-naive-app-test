@@ -234,129 +234,44 @@ class MusicService : MediaSessionService() {
                 val body = com.google.gson.JsonParser.parseString(result).asJsonObject
 
                 if (body.has("lrc") || body.has("yrc")) {
-                    val lrc = body?.get("lrc")?.asJsonObject?.get("lyric")?.asString
-                    val tlyric = body?.get("tlyric")?.asJsonObject?.get("lyric")?.asString
-                    val yrc = body?.get("yrc")?.asJsonObject?.get("lyric")?.asString
+                    val lrc = body?.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                    val tlyric = body?.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
+                    val yrc = body?.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
 
-                    val lyricLines = if (!yrc.isNullOrEmpty()) {
-                        parseYrc(yrc)
-                    } else if (!lrc.isNullOrEmpty()) {
-                        parseLrc(lrc)
+                    val lyricLines = if (yrc.isNotEmpty()) {
+                        com.ncm.player.util.LyricUtils.parseYrc(yrc)
                     } else {
-                        emptyList()
+                        com.ncm.player.util.LyricUtils.parseLrc(lrc, player?.duration ?: 0L)
                     }
 
-                    // Apply translations if available
-                    val finalLines = if (!tlyric.isNullOrEmpty() && lyricLines.isNotEmpty()) {
-                        mergeTranslations(lyricLines, tlyric)
+                    val finalLines = if (tlyric.isNotEmpty()) {
+                        val tlines = com.ncm.player.util.LyricUtils.parseLrc(tlyric).associateBy { it.time }
+                        lyricLines.map { line ->
+                            val trans = tlines.entries.find { it.key >= line.time - 500 && it.key <= line.time + 500 }
+                            if (trans != null) {
+                                line.copy(translation = trans.value.text)
+                            } else {
+                                line
+                            }
+                        }
                     } else {
                         lyricLines
                     }
 
                     lyriconProvider?.player?.setSong(
-                        Song(
+                        io.github.proify.lyricon.lyric.model.Song(
                             id = songId,
                             name = title,
                             artist = artist,
                             duration = player?.duration?.coerceAtLeast(0L) ?: 0L,
-                            lyrics = finalLines
+                            lyrics = com.ncm.player.util.LyricUtils.toRichLyricLines(finalLines)
                         )
                     )
                     lyriconProvider?.player?.setPosition(player?.currentPosition ?: 0L)
-                    lyriconProvider?.player?.setDisplayTranslation(!tlyric.isNullOrEmpty())
+                    lyriconProvider?.player?.setDisplayTranslation(tlyric.isNotEmpty())
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-            }
-        }
-    }
-
-    private fun parseLrc(lrc: String): List<RichLyricLine> {
-        val lines = mutableListOf<RichLyricLine>()
-        val pattern = Pattern.compile("\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})](.*)")
-        lrc.lines().forEach { line ->
-            val matcher = pattern.matcher(line)
-            if (matcher.find()) {
-                val min = matcher.group(1)?.toLong() ?: 0L
-                val sec = matcher.group(2)?.toLong() ?: 0L
-                val msStr = matcher.group(3) ?: "0"
-                val ms = if (msStr.length == 2) msStr.toLong() * 10 else msStr.toLong()
-                val time = min * 60000 + sec * 1000 + ms
-                val text = matcher.group(4)?.trim() ?: ""
-                if (text.isNotEmpty()) {
-                    lines.add(RichLyricLine(begin = time, text = text))
-                }
-            }
-        }
-        // Set end times based on next line's start
-        for (i in 0 until lines.size - 1) {
-            lines[i] = lines[i].copy(end = lines[i + 1].begin)
-        }
-        if (lines.isNotEmpty()) {
-            lines[lines.size - 1] = lines[lines.size - 1].copy(end = player?.duration ?: (lines.last().begin + 5000))
-        }
-        return lines
-    }
-
-    private fun parseYrc(yrc: String): List<RichLyricLine> {
-        val lines = mutableListOf<RichLyricLine>()
-        // YRC format: [time,duration]text(time,duration)word(time,duration)word...
-        val linePattern = Pattern.compile("\\[(\\d+),(\\d+)](.*)")
-        val wordPattern = Pattern.compile("\\((\\d+),(\\d+),(\\d+)\\)([^\\(]*)")
-
-        yrc.lines().forEach { line ->
-            val lineMatcher = linePattern.matcher(line)
-            if (lineMatcher.find()) {
-                val lineBegin = lineMatcher.group(1)?.toLong() ?: 0L
-                val lineDur = lineMatcher.group(2)?.toLong() ?: 0L
-                val content = lineMatcher.group(3) ?: ""
-
-                val words = mutableListOf<LyricWord>()
-                val wordMatcher = wordPattern.matcher(content)
-                var fullText = ""
-
-                while (wordMatcher.find()) {
-                    val wBeginOffset = wordMatcher.group(1)?.toLong() ?: 0L
-                    val wDur = wordMatcher.group(2)?.toLong() ?: 0L
-                    // third group is usually unused or type
-                    val wText = wordMatcher.group(4) ?: ""
-
-                    words.add(LyricWord(
-                        text = wText,
-                        begin = lineBegin + wBeginOffset,
-                        end = lineBegin + wBeginOffset + wDur
-                    ))
-                    fullText += wText
-                }
-
-                if (words.isNotEmpty()) {
-                    lines.add(RichLyricLine(
-                        begin = lineBegin,
-                        end = lineBegin + lineDur,
-                        text = fullText,
-                        words = words
-                    ))
-                } else if (content.isNotEmpty()) {
-                    // Fallback for lines without word timing but have line timing
-                    lines.add(RichLyricLine(
-                        begin = lineBegin,
-                        end = lineBegin + lineDur,
-                        text = content
-                    ))
-                }
-            }
-        }
-        return lines
-    }
-
-    private fun mergeTranslations(lines: List<RichLyricLine>, tlyric: String): List<RichLyricLine> {
-        val translations = parseLrc(tlyric)
-        return lines.map { line ->
-            val trans = translations.find { it.begin >= line.begin - 500 && it.begin <= line.begin + 500 }
-            if (trans != null) {
-                line.copy(translation = trans.text)
-            } else {
-                line
             }
         }
     }

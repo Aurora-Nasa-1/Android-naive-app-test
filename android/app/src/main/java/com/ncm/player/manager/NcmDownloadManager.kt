@@ -103,7 +103,7 @@ class NcmDownloadManager(private val application: Application) {
         android.widget.Toast.makeText(application, "Download completed: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
     }
 
-    fun downloadSong(song: Song, cookie: String?, quality: String = "standard") {
+    fun downloadSong(song: Song, cookie: String?, quality: String = "standard", allowCellular: Boolean = false) {
         if (_completedSongs.value.contains(song.id)) return
         if (_tasks.value.containsKey(song.id)) return
 
@@ -138,8 +138,8 @@ class NcmDownloadManager(private val application: Application) {
                         .setTitle("Downloading ${song.name}")
                         .setDescription("${song.artist} - ${song.album}")
                         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                        .setAllowedOverMetered(true)
-                        .setAllowedOverRoaming(true)
+                        .setAllowedOverMetered(allowCellular)
+                        .setAllowedOverRoaming(allowCellular)
 
                     // Ensure the directory exists
                     val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)

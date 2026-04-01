@@ -6,13 +6,16 @@ import android.content.SharedPreferences
 object UserPreferences {
     private const val PREFS_NAME = "ncm_player_prefs"
     private const val KEY_COOKIE = "cookie"
-    private const val KEY_QUALITY = "quality"
+    private const val KEY_QUALITY_WIFI = "quality_wifi"
+    private const val KEY_QUALITY_CELLULAR = "quality_cellular"
     private const val KEY_FADE_DURATION = "fade_duration"
     private const val KEY_CACHE_SIZE = "cache_size"
     private const val KEY_USE_CELLULAR_CACHE = "use_cellular_cache"
     private const val KEY_DOWNLOAD_DIR = "download_dir"
     private const val KEY_DOWNLOAD_QUALITY = "download_quality"
     private const val KEY_FIRST_DOWNLOAD = "first_download"
+    private const val KEY_ALLOW_CELLULAR_DOWNLOAD = "allow_cellular_download"
+    private const val KEY_PURE_BLACK_MODE = "pure_black_mode"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -26,12 +29,20 @@ object UserPreferences {
         return getPrefs(context).getString(KEY_COOKIE, null)
     }
 
-    fun saveQuality(context: Context, quality: String) {
-        getPrefs(context).edit().putString(KEY_QUALITY, quality).apply()
+    fun saveQualityWifi(context: Context, quality: String) {
+        getPrefs(context).edit().putString(KEY_QUALITY_WIFI, quality).apply()
     }
 
-    fun getQuality(context: Context): String {
-        return getPrefs(context).getString(KEY_QUALITY, "standard") ?: "standard"
+    fun getQualityWifi(context: Context): String {
+        return getPrefs(context).getString(KEY_QUALITY_WIFI, "exhigh") ?: "exhigh"
+    }
+
+    fun saveQualityCellular(context: Context, quality: String) {
+        getPrefs(context).edit().putString(KEY_QUALITY_CELLULAR, quality).apply()
+    }
+
+    fun getQualityCellular(context: Context): String {
+        return getPrefs(context).getString(KEY_QUALITY_CELLULAR, "standard") ?: "standard"
     }
 
     fun saveFadeDuration(context: Context, duration: Float) {
@@ -80,6 +91,22 @@ object UserPreferences {
 
     fun setFirstDownloadComplete(context: Context) {
         getPrefs(context).edit().putBoolean(KEY_FIRST_DOWNLOAD, false).apply()
+    }
+
+    fun saveAllowCellularDownload(context: Context, allow: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_ALLOW_CELLULAR_DOWNLOAD, allow).apply()
+    }
+
+    fun getAllowCellularDownload(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_ALLOW_CELLULAR_DOWNLOAD, false)
+    }
+
+    fun savePureBlackMode(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_PURE_BLACK_MODE, enabled).apply()
+    }
+
+    fun getPureBlackMode(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_PURE_BLACK_MODE, false)
     }
 
     fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {

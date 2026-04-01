@@ -157,7 +157,7 @@ fun PlaylistDetailScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
-                    windowInsets = WindowInsets.statusBars.add(WindowInsets(top = 8.dp)),
+                    windowInsets = WindowInsets.statusBars,
                     actions = {
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")

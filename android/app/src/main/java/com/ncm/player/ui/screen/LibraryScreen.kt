@@ -40,7 +40,7 @@ fun LibraryScreen(
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 },
-                windowInsets = WindowInsets.statusBars.add(WindowInsets(top = 8.dp))
+                windowInsets = WindowInsets.statusBars
             )
         }
     ) { innerPadding ->

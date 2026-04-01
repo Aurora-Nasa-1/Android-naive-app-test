@@ -91,7 +91,7 @@ fun MainScreen(
                                 )
                             } else {
                                 Icon(
-                                    Icons.Default.Settings,
+                                    Icons.Default.Person,
                                     contentDescription = "Account",
                                     modifier = Modifier.padding(4.dp)
                                 )

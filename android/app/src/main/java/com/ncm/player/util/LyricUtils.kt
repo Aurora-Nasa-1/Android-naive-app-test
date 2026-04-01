@@ -85,12 +85,15 @@ object LyricUtils {
 
     fun toRichLyricLines(lyrics: List<LyricLine>): List<RichLyricLine> {
         return lyrics.map { line ->
+            val begin = line.time
+            val end = line.endTime ?: (line.time + 5000)
             RichLyricLine(
-                begin = line.time,
-                end = line.endTime ?: (line.time + 5000), // Fallback end time
+                begin = begin,
+                end = end,
+                duration = end - begin,
                 text = line.text,
                 translation = line.translation,
-                romanization = line.romanization,
+                roma = line.romanization,
                 secondary = line.secondary,
                 words = line.words?.map { word ->
                     LyricWord(

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Radio

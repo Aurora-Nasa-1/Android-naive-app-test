@@ -106,49 +106,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            if (loginViewModel.isLogged) {
-                Column {
-                    if (playerViewModel.currentSong != null) {
-                        BottomPlaybackBar(
-                            song = playerViewModel.currentSong,
-                            isPlaying = playerViewModel.isPlaying,
-                            onPlayPause = { playerViewModel.togglePlayPause() },
-                            onSkipNext = { playerViewModel.skipNext() },
-                            onSkipPrevious = { playerViewModel.skipPrevious() },
-                            onClick = {
-                                navController.navigate("player") {
-                                    launchSingleTop = true
-                                }
-                            }
-                        )
-                    }
-                    val items = listOf(
-                        Triple("main", "Home", Icons.Filled.Home),
-                        Triple("search", "Search", Icons.Filled.Search),
-                        Triple("library", "Library", Icons.Filled.LibraryMusic)
-                    )
-                    NavigationBar {
-                        items.forEach { (route, label, icon) ->
-                            NavigationBarItem(
-                                icon = { Icon(icon, contentDescription = label) },
-                                label = { Text(label) },
-                                selected = currentDestination?.hierarchy?.any { it.route == route } == true,
-                                onClick = {
-                                    navController.navigate(route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-    val bottomBarHeight = 80.dp
+        modifier = Modifier.fillMaxSize()
+    ) { _ ->
+        val bottomBarHeight = 80.dp
     val bottomBarHeightPx = with(LocalDensity.current) { bottomBarHeight.roundToPx().toFloat() }
     val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
 
@@ -555,4 +515,5 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
             )
         }
     }
+}
 }

@@ -116,4 +116,28 @@ object UserPreferences {
     fun getPlaylistSort(context: Context, playlistId: Long): String {
         return getPrefs(context).getString("sort_playlist_$playlistId", "default") ?: "default"
     }
+
+    fun savePlaylistCache(context: Context, playlistId: Long, json: String) {
+        getPrefs(context).edit().putString("cache_playlist_$playlistId", json).apply()
+    }
+
+    fun getPlaylistCache(context: Context, playlistId: Long): String? {
+        return getPrefs(context).getString("cache_playlist_$playlistId", null)
+    }
+
+    fun saveUserPlaylistsCache(context: Context, json: String) {
+        getPrefs(context).edit().putString("cache_user_playlists", json).apply()
+    }
+
+    fun getUserPlaylistsCache(context: Context): String? {
+        return getPrefs(context).getString("cache_user_playlists", null)
+    }
+
+    fun saveRecommendedSongsCache(context: Context, json: String) {
+        getPrefs(context).edit().putString("cache_recommended_songs", json).apply()
+    }
+
+    fun getRecommendedSongsCache(context: Context): String? {
+        return getPrefs(context).getString("cache_recommended_songs", null)
+    }
 }

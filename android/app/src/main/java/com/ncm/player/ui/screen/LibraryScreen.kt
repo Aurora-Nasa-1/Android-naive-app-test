@@ -31,8 +31,7 @@ fun LibraryScreen(
                 title = {
                     Text(
                         "Your Library",
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier.padding(top = 8.dp)
+                        style = MaterialTheme.typography.headlineLarge
                     )
                 },
                 actions = {

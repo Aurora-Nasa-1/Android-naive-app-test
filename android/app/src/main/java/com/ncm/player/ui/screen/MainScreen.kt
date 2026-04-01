@@ -52,8 +52,7 @@ fun MainScreen(
                 title = {
                     Text(
                         "Good day",
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier.padding(top = 8.dp)
+                        style = MaterialTheme.typography.headlineLarge
                     )
                 },
                 actions = {

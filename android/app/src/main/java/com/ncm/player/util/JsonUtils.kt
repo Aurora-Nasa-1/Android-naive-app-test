@@ -3,8 +3,32 @@ package com.ncm.player.util
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.ncm.player.model.Song
 
 object JsonUtils {
+    fun parseSong(it: JsonElement): Song? {
+        return try {
+            val item = it.asJsonObject
+            val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
+
+            val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
+            val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
+            val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
+            val albumName = album?.get("name")?.asString ?: "Unknown"
+            val picUrl = album?.get("picUrl")?.asString
+
+            Song(
+                id = obj.get("id").asJsonPrimitive.asString,
+                name = obj.get("name").asString,
+                artist = artistName,
+                album = albumName,
+                albumArtUrl = picUrl
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun getString(element: JsonElement?, key: String, default: String? = null): String? {
         val obj = if (element != null && element.isJsonObject) element.asJsonObject else return default
         val field = obj.get(key)

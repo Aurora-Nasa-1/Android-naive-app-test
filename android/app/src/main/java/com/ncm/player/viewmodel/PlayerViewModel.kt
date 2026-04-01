@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -41,6 +42,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
     var playlistSongs by mutableStateOf<List<Song>>(emptyList())
     var searchResults by mutableStateOf<List<Song>>(emptyList())
+    var searchHistory by mutableStateOf<List<String>>(emptyList())
+    var hotSearches by mutableStateOf<List<Pair<String, String>>>(emptyList())
+    var searchSuggestions by mutableStateOf<List<String>>(emptyList())
     var currentLyrics by mutableStateOf<List<LyricLine>>(emptyList())
     var isLoading by mutableStateOf(false)
     var likedSongsPlaylistId by mutableStateOf(0L)
@@ -87,8 +91,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         isFirstDownload = UserPreferences.isFirstDownload(application)
         allowCellularDownload = UserPreferences.getAllowCellularDownload(application)
         pureBlackMode = UserPreferences.getPureBlackMode(application)
+        searchHistory = UserPreferences.getSearchHistory(application)
 
         loadInitialCache()
+        fetchHotSearches()
 
         viewModelScope.launch {
             ncmDownloadManager.completedSongs.collect {
@@ -456,23 +462,105 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun searchSongs(keywords: String) {
+    var searchPlaylists by mutableStateOf<List<Playlist>>(emptyList())
+    var searchType by mutableIntStateOf(1)
+
+    fun search(keywords: String, type: Int = 1) {
         if (keywords.isBlank()) {
             searchResults = emptyList()
+            searchPlaylists = emptyList()
             return
         }
+
+        searchType = type
+        // Update history
+        val newHistory = (listOf(keywords) + searchHistory.filter { it != keywords }).take(10)
+        searchHistory = newHistory
+        UserPreferences.saveSearchHistory(getApplication(), newHistory)
+
         viewModelScope.launch {
             isLoading = true
             try {
-                val body = withContext(Dispatchers.IO) { callApi("cloudsearch", mapOf("keywords" to keywords)) }
-                val songsJson = body.get("result")?.asJsonObject?.get("songs")?.asJsonArray
-                searchResults = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                val body = withContext(Dispatchers.IO) {
+                    callApi("cloudsearch", mapOf("keywords" to keywords, "type" to type.toString()))
+                }
+                val resultObj = body.get("result")?.asJsonObject
+
+                when (type) {
+                    1 -> {
+                        val songsJson = resultObj?.get("songs")?.asJsonArray
+                        searchResults = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                        searchPlaylists = emptyList()
+                    }
+                    1000 -> {
+                        val playlistsJson = resultObj?.get("playlists")?.asJsonArray
+                        searchPlaylists = playlistsJson?.map {
+                            val obj = it.asJsonObject
+                            Playlist(
+                                id = obj.get("id").asLong,
+                                name = obj.get("name").asString,
+                                coverImgUrl = obj.get("coverImgUrl").asString,
+                                trackCount = obj.get("trackCount").asInt
+                            )
+                        } ?: emptyList()
+                        searchResults = emptyList()
+                    }
+                    else -> {
+                        // For albums (10) and artists (100), we can adapt them to Song or just show empty for now
+                        // Implementation can be expanded as needed
+                        searchResults = emptyList()
+                        searchPlaylists = emptyList()
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
                 isLoading = false
             }
         }
+    }
+
+    fun searchSongs(keywords: String) = search(keywords, 1)
+
+    fun fetchHotSearches() {
+        viewModelScope.launch {
+            try {
+                val body = withContext(Dispatchers.IO) { callApi("search/hot/detail") }
+                val data = body.get("data")?.asJsonArray
+                hotSearches = data?.map {
+                    val obj = it.asJsonObject
+                    obj.get("searchWord").asString to (obj.get("content")?.asString ?: "")
+                } ?: emptyList()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun fetchSearchSuggestions(keywords: String) {
+        if (keywords.isBlank()) {
+            searchSuggestions = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val body = withContext(Dispatchers.IO) { callApi("search/suggest", mapOf("keywords" to keywords, "type" to "mobile")) }
+                val result = body.get("result")?.asJsonObject
+                val allSuggestions = mutableListOf<String>()
+
+                result?.get("allMatch")?.asJsonArray?.forEach {
+                    allSuggestions.add(it.asJsonObject.get("keyword").asString)
+                }
+                searchSuggestions = allSuggestions
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun clearSearchHistory() {
+        searchHistory = emptyList()
+        UserPreferences.saveSearchHistory(getApplication(), emptyList())
     }
 
     fun addSongsToPlaylist(playlistId: Long, songIds: List<String>, cookie: String?) {

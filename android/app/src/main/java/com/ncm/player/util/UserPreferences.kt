@@ -140,4 +140,25 @@ object UserPreferences {
     fun getRecommendedSongsCache(context: Context): String? {
         return getPrefs(context).getString("cache_recommended_songs", null)
     }
+
+    fun saveSearchHistory(context: Context, history: List<String>) {
+        val json = com.google.gson.Gson().toJson(history)
+        getPrefs(context).edit().putString("search_history_v2", json).apply()
+    }
+
+    fun getSearchHistory(context: Context): List<String> {
+        val json = getPrefs(context).getString("search_history_v2", null)
+        return if (json != null) {
+            try {
+                val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                com.google.gson.Gson().fromJson(json, type)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            // Migration from v1
+            val set = getPrefs(context).getStringSet("search_history", emptySet()) ?: emptySet()
+            set.toList()
+        }
+    }
 }

@@ -48,11 +48,12 @@ fun MainScreen(
 ) {
     Scaffold(
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = {
                     Text(
                         "Good day",
-                        style = MaterialTheme.typography.headlineLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 actions = {

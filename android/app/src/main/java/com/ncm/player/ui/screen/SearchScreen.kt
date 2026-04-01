@@ -1,13 +1,22 @@
 package com.ncm.player.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ncm.player.model.Song
 
@@ -15,54 +24,178 @@ import com.ncm.player.model.Song
 @Composable
 fun SearchScreen(
     searchResults: List<Song>,
+    searchPlaylists: List<com.ncm.player.model.Playlist>,
     favoriteSongs: List<String>,
+    hotSearches: List<Pair<String, String>>,
+    searchHistory: List<String>,
+    suggestions: List<String>,
+    searchType: Int,
     isLoading: Boolean,
-    onSearch: (String) -> Unit,
+    onSearch: (String, Int) -> Unit,
+    onSuggestionFetch: (String) -> Unit,
+    onClearHistory: () -> Unit,
     onSongClick: (Song) -> Unit,
+    onPlaylistClick: (com.ncm.player.model.Playlist) -> Unit,
     onLikeClick: (Song) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
+    var active by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    TextField(
-                        value = query,
-                        onValueChange = {
-                            query = it
-                            onSearch(it)
-                        },
-                        placeholder = { Text("Search songs") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                            unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                            disabledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                        ),
-                        singleLine = true
-                    )
-                },
-                windowInsets = WindowInsets.statusBars
-            )
-        }
-    ) { innerPadding ->
-        if (isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(innerPadding))
-        }
-        LazyColumn(
+    Column(modifier = Modifier.fillMaxSize()) {
+        SearchBar(
+            query = query,
+            onQueryChange = {
+                query = it
+                if (it.isNotBlank()) {
+                    onSuggestionFetch(it)
+                }
+            },
+            onSearch = {
+                onSearch(it, searchType)
+                active = false
+            },
+            active = active,
+            onActiveChange = { active = it },
+            placeholder = { Text("Search songs, artists...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { query = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
+                }
+            },
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+                .fillMaxWidth()
+                .padding(horizontal = if (active) 0.dp else 16.dp),
+            windowInsets = WindowInsets.statusBars
         ) {
-            items(searchResults) { song ->
-                SongItem(
-                    song = song,
-                    isFavorite = favoriteSongs.contains(song.id),
-                    onLikeClick = { onLikeClick(song) },
-                    onClick = { onSongClick(song) }
-                )
+            if (query.isEmpty()) {
+                // Search History
+                if (searchHistory.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Recent Searches", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = onClearHistory) {
+                            Text("Clear")
+                        }
+                    }
+                    searchHistory.forEach { historyItem ->
+                        ListItem(
+                            headlineContent = { Text(historyItem) },
+                            leadingContent = { Icon(Icons.Default.History, null) },
+                            modifier = Modifier.clickable {
+                                query = historyItem
+                                onSearch(historyItem, searchType)
+                                active = false
+                            }
+                        )
+                    }
+                }
+            } else {
+                // Suggestions
+                suggestions.forEach { suggestion ->
+                    ListItem(
+                        headlineContent = { Text(suggestion) },
+                        leadingContent = { Icon(Icons.Default.Search, null) },
+                        modifier = Modifier.clickable {
+                            query = suggestion
+                            onSearch(suggestion, searchType)
+                            active = false
+                        }
+                    )
+                }
+            }
+        }
+
+        if (!active) {
+            if (isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            // Filter Chips
+            if (searchResults.isNotEmpty() || query.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val types = listOf(
+                        1 to "Songs",
+                        10 to "Albums",
+                        100 to "Artists",
+                        1000 to "Playlists"
+                    )
+                    items(types) { (type, label) ->
+                        FilterChip(
+                            selected = searchType == type,
+                            onClick = {
+                                if (query.isNotBlank()) {
+                                    onSearch(query, type)
+                                }
+                            },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (searchResults.isEmpty() && searchPlaylists.isEmpty() && query.isEmpty()) {
+                    item {
+                        Text(
+                            "Hot Searches",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                    itemsIndexed(hotSearches) { index, hot ->
+                        ListItem(
+                            headlineContent = { Text(hot.first) },
+                            supportingContent = { if (hot.second.isNotBlank()) Text(hot.second, maxLines = 1) },
+                            leadingContent = {
+                                Text(
+                                    "${index + 1}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (index < 3) MaterialTheme.colorScheme.primary else Color.Gray,
+                                    modifier = Modifier.width(24.dp)
+                                )
+                            },
+                            trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = Color.Red.copy(alpha = 0.7f)) },
+                            modifier = Modifier.clickable {
+                                query = hot.first
+                                onSearch(hot.first, searchType)
+                            }
+                        )
+                    }
+                } else {
+                    if (searchType == 1) {
+                        items(searchResults) { song ->
+                            SongItem(
+                                song = song,
+                                isFavorite = favoriteSongs.contains(song.id),
+                                onLikeClick = { onLikeClick(song) },
+                                onClick = { onSongClick(song) }
+                            )
+                        }
+                    } else if (searchType == 1000) {
+                        items(searchPlaylists) { playlist ->
+                            PlaylistItem(
+                                playlist = playlist,
+                                onClick = { onPlaylistClick(playlist) }
+                            )
+                        }
+                    }
+                }
             }
         }
     }

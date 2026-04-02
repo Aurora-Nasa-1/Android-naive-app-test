@@ -24,7 +24,8 @@ fun LibraryScreen(
     userPlaylists: List<Playlist>,
     onPlaylistClick: (Playlist) -> Unit,
     onNavigateToDownloads: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     Scaffold(
         topBar = {
@@ -48,7 +49,8 @@ fun LibraryScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding),
+            contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
         ) {
             item {
                 ListItem(

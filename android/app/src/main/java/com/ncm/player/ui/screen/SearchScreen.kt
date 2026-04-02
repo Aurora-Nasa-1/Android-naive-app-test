@@ -36,7 +36,8 @@ fun SearchScreen(
     onClearHistory: () -> Unit,
     onSongClick: (Song) -> Unit,
     onPlaylistClick: (com.ncm.player.model.Playlist) -> Unit,
-    onLikeClick: (Song) -> Unit
+    onLikeClick: (Song) -> Unit,
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     var query by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
@@ -147,7 +148,8 @@ fun SearchScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
             ) {
                 if (searchResults.isEmpty() && searchPlaylists.isEmpty() && query.isEmpty()) {
                     item {

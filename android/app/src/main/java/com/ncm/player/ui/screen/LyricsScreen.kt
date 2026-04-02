@@ -113,17 +113,55 @@ fun LyricsScreen(
                                 },
                             horizontalAlignment = Alignment.Start
                         ) {
-                            Text(
-                                text = line.text,
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    lineHeight = 36.sp,
-                                    fontSize = 28.sp
-                                ),
-                                color = Color.White,
-                                textAlign = TextAlign.Start
-                            )
-                            if (line.translation != null) {
+                            if (line.words != null && isActive) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Start,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    line.words.forEach { word ->
+                                        val isWordActive = currentPosition >= word.beginTime
+                                        val wordAlpha by animateFloatAsState(
+                                            targetValue = if (isWordActive) 1f else 0.3f,
+                                            animationSpec = tween(200)
+                                        )
+                                        Text(
+                                            text = word.text,
+                                            style = MaterialTheme.typography.headlineMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 36.sp,
+                                                fontSize = 28.sp
+                                            ),
+                                            color = Color.White.copy(alpha = wordAlpha),
+                                            textAlign = TextAlign.Start
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = line.text,
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 36.sp,
+                                        fontSize = 28.sp
+                                    ),
+                                    color = Color.White,
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                            if (!line.romanization.isNullOrEmpty()) {
+                                Text(
+                                    text = line.romanization,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        lineHeight = 20.sp,
+                                        fontSize = 14.sp
+                                    ),
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Start,
+                                    modifier = Modifier.padding(bottom = 2.dp)
+                                )
+                            }
+                            if (!line.translation.isNullOrEmpty()) {
                                 Text(
                                     text = line.translation,
                                     style = MaterialTheme.typography.titleMedium.copy(

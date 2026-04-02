@@ -14,11 +14,13 @@ import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,12 +32,16 @@ import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 import com.ncm.player.model.Playlist
+import com.ncm.player.model.UserProfile
+import com.ncm.player.ui.component.UserAccountDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     recommendedSongs: List<Song>,
     userPlaylists: List<Playlist>,
+    userProfile: UserProfile?,
+    versionName: String,
     onSongClick: (Song) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onPersonalFmClick: () -> Unit,
@@ -44,8 +50,19 @@ fun MainScreen(
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
     onNavigateToSettings: () -> Unit,
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp),
     actions: @Composable RowScope.() -> Unit = {}
 ) {
+    var showAccountDialog by remember { mutableStateOf(false) }
+
+    if (showAccountDialog) {
+        UserAccountDialog(
+            userProfile = userProfile,
+            versionName = versionName,
+            onDismiss = { showAccountDialog = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,6 +78,28 @@ fun MainScreen(
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
+                    IconButton(onClick = { showAccountDialog = true }) {
+                        Surface(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            if (userProfile?.avatarUrl != null) {
+                                AsyncImage(
+                                    model = userProfile.avatarUrl,
+                                    contentDescription = "Account",
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = "Account",
+                                    modifier = Modifier.padding(4.dp)
+                                )
+                            }
+                        }
+                    }
                 },
                 windowInsets = WindowInsets.statusBars
             )
@@ -72,7 +111,7 @@ fun MainScreen(
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding() + 16.dp
+                bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {

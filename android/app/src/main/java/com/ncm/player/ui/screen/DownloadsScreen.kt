@@ -29,9 +29,11 @@ fun DownloadsScreen(
     localSongs: List<Pair<Song, android.net.Uri>>,
     tasks: Map<String, com.ncm.player.model.DownloadTask> = emptyMap(),
     onCancelDownload: (String) -> Unit = {},
-    onDeleteLocalSong: (android.net.Uri) -> Unit = {}
+    onDeleteLocalSong: (android.net.Uri) -> Unit = {},
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             LargeTopAppBar(
                 title = {
@@ -50,7 +52,10 @@ fun DownloadsScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
+        ) {
             val downloadingTasks = tasks.values.filter { it.status != com.ncm.player.model.DownloadStatus.COMPLETED }
             if (downloadingTasks.isNotEmpty()) {
                 item {

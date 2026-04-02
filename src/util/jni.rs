@@ -102,7 +102,16 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_nativeC
         let result = include!(concat!(env!("OUT_DIR"), "/jni_dispatcher_generated.rs"));
 
         match result {
-            Ok(resp) => serde_json::to_string(&resp.body).unwrap_or_else(|_| "{}".to_string()),
+            Ok(resp) => {
+                let mut body = resp.body.clone();
+                if !resp.cookie.is_empty() {
+                    if let serde_json::Value::Object(ref mut map) = body {
+                        let cookie_str = resp.cookie.join("; ");
+                        map.insert("cookie".to_string(), serde_json::Value::String(cookie_str));
+                    }
+                }
+                serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string())
+            }
             Err(e) => format!("{{\"code\": 500, \"msg\": \"{}\"}}", e),
         }
     });

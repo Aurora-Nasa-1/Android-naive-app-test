@@ -55,7 +55,8 @@ fun PlaylistDetailScreen(
     isFirstDownload: Boolean = false,
     onDownloadQualityChange: (String) -> Unit = {},
     onSortChange: (String) -> Unit = {},
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val scrollState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(scrollState)
@@ -243,7 +244,8 @@ fun PlaylistDetailScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
             ) {
                 if (!isSelectionMode) {
                     item {

@@ -45,7 +45,8 @@ fun SettingsScreen(
     downloadDir: String?,
     onDownloadDirChange: (String) -> Unit,
     onClearCache: () -> Unit,
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val dirPicker = rememberLauncherForActivityResult(
@@ -188,7 +189,7 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))
         }
     }
 }

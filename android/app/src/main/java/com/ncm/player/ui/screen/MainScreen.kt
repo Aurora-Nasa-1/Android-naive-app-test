@@ -50,6 +50,7 @@ fun MainScreen(
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
     onNavigateToSettings: () -> Unit,
+    bottomContentPadding: PaddingValues = PaddingValues(0.dp),
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     var showAccountDialog by remember { mutableStateOf(false) }
@@ -110,7 +111,7 @@ fun MainScreen(
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding() + 16.dp
+                bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {

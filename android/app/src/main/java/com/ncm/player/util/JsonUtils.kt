@@ -3,7 +3,10 @@ package com.ncm.player.util
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.ncm.player.model.Song
+import com.ncm.player.model.Contact
+import com.ncm.player.model.Message
 
 object JsonUtils {
     fun parseSong(it: JsonElement): Song? {
@@ -12,7 +15,9 @@ object JsonUtils {
             val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
 
             val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
-            val artistName = artists?.get(0)?.asJsonObject?.get("name")?.asString ?: "Unknown"
+            val artistObj = artists?.get(0)?.asJsonObject
+            val artistName = artistObj?.get("name")?.asString ?: "Unknown"
+            val artistId = artistObj?.get("id")?.asString
             val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
             val albumName = album?.get("name")?.asString ?: "Unknown"
             val picUrl = album?.get("picUrl")?.asString
@@ -21,8 +26,51 @@ object JsonUtils {
                 id = obj.get("id").asJsonPrimitive.asString,
                 name = obj.get("name").asString,
                 artist = artistName,
+                artistId = artistId,
                 album = albumName,
                 albumArtUrl = picUrl
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun parseContact(it: JsonElement): Contact? {
+        return try {
+            val obj = it.asJsonObject
+            val fromUser = obj.get("fromUser").asJsonObject
+            val lastMsgStr = obj.get("lastMsg").asString
+            val lastMsg = JsonParser.parseString(lastMsgStr).asJsonObject
+
+            Contact(
+                userId = fromUser.get("userId").asLong,
+                nickname = fromUser.get("nickname").asString,
+                avatarUrl = fromUser.get("avatarUrl").asString,
+                lastMessage = lastMsg.get("msg")?.asString,
+                lastMessageTime = obj.get("lastMsgTime").asLong,
+                unreadCount = obj.get("newMsgCount").asInt
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun parseMessage(it: JsonElement, myUserId: Long): Message? {
+        return try {
+            val obj = it.asJsonObject
+            val fromUser = obj.get("fromUser").asJsonObject
+            val msgStr = obj.get("msg").asString
+            val msgContent = JsonParser.parseString(msgStr).asJsonObject
+            val userId = fromUser.get("userId").asLong
+
+            Message(
+                id = obj.get("id").asLong,
+                fromUserId = userId,
+                fromNickname = fromUser.get("nickname").asString,
+                fromAvatarUrl = fromUser.get("avatarUrl").asString,
+                text = msgContent.get("msg")?.asString ?: "",
+                time = obj.get("time").asLong,
+                isMe = userId == myUserId
             )
         } catch (e: Exception) {
             null

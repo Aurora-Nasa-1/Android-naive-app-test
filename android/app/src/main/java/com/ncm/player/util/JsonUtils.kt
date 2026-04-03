@@ -39,18 +39,19 @@ object JsonUtils {
         return try {
             val obj = it.asJsonObject
             val fromUser = obj.get("fromUser").asJsonObject
-            val lastMsgStr = obj.get("lastMsg").asString
-            val lastMsg = JsonParser.parseString(lastMsgStr).asJsonObject
+            val lastMsgStr = obj.get("lastMsg")?.asString ?: "{}"
+            val lastMsg = try { JsonParser.parseString(lastMsgStr).asJsonObject } catch (e: Exception) { JsonObject() }
 
             Contact(
                 userId = fromUser.get("userId").asLong,
                 nickname = fromUser.get("nickname").asString,
                 avatarUrl = fromUser.get("avatarUrl").asString,
-                lastMessage = lastMsg.get("msg")?.asString,
-                lastMessageTime = obj.get("lastMsgTime").asLong,
-                unreadCount = obj.get("newMsgCount").asInt
+                lastMessage = lastMsg.get("msg")?.asString ?: "",
+                lastMessageTime = obj.get("lastMsgTime")?.asLong ?: 0L,
+                unreadCount = obj.get("newMsgCount")?.asInt ?: 0
             )
         } catch (e: Exception) {
+            android.util.Log.e("JsonUtils", "parseContact error: ${e.message}")
             null
         }
     }
@@ -59,8 +60,8 @@ object JsonUtils {
         return try {
             val obj = it.asJsonObject
             val fromUser = obj.get("fromUser").asJsonObject
-            val msgStr = obj.get("msg").asString
-            val msgContent = JsonParser.parseString(msgStr).asJsonObject
+            val msgStr = obj.get("msg")?.asString ?: "{}"
+            val msgContent = try { JsonParser.parseString(msgStr).asJsonObject } catch (e: Exception) { JsonObject() }
             val userId = fromUser.get("userId").asLong
 
             Message(
@@ -73,6 +74,7 @@ object JsonUtils {
                 isMe = userId == myUserId
             )
         } catch (e: Exception) {
+            android.util.Log.e("JsonUtils", "parseMessage error: ${e.message}")
             null
         }
     }

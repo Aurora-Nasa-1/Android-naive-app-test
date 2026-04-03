@@ -1074,9 +1074,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (cookie.isNullOrEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                DebugLog.d("Fetching recent contacts...")
                 val body = callApi("msg/recentcontact", mapOf("cookie" to cookie))
-                val data = body.get("data")?.asJsonObject
-                val contactJson = data?.get("recentcontacts")?.asJsonArray
+                DebugLog.d("Recent contacts response: $body")
+                val contactJson = body.get("recentcontacts")?.asJsonArray
+                    ?: body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray
                 val list = contactJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseContact(it) } ?: emptyList()
                 withContext(Dispatchers.Main) {
                     contacts = list
@@ -1092,7 +1094,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val myUserId = userProfile?.userId ?: 0L
+                DebugLog.d("Fetching message history for $uid...")
                 val body = callApi("msg/private/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+                DebugLog.d("Message history response: $body")
                 val msgsJson = body.get("msgs")?.asJsonArray
                 val list = msgsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseMessage(it, myUserId) }?.reversed() ?: emptyList()
                 withContext(Dispatchers.Main) {
@@ -1121,7 +1125,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun fetchOtherUserProfile(uid: Long, cookie: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                DebugLog.d("Fetching user profile for $uid...")
                 val body = callApi("user/detail", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                DebugLog.d("User profile response: $body")
                 val profileJson = body.get("profile")?.asJsonObject
                 if (profileJson != null) {
                     val up = UserProfile(

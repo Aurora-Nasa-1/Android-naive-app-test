@@ -394,6 +394,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     }
                     composable("user/{userId}") { backStackEntry ->
                         val userId = backStackEntry.arguments?.getString("userId")?.toLongOrNull() ?: 0L
+                        LaunchedEffect(userId) {
+                            playerViewModel.fetchOtherUserProfile(userId, loginViewModel.cookie)
+                        }
                         UserProfileScreen(
                             userProfile = playerViewModel.otherUserProfile,
                             playlists = playerViewModel.otherUserPlaylists,

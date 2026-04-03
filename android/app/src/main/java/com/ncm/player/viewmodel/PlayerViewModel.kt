@@ -174,69 +174,66 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun listLocalSongs(context: android.content.Context): List<Pair<Song, android.net.Uri>> {
-        val userDirUri = com.ncm.player.util.UserPreferences.getDownloadDir(context)
         val files = mutableListOf<Pair<Song, android.net.Uri>>()
-        val prefs = com.ncm.player.util.UserPreferences.getPrefs(context)
-        val completedIds = prefs.getStringSet("completed_downloads", emptySet()) ?: emptySet()
 
-        val metadataMap = completedIds.associateWith { id ->
-            prefs.getString("metadata_$id", null)?.split("|")
+        // 1. Add songs from our DownloadRegistry first (these are the "official" downloads)
+        val registrySongs = com.ncm.player.manager.DownloadRegistry.getAllDownloadedSongs()
+        registrySongs.forEach { metadata ->
+            val uri = android.net.Uri.parse(metadata.filePath)
+            // Verify file still exists (DownloadRegistry usually handles this, but let's be sure)
+            val exists = if (uri.scheme == "content") {
+                 androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.exists() == true
+            } else {
+                 java.io.File(uri.path ?: "").exists()
+            }
+
+            if (exists) {
+                files.add(metadata.song to uri)
+            }
         }
 
-        fun findMetadata(fileName: String): Song? {
-            val cleanName = fileName.removeSuffix(".mp3")
-            metadataMap.forEach { (id, parts) ->
-                if (parts != null && parts.size >= 3) {
-                    val songName = parts[0]
-                    val artist = parts[1]
-                    if (cleanName.contains(songName) && cleanName.contains(artist)) {
-                        return Song(
-                            id = id,
-                            name = songName,
-                            artist = artist,
-                            album = parts[2],
-                            albumArtUrl = parts.getOrNull(3)
-                        )
+        // 2. Scan common directories for other local music that might not be in our registry
+        val userDirUri = com.ncm.player.util.UserPreferences.getDownloadDir(context)
+        val registryIds = registrySongs.map { it.song.id }.toSet()
+
+        fun scanDir(tree: androidx.documentfile.provider.DocumentFile?) {
+            tree?.listFiles()?.forEach { file ->
+                if (file.name?.endsWith(".mp3") == true || file.name?.endsWith(".flac") == true) {
+                    // Only add if not already in registry to avoid duplicates
+                    if (files.none { it.second == file.uri }) {
+                        files.add(Song(
+                            id = "local_${file.name}",
+                            name = file.name?.removeSuffix(".mp3")?.removeSuffix(".flac") ?: "Unknown",
+                            artist = "Local File",
+                            album = "Local Storage"
+                        ) to file.uri)
                     }
                 }
             }
-            return null
         }
 
         if (userDirUri != null) {
             try {
                 val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, android.net.Uri.parse(userDirUri))
-                tree?.listFiles()?.forEach { file ->
-                    val name = file.name
-                    if (name?.endsWith(".mp3") == true) {
-                        val matchedSong = findMetadata(name)
-                        files.add((matchedSong ?: Song(
-                            id = "local_$name",
-                            name = name.removeSuffix(".mp3"),
-                            artist = "Local",
-                            album = "Downloads"
-                        )) to file.uri)
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+                scanDir(tree)
+            } catch (e: Exception) { e.printStackTrace() }
         }
 
         val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
         val ncmMusicDir = java.io.File(musicDir, "NCMPlayer")
-        val dirsToScan = listOf(musicDir, ncmMusicDir)
 
-        dirsToScan.forEach { dir ->
+        listOf(musicDir, ncmMusicDir).forEach { dir ->
             if (dir.exists()) {
-                dir.listFiles { _, name -> name.endsWith(".mp3") }?.forEach { file ->
-                    val matchedSong = findMetadata(file.name)
-                    files.add((matchedSong ?: Song(
-                        id = "local_${file.name}",
-                        name = file.nameWithoutExtension,
-                        artist = "Local File",
-                        album = "Downloads"
-                    )) to android.net.Uri.fromFile(file))
+                dir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
+                    val uri = android.net.Uri.fromFile(file)
+                    if (files.none { it.second == uri }) {
+                        files.add(Song(
+                            id = "local_${file.name}",
+                            name = file.nameWithoutExtension,
+                            artist = "Local File",
+                            album = "Local Storage"
+                        ) to uri)
+                    }
                 }
             }
         }
@@ -844,8 +841,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             .setExtras(extras)
             .build()
 
-        val uri = if (localUri != null) {
-            localUri.toString()
+        // Check registry for local version even if localUri is not provided explicitly
+        val finalLocalUri = localUri ?: com.ncm.player.manager.DownloadRegistry.getMetadata(song.id)?.let {
+             android.net.Uri.parse(it.filePath)
+        }
+
+        val uri = if (finalLocalUri != null) {
+            finalLocalUri.toString()
         } else {
             val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
             if (!cookie.isNullOrEmpty()) {
@@ -1095,7 +1097,17 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val myUserId = userProfile?.userId ?: 0L
                 DebugLog.d("Fetching message history for $uid...")
-                val body = callApi("msg/private/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+                // Note: The Rust API might expect 'uid' parameter as 'userId' in some contexts, but callApi handles mapping.
+                // However, some versions of the API use msg/private/history while others use msg/history.
+                // We'll try both if one fails or returns empty, but for now we fix the route mapping.
+                var body = callApi("msg/private/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+
+                // If it fails or returns nothing, try alternative route
+                if (!body.has("msgs") || body.get("msgs").asJsonArray.size() == 0) {
+                     DebugLog.d("msg/private/history returned empty, trying msg/history...")
+                     body = callApi("msg/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+                }
+
                 DebugLog.d("Message history response: $body")
                 val msgsJson = body.get("msgs")?.asJsonArray
                 val list = msgsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseMessage(it, myUserId) }?.reversed() ?: emptyList()
@@ -1126,7 +1138,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 DebugLog.d("Fetching user profile for $uid...")
-                val body = callApi("user/detail", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                var body = callApi("user/detail", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+
+                // If standard fails or is empty, try user/detail/new
+                if (!body.has("profile")) {
+                    DebugLog.d("user/detail failed, trying user/detail/new...")
+                    body = callApi("user/detail/new", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                }
+
                 DebugLog.d("User profile response: $body")
                 val profileJson = body.get("profile")?.asJsonObject
                 if (profileJson != null) {

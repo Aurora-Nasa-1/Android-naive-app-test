@@ -29,7 +29,7 @@ class NcmDownloadManager(private val application: Application) {
     private val _tasks = MutableStateFlow<Map<String, DownloadTask>>(emptyMap())
     val tasks = _tasks.asStateFlow()
 
-    private val _completedSongs = MutableStateFlow<Set<String>>(emptySet())
+    private val _completedSongs = MutableStateFlow<Set<String>>(DownloadRegistry.getAllDownloadedIds())
     val completedSongs = _completedSongs.asStateFlow()
 
     init {
@@ -45,37 +45,33 @@ class NcmDownloadManager(private val application: Application) {
             IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
             Context.RECEIVER_EXPORTED
         )
-        loadCompletedSongs()
-    }
-
-    private fun loadCompletedSongs() {
-        val prefs = UserPreferences.getPrefs(application)
-        val completed = prefs.getStringSet("completed_downloads", emptySet()) ?: emptySet()
-        _completedSongs.value = completed
     }
 
     private fun saveCompletedSong(song: Song, downloadId: Long = -1) {
-        val prefs = UserPreferences.getPrefs(application)
-        val current = prefs.getStringSet("completed_downloads", emptySet())?.toMutableSet() ?: mutableSetOf()
-        current.add(song.id)
-
-        // Save metadata for local matching
-        val metadata = "${song.name}|${song.artist}|${song.album}|${song.albumArtUrl ?: ""}"
-        prefs.edit()
-            .putStringSet("completed_downloads", current)
-            .putString("metadata_${song.id}", metadata)
-            .apply()
-
-        _completedSongs.update { it + song.id }
-
-        // Copy to custom directory if set
         if (downloadId != -1L) {
-            val userDownloadDir = UserPreferences.getDownloadDir(application)
-            if (userDownloadDir != null) {
-                scope.launch {
-                    try {
-                        val uri = downloadManager.getUriForDownloadedFile(downloadId)
-                        if (uri != null) {
+            scope.launch {
+                try {
+                    val uri = downloadManager.getUriForDownloadedFile(downloadId)
+                    if (uri != null) {
+                        val parcelFileDescriptor = application.contentResolver.openFileDescriptor(uri, "r")
+                        val fileSize = parcelFileDescriptor?.statSize ?: 0L
+                        parcelFileDescriptor?.close()
+
+                        if (fileSize <= 0) {
+                            android.util.Log.e("NcmDownload", "Downloaded file is 0B or invalid for ${song.name}. Deleting.")
+                            downloadManager.remove(downloadId)
+                            _tasks.update { it - song.id }
+                            withContext(Dispatchers.Main) {
+                                android.widget.Toast.makeText(application, "Download failed (invalid file): ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            return@launch
+                        }
+
+                        // Determine the final storage path
+                        val userDownloadDir = UserPreferences.getDownloadDir(application)
+                        val finalFilePath: String
+
+                        if (userDownloadDir != null) {
                             val treeUri = Uri.parse(userDownloadDir)
                             val tree = DocumentFile.fromTreeUri(application, treeUri)
                             val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
@@ -89,18 +85,27 @@ class NcmDownloadManager(private val application: Application) {
                                         input.copyTo(output)
                                     }
                                 }
-                                // Optionally delete from public music dir if copy was successful
-                                // application.contentResolver.delete(uri, null, null)
+                                finalFilePath = file.uri.toString()
+                            } else {
+                                finalFilePath = uri.toString()
                             }
+                        } else {
+                            finalFilePath = uri.toString()
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+
+                        // Save to registry
+                        DownloadRegistry.register(application, song, finalFilePath)
+                        _completedSongs.update { it + song.id }
+
+                        withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(application, "Download completed: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     }
+                } catch (e: Exception) {
+                    android.util.Log.e("NcmDownload", "Error processing completed download", e)
                 }
             }
         }
-
-        android.widget.Toast.makeText(application, "Download completed: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     fun downloadSong(song: Song, cookie: String?, quality: String = "standard", allowCellular: Boolean = false) {
@@ -140,6 +145,11 @@ class NcmDownloadManager(private val application: Application) {
                         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                         .setAllowedOverMetered(allowCellular)
                         .setAllowedOverRoaming(allowCellular)
+                        .addRequestHeader("User-Agent", "NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
+
+                    cookie?.let {
+                        request.addRequestHeader("Cookie", it)
+                    }
 
                     // Ensure the directory exists
                     val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)

@@ -118,6 +118,9 @@ class NcmDownloadManager(private val application: Application) {
         // 2. Prevent race conditions on the same song
         if (downloadMutex.putIfAbsent(song.id, true) != null) return
 
+        // 3. Mark as enqueuing immediately to block other calls
+        _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.DOWNLOADING, 0f, -1L)) }
+
         android.widget.Toast.makeText(application, "Starting download: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
 
         scope.launch {

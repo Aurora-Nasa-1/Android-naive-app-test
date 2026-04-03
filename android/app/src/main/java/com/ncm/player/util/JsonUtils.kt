@@ -39,23 +39,28 @@ object JsonUtils {
         return try {
             val obj = it.asJsonObject
 
-            // Check if it's from msg/private instead of msg/recentcontact
-            val fromUser = if (obj.has("fromUser")) {
-                obj.get("fromUser").asJsonObject
-            } else if (obj.has("from")) {
-                obj.get("from").asJsonObject
-            } else {
-                return null
+            // 1. Identify the user object (NCM uses multiple keys depending on endpoint)
+            val fromUser = when {
+                obj.has("fromUser") -> obj.get("fromUser").asJsonObject
+                obj.has("from") -> obj.get("from").asJsonObject
+                obj.has("user") -> obj.get("user").asJsonObject
+                obj.has("author") -> obj.get("author").asJsonObject
+                else -> return null
             }
 
-            val lastMsgStr = obj.get("lastMsg")?.asString ?: obj.get("msg")?.asString ?: "{}"
-            val lastMsg = try { JsonParser.parseString(lastMsgStr).asJsonObject } catch (e: Exception) { JsonObject() }
+            // 2. Identify message content
+            val lastMsgStr = obj.get("lastMsg")?.asString ?: obj.get("msg")?.asString ?: ""
+            val lastMsgObj = try {
+                if (lastMsgStr.startsWith("{")) JsonParser.parseString(lastMsgStr).asJsonObject else null
+            } catch (e: Exception) { null }
+
+            val messageText = lastMsgObj?.get("msg")?.asString ?: lastMsgStr
 
             Contact(
-                userId = fromUser.get("userId").asLong,
-                nickname = fromUser.get("nickname").asString,
-                avatarUrl = fromUser.get("avatarUrl").asString,
-                lastMessage = lastMsg.get("msg")?.asString ?: obj.get("lastMsg")?.asString ?: "",
+                userId = fromUser.get("userId")?.asLong ?: fromUser.get("id")?.asLong ?: 0L,
+                nickname = fromUser.get("nickname")?.asString ?: fromUser.get("userName")?.asString ?: "Unknown",
+                avatarUrl = fromUser.get("avatarUrl")?.asString ?: "",
+                lastMessage = messageText,
                 lastMessageTime = obj.get("lastMsgTime")?.asLong ?: obj.get("time")?.asLong ?: 0L,
                 unreadCount = obj.get("newMsgCount")?.asInt ?: 0
             )

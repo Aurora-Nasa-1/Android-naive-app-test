@@ -1155,61 +1155,70 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun fetchOtherUserProfile(uid: Long, cookie: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                withContext(Dispatchers.Main) { isLoading = true }
+                withContext(Dispatchers.Main) {
+                    isLoading = true
+                    otherUserProfile = null
+                    otherUserPlaylists = emptyList()
+                    otherUserSongs = emptyList()
+                }
                 DebugLog.d("Fetching user profile for $uid...")
                 var body = callApi("user/detail", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
 
-                // If standard fails or is empty, try user/detail/new
-                if (!body.has("profile")) {
+                // 1. Try standard user detail
+                var profileJson = body.get("profile")?.asJsonObject
+
+                // 2. Try user/detail/new fallback
+                if (profileJson == null) {
                     DebugLog.d("user/detail failed, trying user/detail/new...")
                     body = callApi("user/detail/new", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
+                    profileJson = body.get("profile")?.asJsonObject
                 }
 
-                DebugLog.d("User profile response: $body")
-                val profileJson = body.get("profile")?.asJsonObject
-                if (profileJson != null) {
+                // 3. Try artist/detail fallback if user detail fails
+                if (profileJson == null) {
+                    DebugLog.d("User profile failed, trying artist/detail for $uid...")
+                    val artistBody = callApi("artist/detail", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                    if (artistBody.has("data") || artistBody.has("artist")) {
+                        val artistData = if (artistBody.has("data")) artistBody.get("data").asJsonObject.get("artist").asJsonObject else artistBody.get("artist").asJsonObject
+                        val up = UserProfile(
+                            userId = uid,
+                            nickname = artistData.get("name").asString,
+                            avatarUrl = artistData.get("cover")?.asString ?: artistData.get("picUrl")?.asString ?: "",
+                            signature = artistData.get("briefDesc")?.asString,
+                            playlistCount = 0
+                        )
+                        withContext(Dispatchers.Main) {
+                            otherUserProfile = up
+                        }
+
+                        val songsBody = callApi("artist/songs", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                        val songsJson = songsBody.get("songs")?.asJsonArray
+                        val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                        withContext(Dispatchers.Main) {
+                            otherUserSongs = songs
+                        }
+                    }
+                } else {
+                    // Success with user profile
                     val up = UserProfile(
                         userId = uid,
                         nickname = profileJson.get("nickname").asString,
                         avatarUrl = profileJson.get("avatarUrl").asString,
                         signature = profileJson.get("signature")?.asString,
-                        gender = profileJson.get("gender").asInt,
-                        followed = profileJson.get("followed").asBoolean,
-                        follows = profileJson.get("follows").asInt,
-                        followeds = profileJson.get("followeds").asInt,
-                        eventCount = profileJson.get("eventCount").asInt,
-                        playlistCount = profileJson.get("playlistCount").asInt
+                        gender = profileJson.get("gender")?.asInt ?: 0,
+                        followed = profileJson.get("followed")?.asBoolean ?: false,
+                        follows = profileJson.get("follows")?.asInt ?: 0,
+                        followeds = profileJson.get("followeds")?.asInt ?: 0,
+                        eventCount = profileJson.get("eventCount")?.asInt ?: 0,
+                        playlistCount = profileJson.get("playlistCount")?.asInt ?: 0
                     )
                     withContext(Dispatchers.Main) {
                         otherUserProfile = up
                     }
                 }
 
-                // If it's an artist ID (often smaller or in a specific range, but we try anyway)
-                val artistBody = callApi("artist/detail", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
-                if (artistBody.has("data")) {
-                    val artistJson = artistBody.get("data").asJsonObject.get("artist").asJsonObject
-                    val up = UserProfile(
-                        userId = uid,
-                        nickname = artistJson.get("name").asString,
-                        avatarUrl = artistJson.get("cover").asString,
-                        signature = artistJson.get("briefDesc")?.asString,
-                        playlistCount = 0
-                    )
-                    withContext(Dispatchers.Main) {
-                        otherUserProfile = up
-                    }
-
-                    val songsBody = callApi("artist/songs", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
-                    val songsJson = songsBody.get("songs")?.asJsonArray
-                    val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        otherUserSongs = songs
-                    }
-                }
-
-                // Fetch their playlists
-                val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                // Fetch their playlists (if not an artist, or even if it is)
+                val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
                 val playlistJson = plBody.get("playlist")?.asJsonArray
                 val playlists = playlistJson?.map {
                     val obj = it.asJsonObject
@@ -1225,7 +1234,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 // Fetch first playlist's songs as "popular" or recent songs if any
-                if (playlists.isNotEmpty()) {
+                if (playlists.isNotEmpty() && otherUserSongs.isEmpty()) {
                     val sBody = callApi("playlist/track/all", mapOf("id" to playlists[0].id.toString(), "limit" to "20", "cookie" to (cookie ?: "")))
                     val songsJson = sBody.get("songs")?.asJsonArray
                     val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()

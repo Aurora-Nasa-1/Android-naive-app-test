@@ -28,6 +28,7 @@ import com.ncm.player.util.ImageUtils
 fun UserProfileScreen(
     userProfile: UserProfile?,
     playlists: List<Playlist>,
+    albums: List<Playlist> = emptyList(),
     songs: List<Song>,
     onPlaylistClick: (Playlist) -> Unit,
     onSongClick: (Song) -> Unit,
@@ -113,16 +114,41 @@ fun UserProfileScreen(
                 if (songs.isNotEmpty()) {
                     item {
                         Text(
-                            "Popular Songs",
+                            "Songs",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
-                    items(songs.take(5)) { song ->
+                    items(
+                        items = songs,
+                        key = { it.id },
+                        contentType = { "song" }
+                    ) { song ->
                         SongItem(
                             song = song,
                             onClick = { onSongClick(song) }
+                        )
+                    }
+                }
+
+                if (albums.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Albums",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                        )
+                    }
+                    items(
+                        items = albums,
+                        key = { "album_${it.id}" },
+                        contentType = { "playlist" }
+                    ) { album ->
+                        PlaylistItem(
+                            playlist = album,
+                            onClick = { onPlaylistClick(album) }
                         )
                     }
                 }
@@ -136,7 +162,11 @@ fun UserProfileScreen(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
-                    items(playlists) { playlist ->
+                    items(
+                        items = playlists,
+                        key = { it.id },
+                        contentType = { "playlist" }
+                    ) { playlist ->
                         PlaylistItem(
                             playlist = playlist,
                             onClick = { onPlaylistClick(playlist) }

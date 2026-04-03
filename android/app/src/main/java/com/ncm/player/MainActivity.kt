@@ -527,6 +527,7 @@ fun AppMainContent(
                         UserProfileScreen(
                             userProfile = playerViewModel.otherUserProfile,
                             playlists = playerViewModel.otherUserPlaylists,
+                            albums = playerViewModel.otherUserAlbums,
                             songs = playerViewModel.otherUserSongs,
                             onPlaylistClick = { playlist ->
                                 playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)

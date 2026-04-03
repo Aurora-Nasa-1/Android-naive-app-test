@@ -41,6 +41,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var userProfile by mutableStateOf<UserProfile?>(null)
     var otherUserProfile by mutableStateOf<UserProfile?>(null)
     var otherUserPlaylists by mutableStateOf<List<Playlist>>(emptyList())
+    var otherUserAlbums by mutableStateOf<List<Playlist>>(emptyList())
     var otherUserSongs by mutableStateOf<List<Song>>(emptyList())
     var currentQueue by mutableStateOf<List<Song>>(emptyList())
     var isPlaying by mutableStateOf(false)
@@ -1188,6 +1189,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     isLoading = true
                     otherUserProfile = null
                     otherUserPlaylists = emptyList()
+                    otherUserAlbums = emptyList()
                     otherUserSongs = emptyList()
                 }
                 DebugLog.d("Fetching user profile for $uid...")
@@ -1216,7 +1218,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                             nickname = artistData.get("name").asString,
                             avatarUrl = artistData.get("cover")?.asString ?: artistData.get("picUrl")?.asString ?: "",
                             signature = artistData.get("briefDesc")?.asString,
-                            playlistCount = 0
+                            playlistCount = 0,
+                            eventCount = artistData.get("musicSize")?.asInt ?: 0,
+                            follows = artistData.get("albumSize")?.asInt ?: 0,
+                            followeds = artistData.get("mvSize")?.asInt ?: 0
                         )
                         withContext(Dispatchers.Main) {
                             otherUserProfile = up
@@ -1229,6 +1234,22 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
                         withContext(Dispatchers.Main) {
                             otherUserSongs = songs
+                        }
+
+                        val albumBody = callApi("artist/album", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                        if (!isActive) return@launch
+                        val albumsJson = albumBody.get("hotAlbums")?.asJsonArray
+                        val albums = albumsJson?.map {
+                            val obj = it.asJsonObject
+                            Playlist(
+                                id = obj.get("id").asLong,
+                                name = obj.get("name").asString,
+                                coverImgUrl = obj.get("picUrl").asString,
+                                trackCount = obj.get("size").asInt
+                            )
+                        } ?: emptyList()
+                        withContext(Dispatchers.Main) {
+                            otherUserAlbums = albums
                         }
                     }
                 } else {

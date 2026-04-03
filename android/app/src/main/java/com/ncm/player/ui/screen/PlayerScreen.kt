@@ -47,6 +47,7 @@ fun PlayerScreen(
     isDownloaded: Boolean = false,
     allPlaylists: List<com.ncm.player.model.Playlist> = emptyList(),
     onLikeClick: () -> Unit = {},
+    onArtistClick: (String) -> Unit = {},
     onDownloadClick: () -> Unit = {},
     onLyricClick: () -> Unit = {},
     onAddToPlaylist: (String, Long) -> Unit = { _, _ -> },
@@ -155,6 +156,18 @@ fun PlayerScreen(
                         shape = MaterialTheme.shapes.large,
                         shadowElevation = 8.dp
                     ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                song.name,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            Text(
+                                song.artist,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                         if (song.albumArtUrl != null) {
                             AsyncImage(
                                 model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 600),

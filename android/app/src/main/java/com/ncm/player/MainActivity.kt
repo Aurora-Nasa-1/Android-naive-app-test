@@ -352,6 +352,9 @@ fun AppMainContent(
                             },
                             favoriteSongs = playerViewModel.favoriteSongs,
                             completedSongs = completedSongs,
+                            onNavigateToMessages = {
+                                navController.navigate("messages")
+                            },
                             onNavigateToSettings = {
                                 navController.navigate("settings")
                             },
@@ -480,6 +483,67 @@ fun AppMainContent(
                             bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
                         )
                     }
+                    composable("messages") {
+                        LaunchedEffect(Unit) {
+                            playerViewModel.fetchRecentContacts(loginViewModel.cookie)
+                        }
+                        ContactListScreen(
+                            contacts = playerViewModel.contacts,
+                            onContactClick = { contact ->
+                                navController.navigate("chat/${contact.userId}/${contact.nickname}")
+                            },
+                            onAvatarClick = { uid ->
+                                playerViewModel.fetchOtherUserProfile(uid, loginViewModel.cookie)
+                                navController.navigate("user/$uid")
+                            },
+                            onBackPressed = { navController.popBackStack() }
+                        )
+                    }
+                    composable("chat/{userId}/{nickname}") { backStackEntry ->
+                        val userId = backStackEntry.arguments?.getString("userId")?.toLongOrNull() ?: 0L
+                        val nickname = backStackEntry.arguments?.getString("nickname") ?: ""
+                        LaunchedEffect(userId) {
+                            playerViewModel.fetchMessageHistory(userId, loginViewModel.cookie)
+                        }
+                        ChatScreen(
+                            recipientUid = userId,
+                            recipientName = nickname,
+                            messages = playerViewModel.chatMessages,
+                            onSendMessage = { text ->
+                                playerViewModel.sendTextMessage(userId, text, loginViewModel.cookie)
+                            },
+                            onAvatarClick = { uid ->
+                                playerViewModel.fetchOtherUserProfile(uid, loginViewModel.cookie)
+                                navController.navigate("user/$uid")
+                            },
+                            onBackPressed = { navController.popBackStack() }
+                        )
+                    }
+                    composable("user/{userId}") { backStackEntry ->
+                        val userId = backStackEntry.arguments?.getString("userId")?.toLongOrNull() ?: 0L
+                        LaunchedEffect(userId) {
+                            playerViewModel.fetchOtherUserProfile(userId, loginViewModel.cookie)
+                        }
+                        UserProfileScreen(
+                            userProfile = playerViewModel.otherUserProfile,
+                            playlists = playerViewModel.otherUserPlaylists,
+                            songs = playerViewModel.otherUserSongs,
+                            onPlaylistClick = { playlist ->
+                                playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                                navController.navigate("playlist/${playlist.id}")
+                            },
+                            onSongClick = { song ->
+                                playerViewModel.playSong(song, playerViewModel.otherUserSongs, loginViewModel.cookie)
+                                navController.navigate("player") {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onMessageClick = { uid, name ->
+                                navController.navigate("chat/$uid/$name")
+                            },
+                            onBackPressed = { navController.popBackStack() }
+                        )
+                    }
                     composable("settings") {
                         SettingsScreen(
                             currentQualityWifi = playerViewModel.currentQualityWifi,
@@ -555,6 +619,10 @@ fun AppMainContent(
                                 currentSong?.let { song ->
                                     playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
                                 }
+                            },
+                            onArtistClick = { artistId ->
+                                playerViewModel.fetchOtherUserProfile(artistId.toLong(), loginViewModel.cookie)
+                                navController.navigate("user/$artistId")
                             },
                             onDownloadClick = {
                                 currentSong?.let { song ->

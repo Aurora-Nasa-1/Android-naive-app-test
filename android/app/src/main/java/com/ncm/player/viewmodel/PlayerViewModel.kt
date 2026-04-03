@@ -19,6 +19,8 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
 import com.ncm.player.model.UserProfile
+import com.ncm.player.model.Contact
+import com.ncm.player.model.Message
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
 import com.ncm.player.util.DebugLog
@@ -37,6 +39,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     var currentSong by mutableStateOf<Song?>(null)
     var userProfile by mutableStateOf<UserProfile?>(null)
+    var otherUserProfile by mutableStateOf<UserProfile?>(null)
+    var otherUserPlaylists by mutableStateOf<List<Playlist>>(emptyList())
+    var otherUserSongs by mutableStateOf<List<Song>>(emptyList())
     var currentQueue by mutableStateOf<List<Song>>(emptyList())
     var isPlaying by mutableStateOf(false)
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
@@ -52,6 +57,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var likedSongsPlaylistId by mutableStateOf(0L)
     var isFmMode by mutableStateOf(false)
     private var isFetchingMoreFm = false
+
+    var contacts by mutableStateOf<List<Contact>>(emptyList())
+    var chatMessages by mutableStateOf<List<Message>>(emptyList())
 
     var currentQualityWifi by mutableStateOf("exhigh")
     var currentQualityCellular by mutableStateOf("standard")
@@ -182,7 +190,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     val songName = parts[0]
                     val artist = parts[1]
                     if (cleanName.contains(songName) && cleanName.contains(artist)) {
-                        return Song(id, songName, artist, parts[2], parts.getOrNull(3))
+                        return Song(
+                            id = id,
+                            name = songName,
+                            artist = artist,
+                            album = parts[2],
+                            albumArtUrl = parts.getOrNull(3)
+                        )
                     }
                 }
             }
@@ -307,7 +321,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         name = mediaItem.mediaMetadata.title?.toString() ?: "Unknown",
                         artist = mediaItem.mediaMetadata.artist?.toString() ?: "Unknown",
                         album = mediaItem.mediaMetadata.albumTitle?.toString() ?: "Unknown",
-                        albumArtUrl = mediaItem.mediaMetadata.artworkUri?.toString()
+                        albumArtUrl = mediaItem.mediaMetadata.artworkUri?.toString(),
+                        artistId = mediaItem.mediaMetadata.extras?.getString("artistId")
                     )
                 }
                 updateQueue()
@@ -336,7 +351,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                                 name = metadata.title?.toString() ?: "Unknown",
                                 artist = metadata.artist?.toString() ?: "Unknown",
                                 album = metadata.albumTitle?.toString() ?: "Unknown",
-                                albumArtUrl = metadata.artworkUri?.toString()
+                                albumArtUrl = metadata.artworkUri?.toString(),
+                                artistId = metadata.extras?.getString("artistId")
                             )
                         }
                         duration = controller.duration.coerceAtLeast(0L)
@@ -817,11 +833,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun createMediaItem(song: Song, cookie: String? = null, localUri: android.net.Uri? = null): MediaItem {
+        val extras = android.os.Bundle().apply {
+            putString("artistId", song.artistId)
+        }
         val metadata = MediaMetadata.Builder()
             .setTitle(song.name)
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
+            .setExtras(extras)
             .build()
 
         val uri = if (localUri != null) {
@@ -1027,7 +1047,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     name = metadata.title?.toString() ?: "Unknown",
                     artist = metadata.artist?.toString() ?: "Unknown",
                     album = metadata.albumTitle?.toString() ?: "Unknown",
-                    albumArtUrl = metadata.artworkUri?.toString()
+                    albumArtUrl = metadata.artworkUri?.toString(),
+                    artistId = metadata.extras?.getString("artistId")
                 ))
             }
             currentQueue = list
@@ -1047,6 +1068,114 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun clearQueue() {
         mediaController?.clearMediaItems()
         updateQueue()
+    }
+
+    fun fetchRecentContacts(cookie: String?) {
+        if (cookie.isNullOrEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                DebugLog.d("Fetching recent contacts...")
+                val body = callApi("msg/recentcontact", mapOf("cookie" to cookie))
+                DebugLog.d("Recent contacts response: $body")
+                val contactJson = body.get("recentcontacts")?.asJsonArray
+                    ?: body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray
+                val list = contactJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseContact(it) } ?: emptyList()
+                withContext(Dispatchers.Main) {
+                    contacts = list
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun fetchMessageHistory(uid: Long, cookie: String?) {
+        if (cookie.isNullOrEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val myUserId = userProfile?.userId ?: 0L
+                DebugLog.d("Fetching message history for $uid...")
+                val body = callApi("msg/private/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+                DebugLog.d("Message history response: $body")
+                val msgsJson = body.get("msgs")?.asJsonArray
+                val list = msgsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseMessage(it, myUserId) }?.reversed() ?: emptyList()
+                withContext(Dispatchers.Main) {
+                    chatMessages = list
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun sendTextMessage(uid: Long, text: String, cookie: String?) {
+        if (cookie.isNullOrEmpty() || text.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val body = callApi("send/text", mapOf("user_ids" to uid.toString(), "msg" to text, "cookie" to cookie))
+                if (body.get("code")?.asInt == 200) {
+                    fetchMessageHistory(uid, cookie)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun fetchOtherUserProfile(uid: Long, cookie: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                DebugLog.d("Fetching user profile for $uid...")
+                val body = callApi("user/detail", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                DebugLog.d("User profile response: $body")
+                val profileJson = body.get("profile")?.asJsonObject
+                if (profileJson != null) {
+                    val up = UserProfile(
+                        userId = uid,
+                        nickname = profileJson.get("nickname").asString,
+                        avatarUrl = profileJson.get("avatarUrl").asString,
+                        signature = profileJson.get("signature")?.asString,
+                        gender = profileJson.get("gender").asInt,
+                        followed = profileJson.get("followed").asBoolean,
+                        follows = profileJson.get("follows").asInt,
+                        followeds = profileJson.get("followeds").asInt,
+                        eventCount = profileJson.get("eventCount").asInt,
+                        playlistCount = profileJson.get("playlistCount").asInt
+                    )
+                    withContext(Dispatchers.Main) {
+                        otherUserProfile = up
+                    }
+                }
+
+                // Fetch their playlists
+                val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                val playlistJson = plBody.get("playlist")?.asJsonArray
+                val playlists = playlistJson?.map {
+                    val obj = it.asJsonObject
+                    Playlist(
+                        id = obj.get("id").asLong,
+                        name = obj.get("name").asString,
+                        coverImgUrl = obj.get("coverImgUrl").asString,
+                        trackCount = obj.get("trackCount").asInt
+                    )
+                } ?: emptyList()
+                withContext(Dispatchers.Main) {
+                    otherUserPlaylists = playlists
+                }
+
+                // Fetch first playlist's songs as "popular" or recent songs if any
+                if (playlists.isNotEmpty()) {
+                    val sBody = callApi("playlist/track/all", mapOf("id" to playlists[0].id.toString(), "limit" to "20", "cookie" to (cookie ?: "")))
+                    val songsJson = sBody.get("songs")?.asJsonArray
+                    val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                    withContext(Dispatchers.Main) {
+                        otherUserSongs = songs
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     override fun onCleared() {

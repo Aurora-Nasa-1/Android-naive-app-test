@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
@@ -50,6 +51,7 @@ fun MainScreen(
     onPersonalFmClick: () -> Unit,
     onHeartbeatClick: () -> Unit,
     onLikeClick: (Song) -> Unit,
+    onNavigateToMessages: () -> Unit,
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
     onNavigateToSettings: () -> Unit,
@@ -82,6 +84,9 @@ fun MainScreen(
                 },
                 actions = {
                     actions()
+                    IconButton(onClick = onNavigateToMessages) {
+                        Icon(Icons.Default.Email, contentDescription = "Messages")
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }

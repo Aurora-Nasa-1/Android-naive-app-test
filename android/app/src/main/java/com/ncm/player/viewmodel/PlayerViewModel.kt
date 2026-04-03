@@ -573,6 +573,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 } ?: emptyList()
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -594,6 +598,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 searchSuggestions = allSuggestions
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -632,6 +640,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 fetchPlaylistSongs(playlistId, cookie)
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -688,6 +700,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -793,6 +809,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -1132,6 +1152,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -1146,14 +1170,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
 
-    var otherUserArtists by mutableStateOf<List<Song>>(emptyList())
+    private var profileFetchJob: Job? = null
 
     fun fetchOtherUserProfile(uid: Long, cookie: String?) {
-        viewModelScope.launch(Dispatchers.IO) {
+        profileFetchJob?.cancel()
+        profileFetchJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {
                     isLoading = true
@@ -1178,6 +1207,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 if (profileJson == null) {
                     DebugLog.d("User profile failed, trying artist/detail for $uid...")
                     val artistBody = callApi("artist/detail", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                    if (!isActive) return@launch
+
                     if (artistBody.has("data") || artistBody.has("artist")) {
                         val artistData = if (artistBody.has("data")) artistBody.get("data").asJsonObject.get("artist").asJsonObject else artistBody.get("artist").asJsonObject
                         val up = UserProfile(
@@ -1192,6 +1223,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         }
 
                         val songsBody = callApi("artist/songs", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                    if (!isActive) return@launch
+
                         val songsJson = songsBody.get("songs")?.asJsonArray
                         val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
                         withContext(Dispatchers.Main) {
@@ -1219,6 +1252,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                 // Fetch their playlists (if not an artist, or even if it is)
                 val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
+                if (!isActive) return@launch
+
                 val playlistJson = plBody.get("playlist")?.asJsonArray
                 val playlists = playlistJson?.map {
                     val obj = it.asJsonObject
@@ -1236,6 +1271,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 // Fetch first playlist's songs as "popular" or recent songs if any
                 if (playlists.isNotEmpty() && otherUserSongs.isEmpty()) {
                     val sBody = callApi("playlist/track/all", mapOf("id" to playlists[0].id.toString(), "limit" to "20", "cookie" to (cookie ?: "")))
+                    if (!isActive) return@launch
+
                     val songsJson = sBody.get("songs")?.asJsonArray
                     val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
                     withContext(Dispatchers.Main) {
@@ -1244,6 +1281,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }

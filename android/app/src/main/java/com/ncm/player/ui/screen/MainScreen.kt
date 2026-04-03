@@ -183,7 +183,10 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(end = 16.dp)
                 ) {
-                    items(recommendedSongs.take(10)) { song ->
+                    items(
+                        items = recommendedSongs.take(10),
+                        key = { "rec_${it.id}" }
+                    ) { song ->
                         SongCard(song, onClick = { onSongClick(song) })
                     }
                 }
@@ -197,7 +200,10 @@ fun MainScreen(
                 )
             }
 
-            items(recommendedSongs.drop(10).take(5)) { song ->
+            items(
+                items = recommendedSongs.drop(10).take(5),
+                key = { "recent_${it.id}" }
+            ) { song ->
                 SongItem(
                     song = song,
                     isFavorite = favoriteSongs.contains(song.id),

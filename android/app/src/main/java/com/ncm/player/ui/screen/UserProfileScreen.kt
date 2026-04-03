@@ -37,6 +37,13 @@ fun UserProfileScreen(
     onMessageClick: (Long, String) -> Unit,
     onBackPressed: () -> Unit
 ) {
+    if (userProfile != null && userProfile.userId == 0L) {
+         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+             CircularProgressIndicator()
+         }
+         return
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

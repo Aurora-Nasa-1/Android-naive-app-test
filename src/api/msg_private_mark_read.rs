@@ -9,8 +9,10 @@ impl ApiClient {
     /// 标记私信已读
     /// 对应 /msg/private/mark/read
     pub async fn msg_private_mark_read(&self, query: &Query) -> Result<ApiResponse> {
+        let uid = query.get_or("uid", "0");
         let data = json!({
-            "userId": query.get_or("uid", "0")
+            "userId": uid,
+            "userIds": format!("[{}]", uid)
         });
         self.request(
             "/api/msg/private/markread",

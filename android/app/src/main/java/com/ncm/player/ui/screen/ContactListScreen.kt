@@ -50,7 +50,11 @@ fun ContactListScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = innerPadding
             ) {
-                items(contacts) { contact ->
+                items(
+                    items = contacts,
+                    key = { it.userId },
+                    contentType = { "contact" }
+                ) { contact ->
                     ContactItem(
                         contact = contact,
                         onClick = { onContactClick(contact) },

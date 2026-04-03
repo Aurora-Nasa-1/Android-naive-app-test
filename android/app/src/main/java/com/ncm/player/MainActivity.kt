@@ -414,12 +414,12 @@ fun AppMainContent(
                     }
                     composable("playlist/{playlistId}") { backStackEntry ->
                         val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
-                        val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
+                        val playlist = playerViewModel.currentPlaylistMetadata
 
-                        if (playlist != null) {
+                        if (playlist != null || playerViewModel.isLoading) {
                             val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
                             PlaylistDetailScreen(
-                                playlist = playlist,
+                                playlist = playlist ?: com.ncm.player.model.Playlist(playlistId, "Loading...", null, 0),
                                 songs = playerViewModel.playlistSongs,
                                 favoriteSongs = playerViewModel.favoriteSongs,
                                 completedSongs = completedSongs,

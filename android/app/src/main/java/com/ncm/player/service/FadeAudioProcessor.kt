@@ -37,6 +37,13 @@ class FadeAudioProcessor : BaseAudioProcessor() {
         isFadingOut = true
     }
 
+    override fun onFlush() {
+        super.onFlush()
+        // ExoPlayer flushes processors on seek or when starting a new item.
+        // We trigger fade-in here to ensure it aligns perfectly with the first audio samples.
+        startFadeIn()
+    }
+
     override fun onConfigure(inputAudioFormat: AudioFormat): AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT && inputAudioFormat.encoding != C.ENCODING_PCM_FLOAT) {
              // We only support 16-bit and Float for now
@@ -60,35 +67,46 @@ class FadeAudioProcessor : BaseAudioProcessor() {
         val bytesPerFrame = inputAudioFormat.bytesPerFrame
         val framesToProcess = remaining / bytesPerFrame
 
+        val durationF = fadeDurationFrames.toFloat()
+
         for (i in 0 until framesToProcess) {
-            val volumeScale = if (fadeDurationFrames > 0) {
-                currentFrameCount.toFloat() / fadeDurationFrames.toFloat()
+            if (isFadingIn || isFadingOut) {
+                val volumeScale = if (durationF > 0f) {
+                    currentFrameCount.toFloat() / durationF
+                } else {
+                    1.0f
+                }
+
+                val finalScale = when {
+                    isFadingIn -> min(1.0f, volumeScale)
+                    isFadingOut -> max(0.0f, 1.0f - volumeScale)
+                    else -> 1.0f
+                }
+
+                if (inputAudioFormat.encoding == C.ENCODING_PCM_16BIT) {
+                    for (channel in 0 until inputAudioFormat.channelCount) {
+                        val sample = inputBuffer.getShort()
+                        outputBuffer.putShort((sample * finalScale).toInt().toShort())
+                    }
+                } else if (inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT) {
+                    for (channel in 0 until inputAudioFormat.channelCount) {
+                        val sample = inputBuffer.getFloat()
+                        outputBuffer.putFloat(sample * finalScale)
+                    }
+                }
+
+                currentFrameCount++
+                if (currentFrameCount >= fadeDurationFrames) {
+                    isFadingIn = false
+                    isFadingOut = false
+                }
             } else {
-                1.0f
-            }
-
-            val finalScale = when {
-                isFadingIn -> min(1.0f, volumeScale)
-                isFadingOut -> max(0.0f, 1.0f - volumeScale)
-                else -> 1.0f
-            }
-
-            if (inputAudioFormat.encoding == C.ENCODING_PCM_16BIT) {
-                for (channel in 0 until inputAudioFormat.channelCount) {
-                    val sample = inputBuffer.getShort()
-                    outputBuffer.putShort((sample * finalScale).toInt().toShort())
+                // If fade ended while processing this buffer, just copy remaining samples
+                if (inputAudioFormat.encoding == C.ENCODING_PCM_16BIT) {
+                    outputBuffer.putShort(inputBuffer.getShort())
+                } else if (inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT) {
+                    outputBuffer.putFloat(inputBuffer.getFloat())
                 }
-            } else if (inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT) {
-                for (channel in 0 until inputAudioFormat.channelCount) {
-                    val sample = inputBuffer.getFloat()
-                    outputBuffer.putFloat(sample * finalScale)
-                }
-            }
-
-            currentFrameCount++
-            if (currentFrameCount >= fadeDurationFrames) {
-                isFadingIn = false
-                isFadingOut = false
             }
         }
         outputBuffer.flip()

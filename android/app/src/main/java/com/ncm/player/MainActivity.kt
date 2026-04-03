@@ -352,6 +352,7 @@ fun AppMainContent(
                             },
                             favoriteSongs = playerViewModel.favoriteSongs,
                             completedSongs = completedSongs,
+                            unreadMessagesCount = playerViewModel.unreadMessagesCount,
                             onNavigateToMessages = {
                                 navController.navigate("messages")
                             },
@@ -414,6 +415,13 @@ fun AppMainContent(
                     }
                     composable("playlist/{playlistId}") { backStackEntry ->
                         val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
+
+                        LaunchedEffect(playlistId) {
+                            if (playerViewModel.currentPlaylistMetadata?.id != playlistId) {
+                                playerViewModel.fetchPlaylistSongs(playlistId, loginViewModel.cookie)
+                            }
+                        }
+
                         val playlist = playerViewModel.currentPlaylistMetadata
 
                         if (playlist != null || playerViewModel.isLoading) {

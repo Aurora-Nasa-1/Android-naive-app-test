@@ -60,6 +60,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     var contacts by mutableStateOf<List<Contact>>(emptyList())
     var chatMessages by mutableStateOf<List<Message>>(emptyList())
+    var unreadMessagesCount by mutableStateOf(0)
 
     var currentQualityWifi by mutableStateOf("exhigh")
     var currentQualityCellular by mutableStateOf("standard")
@@ -415,8 +416,22 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun fetchUnreadCount(cookie: String?) {
+        if (cookie.isNullOrEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val body = callApi("pl/count", mapOf("cookie" to cookie))
+                val count = body.get("msg")?.asInt ?: 0
+                withContext(Dispatchers.Main) {
+                    unreadMessagesCount = count
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
     fun fetchUserData(cookie: String?) {
         if (cookie.isNullOrEmpty()) return
+        fetchUnreadCount(cookie)
 
         viewModelScope.launch {
             isLoading = true
@@ -1163,6 +1178,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     contacts = contacts.map {
                         if (it.userId == uid) it.copy(unreadCount = 0) else it
                     }
+                    fetchUnreadCount(cookie)
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }

@@ -15,8 +15,7 @@ impl ApiClient {
             query.get_or("id", "0")
         };
         let data = json!({
-            "all": "true",
-            "userId": uid
+            "all": "true"
         });
         self.request(
             &format!("/api/w/v1/user/detail/{}", uid),

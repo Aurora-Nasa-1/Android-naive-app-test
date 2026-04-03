@@ -143,7 +143,7 @@ fun UserProfileScreen(
                     }
                     items(
                         items = displaySongs,
-                        key = { it.id },
+                        key = { "user_${userProfile.userId}_song_${it.id}" },
                         contentType = { "song" }
                     ) { song ->
                         SongItem(
@@ -177,7 +177,7 @@ fun UserProfileScreen(
                     }
                     items(
                         items = displayAlbums,
-                        key = { "album_${it.id}" },
+                        key = { "user_${userProfile.userId}_album_${it.id}" },
                         contentType = { "playlist" }
                     ) { album ->
                         PlaylistItem(
@@ -211,7 +211,7 @@ fun UserProfileScreen(
                     }
                     items(
                         items = displayPlaylists,
-                        key = { it.id },
+                        key = { "user_${userProfile.userId}_playlist_${it.id}" },
                         contentType = { "playlist" }
                     ) { playlist ->
                         PlaylistItem(

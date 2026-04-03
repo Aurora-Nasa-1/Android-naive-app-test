@@ -52,6 +52,7 @@ fun MainScreen(
     onHeartbeatClick: () -> Unit,
     onLikeClick: (Song) -> Unit,
     onNavigateToMessages: () -> Unit,
+    unreadMessagesCount: Int = 0,
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
     onNavigateToSettings: () -> Unit,
@@ -85,7 +86,17 @@ fun MainScreen(
                 actions = {
                     actions()
                     IconButton(onClick = onNavigateToMessages) {
-                        Icon(Icons.Default.Email, contentDescription = "Messages")
+                        BadgedBox(
+                            badge = {
+                                if (unreadMessagesCount > 0) {
+                                    Badge {
+                                        Text(if (unreadMessagesCount > 99) "99+" else unreadMessagesCount.toString())
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Email, contentDescription = "Messages")
+                        }
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")

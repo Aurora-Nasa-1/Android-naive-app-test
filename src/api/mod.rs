@@ -282,6 +282,7 @@ mod msg_forwards;
 mod msg_notices;
 mod msg_private;
 mod msg_private_history;
+mod msg_private_mark_read;
 mod msg_recentcontact;
 
 // ---- 动态 ----

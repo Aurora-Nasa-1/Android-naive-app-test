@@ -30,6 +30,8 @@ fun UserProfileScreen(
     playlists: List<Playlist>,
     albums: List<Playlist> = emptyList(),
     songs: List<Song>,
+    isArtist: Boolean = false,
+    isLoading: Boolean = false,
     onPlaylistClick: (Playlist) -> Unit,
     onSongClick: (Song) -> Unit,
     onMessageClick: (Long, String) -> Unit,
@@ -54,11 +56,15 @@ fun UserProfileScreen(
             )
         }
     ) { innerPadding ->
-        if (userProfile == null) {
+        if (isLoading || userProfile == null) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
+            var isSongsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
+            var isAlbumsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
+            var isPlaylistsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
@@ -104,24 +110,32 @@ fun UserProfileScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            UserStatItem(count = userProfile.follows, label = "Follows")
-                            UserStatItem(count = userProfile.followeds, label = "Followers")
-                            UserStatItem(count = userProfile.eventCount, label = "Events")
+                            if (isArtist) {
+                                UserStatItem(count = userProfile.eventCount, label = "Songs")
+                                UserStatItem(count = userProfile.follows, label = "Albums")
+                                UserStatItem(count = userProfile.followeds, label = "MVs")
+                            } else {
+                                UserStatItem(count = userProfile.follows, label = "Follows")
+                                UserStatItem(count = userProfile.followeds, label = "Followers")
+                                UserStatItem(count = userProfile.eventCount, label = "Events")
+                            }
                         }
                     }
                 }
 
                 if (songs.isNotEmpty()) {
+                    val displaySongs = if (isSongsExpanded) songs else songs.take(5)
+
                     item {
                         Text(
-                            "Songs",
+                            "Songs (${songs.size})",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
                     items(
-                        items = songs,
+                        items = displaySongs,
                         key = { it.id },
                         contentType = { "song" }
                     ) { song ->
@@ -130,19 +144,32 @@ fun UserProfileScreen(
                             onClick = { onSongClick(song) }
                         )
                     }
+
+                    if (songs.size > 5) {
+                        item {
+                            TextButton(
+                                onClick = { isSongsExpanded = !isSongsExpanded },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            ) {
+                                Text(if (isSongsExpanded) "Show Less" else "Show All")
+                            }
+                        }
+                    }
                 }
 
                 if (albums.isNotEmpty()) {
+                    val displayAlbums = if (isAlbumsExpanded) albums else albums.take(5)
+
                     item {
                         Text(
-                            "Albums",
+                            "Albums (${albums.size})",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
                     items(
-                        items = albums,
+                        items = displayAlbums,
                         key = { "album_${it.id}" },
                         contentType = { "playlist" }
                     ) { album ->
@@ -151,19 +178,32 @@ fun UserProfileScreen(
                             onClick = { onPlaylistClick(album) }
                         )
                     }
+
+                    if (albums.size > 5) {
+                        item {
+                            TextButton(
+                                onClick = { isAlbumsExpanded = !isAlbumsExpanded },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            ) {
+                                Text(if (isAlbumsExpanded) "Show Less" else "Show All")
+                            }
+                        }
+                    }
                 }
 
                 if (playlists.isNotEmpty()) {
+                    val displayPlaylists = if (isPlaylistsExpanded) playlists else playlists.take(5)
+
                     item {
                         Text(
-                            "Playlists",
+                            "Playlists (${playlists.size})",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
                     items(
-                        items = playlists,
+                        items = displayPlaylists,
                         key = { it.id },
                         contentType = { "playlist" }
                     ) { playlist ->
@@ -171,6 +211,17 @@ fun UserProfileScreen(
                             playlist = playlist,
                             onClick = { onPlaylistClick(playlist) }
                         )
+                    }
+
+                    if (playlists.size > 5) {
+                        item {
+                            TextButton(
+                                onClick = { isPlaylistsExpanded = !isPlaylistsExpanded },
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            ) {
+                                Text(if (isPlaylistsExpanded) "Show Less" else "Show All")
+                            }
+                        }
                     }
                 }
             }

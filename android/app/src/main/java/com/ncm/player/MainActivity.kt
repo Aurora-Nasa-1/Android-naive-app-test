@@ -504,6 +504,7 @@ fun AppMainContent(
                         val nickname = backStackEntry.arguments?.getString("nickname") ?: ""
                         LaunchedEffect(userId) {
                             playerViewModel.fetchMessageHistory(userId, loginViewModel.cookie)
+                            playerViewModel.markMessageAsRead(userId, loginViewModel.cookie)
                         }
                         ChatScreen(
                             recipientUid = userId,
@@ -524,17 +525,22 @@ fun AppMainContent(
                         LaunchedEffect(userId) {
                             playerViewModel.fetchOtherUserProfile(userId, loginViewModel.cookie)
                         }
+
+                        val viewState = playerViewModel.otherUserViewState
+
                         UserProfileScreen(
-                            userProfile = playerViewModel.otherUserProfile,
-                            playlists = playerViewModel.otherUserPlaylists,
-                            albums = playerViewModel.otherUserAlbums,
-                            songs = playerViewModel.otherUserSongs,
+                            userProfile = viewState.profile,
+                            playlists = viewState.playlists,
+                            albums = viewState.albums,
+                            songs = viewState.songs,
+                            isArtist = viewState.isArtist,
+                            isLoading = viewState.isLoading,
                             onPlaylistClick = { playlist ->
                                 playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
                                 navController.navigate("playlist/${playlist.id}")
                             },
                             onSongClick = { song ->
-                                playerViewModel.playSong(song, playerViewModel.otherUserSongs, loginViewModel.cookie)
+                                playerViewModel.playSong(song, viewState.songs, loginViewModel.cookie)
                                 navController.navigate("player") {
                                     launchSingleTop = true
                                 }

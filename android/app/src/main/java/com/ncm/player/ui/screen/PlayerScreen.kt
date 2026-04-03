@@ -17,6 +17,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -25,7 +28,7 @@ import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 import com.ncm.player.ui.component.QueueBottomSheet
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun PlayerScreen(
     song: Song?,
@@ -54,6 +57,10 @@ fun PlayerScreen(
     onClearQueue: () -> Unit = {},
     onBackPressed: () -> Unit
 ) {
+    val context = LocalContext.current
+    val windowSizeClass = calculateWindowSizeClass(context as android.app.Activity)
+    val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+
     if (song == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -132,42 +139,22 @@ fun PlayerScreen(
                 )
                 .padding(innerPadding)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.SpaceEvenly,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Album Art
-                Surface(
+            if (isWideScreen) {
+                Row(
                     modifier = Modifier
-                        .aspectRatio(1f)
-                        .fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.shapes.medium,
-                    shadowElevation = 8.dp
+                        .fillMaxSize()
+                        .padding(horizontal = 32.dp, vertical = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(48.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                if (song.albumArtUrl != null) {
-                    AsyncImage(
-                        model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 600),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.MusicNote,
-                        contentDescription = null,
-                        modifier = Modifier.size(128.dp)
-                    )
-                }
-            }
-
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Left Side: Album Art
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.large,
+                        shadowElevation = 8.dp
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -181,131 +168,350 @@ fun PlayerScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
+                        if (song.albumArtUrl != null) {
+                            AsyncImage(
+                                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 600),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop
                             )
-                        }
-                        IconButton(onClick = onLikeClick) {
-                        AnimatedContent(
-                            targetState = isFavorite,
-                            transitionSpec = {
-                                scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
-                                scaleOut()
-                            }
-                        ) { targetFavorite ->
+                        } else {
                             Icon(
-                                if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Like",
-                                modifier = Modifier.size(32.dp),
-                                tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                Icons.Default.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(128.dp)
                             )
-                        }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    // Right Side: Info and Controls
+                    Column(
+                        modifier = Modifier.weight(1.2f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    song.name,
+                                    style = MaterialTheme.typography.displaySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2
+                                )
+                                Text(
+                                    song.artist,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = onLikeClick, modifier = Modifier.size(48.dp)) {
+                                AnimatedContent(
+                                    targetState = isFavorite,
+                                    transitionSpec = {
+                                        scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
+                                        scaleOut()
+                                    }
+                                ) { targetFavorite ->
+                                    Icon(
+                                        if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Like",
+                                        modifier = Modifier.size(40.dp),
+                                        tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                    )
+                                }
+                            }
+                        }
 
-                    // Progress Bar
-                    Slider(
-                        value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
-                        onValueChange = { onSeek((it * duration).toLong()) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        // Progress Bar
+                        Slider(
+                            value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                            onValueChange = { onSeek((it * duration).toLong()) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            )
                         )
-                    )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(formatTime(currentPosition), style = MaterialTheme.typography.titleMedium)
+                            Text(formatTime(duration), style = MaterialTheme.typography.titleMedium)
+                        }
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = onShuffleClick) {
+                                Icon(
+                                    Icons.Default.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    modifier = Modifier.size(32.dp),
+                                    tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                )
+                            }
+                            IconButton(onClick = onSkipPrevious) {
+                                Icon(
+                                    Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+                            FloatingActionButton(
+                                onClick = onPlayPause,
+                                modifier = Modifier.size(80.dp),
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                containerColor = Color.White,
+                                contentColor = Color.Black
+                            ) {
+                                AnimatedContent(
+                                    targetState = isPlaying,
+                                    transitionSpec = {
+                                        fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
+                                        fadeOut(animationSpec = tween(200)) + scaleOut()
+                                    }
+                                ) { targetPlaying ->
+                                    Icon(
+                                        if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = "Play/Pause",
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                }
+                            }
+                            IconButton(onClick = onSkipNext) {
+                                Icon(
+                                    Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+                            IconButton(onClick = onRepeatClick) {
+                                val icon = when (repeatMode) {
+                                    Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                    else -> Icons.Default.Repeat
+                                }
+                                Icon(
+                                    icon,
+                                    contentDescription = "Repeat",
+                                    modifier = Modifier.size(32.dp),
+                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = onDownloadClick) {
+                                Icon(
+                                    if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
+                                    contentDescription = "Download",
+                                    modifier = Modifier.size(32.dp),
+                                    tint = if (isDownloaded) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                )
+                            }
+                            IconButton(onClick = onLyricClick) {
+                                Icon(Icons.Default.Lyrics, contentDescription = "Lyrics", modifier = Modifier.size(32.dp))
+                            }
+                            IconButton(onClick = { showAddToPlaylistDialog = true }) {
+                                Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist", modifier = Modifier.size(32.dp))
+                            }
+                            IconButton(onClick = { showQueueBottomSheet = true }) {
+                                Icon(Icons.Default.QueueMusic, contentDescription = "Queue", modifier = Modifier.size(32.dp))
+                            }
+                        }
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Album Art
+                    Surface(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.medium,
+                        shadowElevation = 8.dp
+                    ) {
+                        if (song.albumArtUrl != null) {
+                            AsyncImage(
+                                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 600),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(128.dp)
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    song.name,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    song.artist,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = onLikeClick) {
+                                AnimatedContent(
+                                    targetState = isFavorite,
+                                    transitionSpec = {
+                                        scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
+                                        scaleOut()
+                                    }
+                                ) { targetFavorite ->
+                                    Icon(
+                                        if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Like",
+                                        modifier = Modifier.size(32.dp),
+                                        tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Progress Bar
+                        Slider(
+                            value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                            onValueChange = { onSeek((it * duration).toLong()) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            )
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(formatTime(currentPosition), style = MaterialTheme.typography.labelSmall)
+                            Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(formatTime(currentPosition), style = MaterialTheme.typography.labelSmall)
-                        Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onShuffleClick) {
-                        Icon(
-                            Icons.Default.Shuffle,
-                            contentDescription = "Shuffle",
-                            modifier = Modifier.size(28.dp),
-                            tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                        )
-                    }
-                    IconButton(onClick = onSkipPrevious) {
-                        Icon(
-                            Icons.Default.SkipPrevious,
-                            contentDescription = "Previous",
-                            modifier = Modifier.size(44.dp)
-                        )
-                    }
-                    FloatingActionButton(
-                        onClick = onPlayPause,
-                        modifier = Modifier.size(72.dp),
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = Color.White,
-                        contentColor = Color.Black
-                    ) {
-                        AnimatedContent(
-                            targetState = isPlaying,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
-                                fadeOut(animationSpec = tween(200)) + scaleOut()
-                            }
-                        ) { targetPlaying ->
+                        IconButton(onClick = onShuffleClick) {
                             Icon(
-                                if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Pause",
-                                modifier = Modifier.size(40.dp)
+                                Icons.Default.Shuffle,
+                                contentDescription = "Shuffle",
+                                modifier = Modifier.size(28.dp),
+                                tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            )
+                        }
+                        IconButton(onClick = onSkipPrevious) {
+                            Icon(
+                                Icons.Default.SkipPrevious,
+                                contentDescription = "Previous",
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+                        FloatingActionButton(
+                            onClick = onPlayPause,
+                            modifier = Modifier.size(72.dp),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        ) {
+                            AnimatedContent(
+                                targetState = isPlaying,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
+                                    fadeOut(animationSpec = tween(200)) + scaleOut()
+                                }
+                            ) { targetPlaying ->
+                                Icon(
+                                    if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = "Play/Pause",
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+                        }
+                        IconButton(onClick = onSkipNext) {
+                            Icon(
+                                Icons.Default.SkipNext,
+                                contentDescription = "Next",
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+                        IconButton(onClick = onRepeatClick) {
+                            val icon = when (repeatMode) {
+                                Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                                else -> Icons.Default.Repeat
+                            }
+                            Icon(
+                                icon,
+                                contentDescription = "Repeat",
+                                modifier = Modifier.size(28.dp),
+                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
                             )
                         }
                     }
-                    IconButton(onClick = onSkipNext) {
-                        Icon(
-                            Icons.Default.SkipNext,
-                            contentDescription = "Next",
-                            modifier = Modifier.size(44.dp)
-                        )
-                    }
-                    IconButton(onClick = onRepeatClick) {
-                        val icon = when (repeatMode) {
-                            Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
-                            else -> Icons.Default.Repeat
-                        }
-                        Icon(
-                            icon,
-                            contentDescription = "Repeat",
-                            modifier = Modifier.size(28.dp),
-                            tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                        )
-                    }
-                }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onDownloadClick) {
-                        Icon(
-                            if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
-                            contentDescription = "Download",
-                            tint = if (isDownloaded) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                        )
-                    }
-                    IconButton(onClick = onLyricClick) {
-                        Icon(Icons.Default.Lyrics, contentDescription = "Lyrics")
-                    }
-                    IconButton(onClick = { showAddToPlaylistDialog = true }) {
-                        Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
-                    }
-                    IconButton(onClick = { showQueueBottomSheet = true }) {
-                        Icon(Icons.Default.QueueMusic, contentDescription = "Queue")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onDownloadClick) {
+                            Icon(
+                                if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
+                                contentDescription = "Download",
+                                tint = if (isDownloaded) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            )
+                        }
+                        IconButton(onClick = onLyricClick) {
+                            Icon(Icons.Default.Lyrics, contentDescription = "Lyrics")
+                        }
+                        IconButton(onClick = { showAddToPlaylistDialog = true }) {
+                            Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
+                        }
+                        IconButton(onClick = { showQueueBottomSheet = true }) {
+                            Icon(Icons.Default.QueueMusic, contentDescription = "Queue")
+                        }
                     }
                 }
             }

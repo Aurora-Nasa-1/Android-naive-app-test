@@ -14,7 +14,11 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,11 +51,15 @@ class MainActivity : ComponentActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
     private val playerViewModel: PlayerViewModel by viewModels()
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         setContent {
+            val windowSizeClass = calculateWindowSizeClass(this)
+            val useSideNav = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+
             NCMPlayerTheme(
                 pureBlack = playerViewModel.pureBlackMode
             ) {
@@ -77,7 +85,7 @@ class MainActivity : ComponentActivity() {
 
                     }
 
-                    AppNavigation(loginViewModel, playerViewModel, intent)
+                    AppNavigation(loginViewModel, playerViewModel, useSideNav, intent)
                 }
             }
         }
@@ -91,7 +99,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewModel, intent: Intent? = null) {
+fun AppNavigation(
+    loginViewModel: LoginViewModel,
+    playerViewModel: PlayerViewModel,
+    useSideNav: Boolean,
+    intent: Intent? = null
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -106,7 +119,8 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
     }
 
     val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
-    val hasBottomBar = loginViewModel.isLogged && !isPlayerScreen
+    val showNav = loginViewModel.isLogged && !isPlayerScreen
+    val hasBottomBar = showNav && !useSideNav
     val bottomBarHeight = 144.dp // 64 (playback) + 80 (nav)
     val density = LocalDensity.current
     val bottomBarHeightPx = with(density) { bottomBarHeight.toPx() }
@@ -126,15 +140,128 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize()
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
+    val navItems = listOf(
+        Triple("main", "Home", Icons.Filled.Home),
+        Triple("search", "Search", Icons.Filled.Search),
+        Triple("library", "Library", Icons.Filled.LibraryMusic)
+    )
+
+    if (useSideNav && showNav) {
+        PermanentNavigationDrawer(
+            drawerContent = {
+                PermanentDrawerSheet(
+                    modifier = Modifier.width(240.dp)
+                ) {
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        "CNMDPlayer",
+                        modifier = Modifier.padding(horizontal = 28.dp),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    navItems.forEach { (route, label, icon) ->
+                        NavigationDrawerItem(
+                            label = { Text(label) },
+                            icon = { Icon(icon, contentDescription = label) },
+                            selected = currentDestination?.hierarchy?.any { it.route == route } == true,
+                            onClick = {
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                    }
+
+                    Spacer(Modifier.weight(1f))
+
+                    if (playerViewModel.currentSong != null) {
+                        Box(modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)) {
+                            BottomPlaybackBar(
+                                song = playerViewModel.currentSong,
+                                isPlaying = playerViewModel.isPlaying,
+                                onPlayPause = { playerViewModel.togglePlayPause() },
+                                onSkipNext = { playerViewModel.skipNext() },
+                                onSkipPrevious = { playerViewModel.skipPrevious() },
+                                onClick = {
+                                    navController.navigate("player") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
         ) {
-            Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
+            AppMainContent(
+                innerPadding = PaddingValues(0.dp),
+                isPlayerScreen = isPlayerScreen,
+                nestedScrollConnection = nestedScrollConnection,
+                navController = navController,
+                loginViewModel = loginViewModel,
+                playerViewModel = playerViewModel,
+                useSideNav = useSideNav,
+                hasBottomBar = hasBottomBar,
+                bottomBarHeight = bottomBarHeight,
+                context = context,
+                currentDestination = currentDestination,
+                bottomBarOffsetHeightPx = bottomBarOffsetHeightPx,
+                navItems = navItems
+            )
+        }
+    } else {
+        Scaffold(
+            modifier = Modifier.fillMaxSize()
+        ) { innerPadding ->
+            AppMainContent(
+                innerPadding = innerPadding,
+                isPlayerScreen = isPlayerScreen,
+                nestedScrollConnection = nestedScrollConnection,
+                navController = navController,
+                loginViewModel = loginViewModel,
+                playerViewModel = playerViewModel,
+                useSideNav = useSideNav,
+                hasBottomBar = hasBottomBar,
+                bottomBarHeight = bottomBarHeight,
+                context = context,
+                currentDestination = currentDestination,
+                bottomBarOffsetHeightPx = bottomBarOffsetHeightPx,
+                navItems = navItems
+            )
+        }
+    }
+}
+
+@Composable
+fun AppMainContent(
+    innerPadding: PaddingValues,
+    isPlayerScreen: Boolean,
+    nestedScrollConnection: NestedScrollConnection,
+    navController: androidx.navigation.NavHostController,
+    loginViewModel: LoginViewModel,
+    playerViewModel: PlayerViewModel,
+    useSideNav: Boolean,
+    hasBottomBar: Boolean,
+    bottomBarHeight: androidx.compose.ui.unit.Dp,
+    context: android.content.Context,
+    currentDestination: androidx.navigation.NavDestination?,
+    bottomBarOffsetHeightPx: MutableState<Float>,
+    navItems: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>>
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
                 NavHost(
                     navController = navController,
                     startDestination = if (loginViewModel.isLogged) "main" else "login",
@@ -537,7 +664,7 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 }
             }
 
-            if (loginViewModel.isLogged && !isPlayerScreen) {
+            if (loginViewModel.isLogged && !isPlayerScreen && !useSideNav) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -559,16 +686,11 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                             }
                         )
                     }
-                    val items = listOf(
-                        Triple("main", "Home", Icons.Filled.Home),
-                        Triple("search", "Search", Icons.Filled.Search),
-                        Triple("library", "Library", Icons.Filled.LibraryMusic)
-                    )
                     NavigationBar(
                         containerColor = androidx.compose.ui.graphics.Color.Transparent,
                         tonalElevation = 0.dp
                     ) {
-                        items.forEach { (route, label, icon) ->
+                        navItems.forEach { (route, label, icon) ->
                             NavigationBarItem(
                                 icon = { Icon(icon, contentDescription = label) },
                                 label = { Text(label) },
@@ -613,6 +735,5 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     }
                 )
             }
-        }
     }
 }

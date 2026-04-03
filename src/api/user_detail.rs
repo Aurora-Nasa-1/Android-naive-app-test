@@ -9,7 +9,11 @@ impl ApiClient {
     /// 用户详情
     /// 对应 /user/detail
     pub async fn user_detail(&self, query: &Query) -> Result<ApiResponse> {
-        let uid = query.get_or("uid", "0");
+        let uid = if query.params.contains_key("uid") {
+            query.get_or("uid", "0")
+        } else {
+            query.get_or("id", "0")
+        };
         let data = json!({
             "userId": uid
         });

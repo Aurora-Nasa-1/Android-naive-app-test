@@ -297,6 +297,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 cacheDir.deleteRecursively()
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
@@ -614,6 +616,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
@@ -1076,17 +1080,29 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (cookie.isNullOrEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                withContext(Dispatchers.Main) { isLoading = true }
                 DebugLog.d("Fetching recent contacts...")
-                val body = callApi("msg/recentcontact", mapOf("cookie" to cookie))
+                var body = callApi("msg/recentcontact", mapOf("cookie" to cookie, "limit" to "100"))
                 DebugLog.d("Recent contacts response: $body")
-                val contactJson = body.get("recentcontacts")?.asJsonArray
+
+                var contactJson = body.get("recentcontacts")?.asJsonArray
                     ?: body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray
+
+                // Fallback to msg/private if recentcontact is empty
+                if (contactJson == null || contactJson.size() == 0) {
+                    DebugLog.d("msg/recentcontact empty, trying msg/private...")
+                    body = callApi("msg/private", mapOf("cookie" to cookie, "limit" to "100"))
+                    contactJson = body.get("msgs")?.asJsonArray
+                }
+
                 val list = contactJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseContact(it) } ?: emptyList()
                 withContext(Dispatchers.Main) {
                     contacts = list
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
@@ -1134,16 +1150,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    var otherUserArtists by mutableStateOf<List<Song>>(emptyList())
+
     fun fetchOtherUserProfile(uid: Long, cookie: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                withContext(Dispatchers.Main) { isLoading = true }
                 DebugLog.d("Fetching user profile for $uid...")
-                var body = callApi("user/detail", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                var body = callApi("user/detail", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
 
                 // If standard fails or is empty, try user/detail/new
                 if (!body.has("profile")) {
                     DebugLog.d("user/detail failed, trying user/detail/new...")
-                    body = callApi("user/detail/new", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                    body = callApi("user/detail/new", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
                 }
 
                 DebugLog.d("User profile response: $body")
@@ -1163,6 +1182,29 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     withContext(Dispatchers.Main) {
                         otherUserProfile = up
+                    }
+                }
+
+                // If it's an artist ID (often smaller or in a specific range, but we try anyway)
+                val artistBody = callApi("artist/detail", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                if (artistBody.has("data")) {
+                    val artistJson = artistBody.get("data").asJsonObject.get("artist").asJsonObject
+                    val up = UserProfile(
+                        userId = uid,
+                        nickname = artistJson.get("name").asString,
+                        avatarUrl = artistJson.get("cover").asString,
+                        signature = artistJson.get("briefDesc")?.asString,
+                        playlistCount = 0
+                    )
+                    withContext(Dispatchers.Main) {
+                        otherUserProfile = up
+                    }
+
+                    val songsBody = callApi("artist/songs", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                    val songsJson = songsBody.get("songs")?.asJsonArray
+                    val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                    withContext(Dispatchers.Main) {
+                        otherUserSongs = songs
                     }
                 }
 

@@ -38,16 +38,25 @@ object JsonUtils {
     fun parseContact(it: JsonElement): Contact? {
         return try {
             val obj = it.asJsonObject
-            val fromUser = obj.get("fromUser").asJsonObject
-            val lastMsgStr = obj.get("lastMsg")?.asString ?: "{}"
+
+            // Check if it's from msg/private instead of msg/recentcontact
+            val fromUser = if (obj.has("fromUser")) {
+                obj.get("fromUser").asJsonObject
+            } else if (obj.has("from")) {
+                obj.get("from").asJsonObject
+            } else {
+                return null
+            }
+
+            val lastMsgStr = obj.get("lastMsg")?.asString ?: obj.get("msg")?.asString ?: "{}"
             val lastMsg = try { JsonParser.parseString(lastMsgStr).asJsonObject } catch (e: Exception) { JsonObject() }
 
             Contact(
                 userId = fromUser.get("userId").asLong,
                 nickname = fromUser.get("nickname").asString,
                 avatarUrl = fromUser.get("avatarUrl").asString,
-                lastMessage = lastMsg.get("msg")?.asString ?: "",
-                lastMessageTime = obj.get("lastMsgTime")?.asLong ?: 0L,
+                lastMessage = lastMsg.get("msg")?.asString ?: obj.get("lastMsg")?.asString ?: "",
+                lastMessageTime = obj.get("lastMsgTime")?.asLong ?: obj.get("time")?.asLong ?: 0L,
                 unreadCount = obj.get("newMsgCount")?.asInt ?: 0
             )
         } catch (e: Exception) {

@@ -108,9 +108,15 @@ class NcmDownloadManager(private val application: Application) {
         }
     }
 
+    private val downloadMutex = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
     fun downloadSong(song: Song, cookie: String?, quality: String = "standard", allowCellular: Boolean = false) {
-        if (_completedSongs.value.contains(song.id)) return
+        // 1. Check registry and state first
+        if (DownloadRegistry.getMetadata(song.id) != null) return
         if (_tasks.value.containsKey(song.id)) return
+
+        // 2. Prevent race conditions on the same song
+        if (downloadMutex.putIfAbsent(song.id, true) != null) return
 
         android.widget.Toast.makeText(application, "Starting download: ${song.name}", android.widget.Toast.LENGTH_SHORT).show()
 
@@ -184,6 +190,8 @@ class NcmDownloadManager(private val application: Application) {
                     android.widget.Toast.makeText(application, "Download failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                 }
                 _tasks.update { it + (song.id to DownloadTask(song, DownloadStatus.FAILED)) }
+            } finally {
+                downloadMutex.remove(song.id)
             }
         }
     }

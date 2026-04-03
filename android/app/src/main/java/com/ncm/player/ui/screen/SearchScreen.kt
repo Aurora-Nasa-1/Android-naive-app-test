@@ -2,25 +2,29 @@ package com.ncm.player.ui.screen
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ncm.player.model.Song
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun SearchScreen(
     searchResults: List<Song>,
@@ -39,6 +43,10 @@ fun SearchScreen(
     onLikeClick: (Song) -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
+    val context = LocalContext.current
+    val windowSizeClass = calculateWindowSizeClass(context as android.app.Activity)
+    val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+
     var query by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
 
@@ -121,19 +129,20 @@ fun SearchScreen(
 
             // Filter Chips
             if (searchResults.isNotEmpty() || query.isNotEmpty()) {
+                val types = listOf(
+                    1 to "Songs",
+                    10 to "Albums",
+                    100 to "Artists",
+                    1000 to "Playlists"
+                )
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val types = listOf(
-                        1 to "Songs",
-                        10 to "Albums",
-                        100 to "Artists",
-                        1000 to "Playlists"
-                    )
-                    items(types) { (type, label) ->
+                    items(types.size) { index ->
+                        val (type, label) = types[index]
                         FilterChip(
                             selected = searchType == type,
                             onClick = {
@@ -147,12 +156,14 @@ fun SearchScreen(
                 }
             }
 
-            LazyColumn(
+            val columns = if (isWideScreen) 2 else 1
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
             ) {
                 if (searchResults.isEmpty() && searchPlaylists.isEmpty() && query.isEmpty()) {
-                    item {
+                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
                         Text(
                             "Hot Searches",
                             style = MaterialTheme.typography.titleLarge,

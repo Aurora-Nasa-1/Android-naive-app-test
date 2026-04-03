@@ -28,6 +28,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
@@ -35,7 +38,7 @@ import com.ncm.player.model.Playlist
 import com.ncm.player.model.UserProfile
 import com.ncm.player.ui.component.UserAccountDialog
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun MainScreen(
     recommendedSongs: List<Song>,
@@ -53,6 +56,10 @@ fun MainScreen(
     bottomContentPadding: PaddingValues = PaddingValues(0.dp),
     actions: @Composable RowScope.() -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val windowSizeClass = calculateWindowSizeClass(context as android.app.Activity)
+    val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+
     var showAccountDialog by remember { mutableStateOf(false) }
 
     if (showAccountDialog) {
@@ -115,48 +122,42 @@ fun MainScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Quick Access Grid (2 columns)
+            // Quick Access Grid
             item {
+                val gridColumns = if (isWideScreen) 3 else 2
                 Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        QuickAccessCard(
-                            title = "Private FM",
-                            icon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
-                            onClick = onPersonalFmClick,
-                            modifier = Modifier.weight(1f)
-                        )
-                        QuickAccessCard(
-                            title = "Heartbeat",
-                            icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
-                            onClick = onHeartbeatClick,
-                            modifier = Modifier.weight(1f)
-                        )
+                    val quickAccessItems = listOf(
+                        "Private FM" to onPersonalFmClick to Icons.Default.Radio to MaterialTheme.colorScheme.primary,
+                        "Heartbeat" to onHeartbeatClick to Icons.Default.AutoGraph to MaterialTheme.colorScheme.secondary
+                    )
+
+                    val displayPlaylists = userPlaylists.take(if (isWideScreen) 9 else 6)
+
+                    // Simplified logic for quick access and playlists
+                    val itemsToRender = mutableListOf<@Composable (Modifier) -> Unit>()
+                    itemsToRender.add { modifier ->
+                        QuickAccessCard("Private FM", { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) }, onPersonalFmClick, modifier)
+                    }
+                    itemsToRender.add { modifier ->
+                        QuickAccessCard("Heartbeat", { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) }, onHeartbeatClick, modifier)
+                    }
+                    displayPlaylists.forEach { playlist ->
+                        itemsToRender.add { modifier ->
+                            PlaylistQuickCard(playlist, { onPlaylistClick(playlist) }, modifier)
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    val displayPlaylists = userPlaylists.take(6)
-                    for (i in displayPlaylists.indices step 2) {
+                    for (i in itemsToRender.indices step gridColumns) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            PlaylistQuickCard(
-                                playlist = displayPlaylists[i],
-                                onClick = { onPlaylistClick(displayPlaylists[i]) },
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (i + 1 < displayPlaylists.size) {
-                                PlaylistQuickCard(
-                                    playlist = displayPlaylists[i+1],
-                                    onClick = { onPlaylistClick(displayPlaylists[i+1]) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.weight(1f))
+                            for (j in 0 until gridColumns) {
+                                if (i + j < itemsToRender.size) {
+                                    itemsToRender[i + j](Modifier.weight(1f))
+                                } else {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))

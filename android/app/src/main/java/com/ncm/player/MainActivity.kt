@@ -674,6 +674,8 @@ fun AppMainContent(
                             onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
                             onRemoveQueueItem = { index -> playerViewModel.removeQueueItem(index) },
                             onClearQueue = { playerViewModel.clearQueue() },
+                            qualityWifi = playerViewModel.currentQualityWifi,
+                            qualityCellular = playerViewModel.currentQualityCellular,
                             onBackPressed = { navController.popBackStack() }
                         )
                     }

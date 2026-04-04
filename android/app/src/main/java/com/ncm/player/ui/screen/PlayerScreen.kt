@@ -63,6 +63,8 @@ fun PlayerScreen(
     onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> },
     onRemoveQueueItem: (Int) -> Unit = { _ -> },
     onClearQueue: () -> Unit = {},
+    qualityWifi: String = "Unknown",
+    qualityCellular: String = "Unknown",
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -86,6 +88,47 @@ fun PlayerScreen(
 
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var showQueueBottomSheet by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var showSongInfoDialog by remember { mutableStateOf(false) }
+    var showQualityInfoDialog by remember { mutableStateOf(false) }
+
+    if (showSongInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showSongInfoDialog = false },
+            title = { Text("Song Info") },
+            text = {
+                Column {
+                    Text("Title: ${song.name}")
+                    Text("Artist: ${song.artist}")
+                    Text("Album: ${song.album}")
+                    Text("Song ID: ${song.id}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSongInfoDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showQualityInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showQualityInfoDialog = false },
+            title = { Text("Audio Quality Info") },
+            text = {
+                Column {
+                    Text("Current Wi-Fi Quality: $qualityWifi")
+                    Text("Current Cellular Quality: $qualityCellular")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQualityInfoDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 
     if (showAddToPlaylistDialog) {
         AlertDialog(
@@ -305,11 +348,42 @@ fun PlayerScreen(
                                 IconButton(onClick = onDownloadClick, modifier = Modifier.size(40.dp)) {
                                     Icon(if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download, contentDescription = "Download")
                                 }
-                                IconButton(onClick = { showAddToPlaylistDialog = true }, modifier = Modifier.size(40.dp)) {
-                                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
-                                }
                                 IconButton(onClick = { showQueueBottomSheet = true }, modifier = Modifier.size(40.dp)) {
                                     Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
+                                }
+                                Box {
+                                    IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(40.dp)) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                    }
+                                    DropdownMenu(
+                                        expanded = showMoreMenu,
+                                        onDismissRequest = { showMoreMenu = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Add to Playlist") },
+                                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
+                                            onClick = {
+                                                showAddToPlaylistDialog = true
+                                                showMoreMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Song Info") },
+                                            leadingIcon = { Icon(Icons.Default.Info, null) },
+                                            onClick = {
+                                                showSongInfoDialog = true
+                                                showMoreMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Quality Info") },
+                                            leadingIcon = { Icon(Icons.Default.HighQuality, null) },
+                                            onClick = {
+                                                showQualityInfoDialog = true
+                                                showMoreMenu = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -498,11 +572,42 @@ fun PlayerScreen(
                         IconButton(onClick = onLyricClick) {
                             Icon(Icons.Default.Lyrics, contentDescription = "Lyrics")
                         }
-                        IconButton(onClick = { showAddToPlaylistDialog = true }) {
-                            Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
-                        }
                         IconButton(onClick = { showQueueBottomSheet = true }) {
                             Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
+                        }
+                        Box {
+                            IconButton(onClick = { showMoreMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More")
+                            }
+                            DropdownMenu(
+                                expanded = showMoreMenu,
+                                onDismissRequest = { showMoreMenu = false }
+                            ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Add to Playlist") },
+                                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
+                                        onClick = {
+                                            showAddToPlaylistDialog = true
+                                            showMoreMenu = false
+                                        }
+                                    )
+                                DropdownMenuItem(
+                                    text = { Text("Song Info") },
+                                    leadingIcon = { Icon(Icons.Default.Info, null) },
+                                    onClick = {
+                                        showSongInfoDialog = true
+                                        showMoreMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Quality Info") },
+                                    leadingIcon = { Icon(Icons.Default.HighQuality, null) },
+                                    onClick = {
+                                        showQualityInfoDialog = true
+                                        showMoreMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }

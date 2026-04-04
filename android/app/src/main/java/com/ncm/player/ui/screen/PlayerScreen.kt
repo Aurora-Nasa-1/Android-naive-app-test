@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -157,19 +159,21 @@ fun PlayerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 32.dp, vertical = 24.dp),
+                        .padding(horizontal = 32.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Left Side: Album Art & Info & Controls
                     Column(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
                     ) {
                         Surface(
                             modifier = Modifier
-                                .fillMaxWidth(0.8f)
+                                .fillMaxWidth(0.6f)
                                 .aspectRatio(1f),
                             color = MaterialTheme.colorScheme.secondaryContainer,
                             shape = MaterialTheme.shapes.large,
@@ -186,15 +190,13 @@ fun PlayerScreen(
                                     Icon(
                                         Icons.Default.MusicNote,
                                         contentDescription = null,
-                                        modifier = Modifier.size(128.dp)
+                                        modifier = Modifier.size(96.dp)
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        Column(modifier = Modifier.fillMaxWidth(0.8f)) {
+                        Column(modifier = Modifier.fillMaxWidth(0.85f)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -203,18 +205,18 @@ fun PlayerScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         song.name,
-                                        style = MaterialTheme.typography.headlineMedium,
+                                        style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1
                                     )
                                     Text(
                                         song.artist,
-                                        style = MaterialTheme.typography.titleMedium,
+                                        style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                                     )
                                 }
-                                IconButton(onClick = onLikeClick) {
+                                IconButton(onClick = onLikeClick, modifier = Modifier.size(40.dp)) {
                                     AnimatedContent(
                                         targetState = isFavorite,
                                         label = "LikeAnimation",
@@ -232,8 +234,6 @@ fun PlayerScreen(
                                     }
                                 }
                             }
-
-                            Spacer(modifier = Modifier.height(16.dp))
 
                             Slider(
                                 value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
@@ -254,39 +254,38 @@ fun PlayerScreen(
                                 Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = onShuffleClick) {
+                                IconButton(onClick = onShuffleClick, modifier = Modifier.size(40.dp)) {
                                     Icon(
                                         Icons.Default.Shuffle,
                                         contentDescription = "Shuffle",
                                         tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
                                     )
                                 }
-                                IconButton(onClick = onSkipPrevious) {
-                                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+                                IconButton(onClick = onSkipPrevious, modifier = Modifier.size(48.dp)) {
+                                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(32.dp))
                                 }
                                 FloatingActionButton(
                                     onClick = onPlayPause,
-                                    modifier = Modifier.size(64.dp),
+                                    modifier = Modifier.size(56.dp),
                                     shape = androidx.compose.foundation.shape.CircleShape,
                                     containerColor = Color.White,
                                     contentColor = Color.Black
                                 ) {
                                     Icon(
                                         if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Play/Pause"
+                                        contentDescription = "Play/Pause",
+                                        modifier = Modifier.size(32.dp)
                                     )
                                 }
-                                IconButton(onClick = onSkipNext) {
-                                    Icon(Icons.Default.SkipNext, contentDescription = "Next")
+                                IconButton(onClick = onSkipNext, modifier = Modifier.size(48.dp)) {
+                                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(32.dp))
                                 }
-                                IconButton(onClick = onRepeatClick) {
+                                IconButton(onClick = onRepeatClick, modifier = Modifier.size(40.dp)) {
                                     val icon = when (repeatMode) {
                                         Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
                                         else -> Icons.Default.Repeat
@@ -299,20 +298,18 @@ fun PlayerScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                IconButton(onClick = onDownloadClick) {
+                                IconButton(onClick = onDownloadClick, modifier = Modifier.size(40.dp)) {
                                     Icon(if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download, contentDescription = "Download")
                                 }
-                                IconButton(onClick = { showAddToPlaylistDialog = true }) {
+                                IconButton(onClick = { showAddToPlaylistDialog = true }, modifier = Modifier.size(40.dp)) {
                                     Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Playlist")
                                 }
-                                IconButton(onClick = { showQueueBottomSheet = true }) {
-                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue", modifier = Modifier.size(32.dp))
+                                IconButton(onClick = { showQueueBottomSheet = true }, modifier = Modifier.size(40.dp)) {
+                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
                                 }
                             }
                         }

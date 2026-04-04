@@ -86,8 +86,8 @@ fn main() {
         let route_trimmed = &route[1..];
         writeln!(
             f_jni,
-            "    {:?} | {:?} => {{ client.{}(&query).await }}",
-            route, route_trimmed, method
+            "    {:?} | {:?} | {:?} => {{ client.{}(&query).await }}",
+            route, route_trimmed, method, method
         )
         .unwrap();
     }

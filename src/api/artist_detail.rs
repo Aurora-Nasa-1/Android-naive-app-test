@@ -9,13 +9,14 @@ impl ApiClient {
     /// 歌手详情
     /// 对应 /artist/detail
     pub async fn artist_detail(&self, query: &Query) -> Result<ApiResponse> {
+        let id = query.get_or("id", "0");
         let data = json!({
-            "id": query.get_or("id", "0")
+            "id": id
         });
         self.request(
-            "/api/artist/head/info/get",
+            &format!("/api/artist/head/info/get?id={}", id),
             data,
-            query.to_option(CryptoType::default()),
+            query.to_option(CryptoType::Weapi),
         )
         .await
     }

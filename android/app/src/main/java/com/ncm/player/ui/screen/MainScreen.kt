@@ -52,6 +52,7 @@ fun MainScreen(
     onHeartbeatClick: () -> Unit,
     onLikeClick: (Song) -> Unit,
     onNavigateToMessages: () -> Unit,
+    unreadMessagesCount: Int = 0,
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
     onNavigateToSettings: () -> Unit,
@@ -85,7 +86,17 @@ fun MainScreen(
                 actions = {
                     actions()
                     IconButton(onClick = onNavigateToMessages) {
-                        Icon(Icons.Default.Email, contentDescription = "Messages")
+                        BadgedBox(
+                            badge = {
+                                if (unreadMessagesCount > 0) {
+                                    Badge {
+                                        Text(if (unreadMessagesCount > 99) "99+" else unreadMessagesCount.toString())
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Email, contentDescription = "Messages")
+                        }
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -183,7 +194,10 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(end = 16.dp)
                 ) {
-                    items(recommendedSongs.take(10)) { song ->
+                    items(
+                        items = recommendedSongs.take(10),
+                        key = { "rec_${it.id}" }
+                    ) { song ->
                         SongCard(song, onClick = { onSongClick(song) })
                     }
                 }
@@ -197,7 +211,10 @@ fun MainScreen(
                 )
             }
 
-            items(recommendedSongs.drop(10).take(5)) { song ->
+            items(
+                items = recommendedSongs.drop(10).take(5),
+                key = { "recent_${it.id}" }
+            ) { song ->
                 SongItem(
                     song = song,
                     isFavorite = favoriteSongs.contains(song.id),

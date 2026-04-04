@@ -303,6 +303,8 @@ fun AppMainContent(
                         LaunchedEffect(Unit) {
                             if (playerViewModel.recommendedSongs.isEmpty()) {
                                 playerViewModel.fetchUserData(loginViewModel.cookie)
+                            } else {
+                                playerViewModel.fetchUnreadCount(loginViewModel.cookie)
                             }
                         }
                         val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()
@@ -352,6 +354,7 @@ fun AppMainContent(
                             },
                             favoriteSongs = playerViewModel.favoriteSongs,
                             completedSongs = completedSongs,
+                            unreadMessagesCount = playerViewModel.unreadMessagesCount,
                             onNavigateToMessages = {
                                 navController.navigate("messages")
                             },
@@ -414,12 +417,19 @@ fun AppMainContent(
                     }
                     composable("playlist/{playlistId}") { backStackEntry ->
                         val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
-                        val playlist = playerViewModel.userPlaylists.find { it.id == playlistId }
 
-                        if (playlist != null) {
+                        LaunchedEffect(playlistId) {
+                            if (playerViewModel.currentPlaylistMetadata?.id != playlistId) {
+                                playerViewModel.fetchPlaylistSongs(playlistId, loginViewModel.cookie)
+                            }
+                        }
+
+                        val playlist = playerViewModel.currentPlaylistMetadata
+
+                        if (playlist != null || playerViewModel.isLoading) {
                             val completedSongs by playerViewModel.ncmDownloadManager.completedSongs.collectAsState()
                             PlaylistDetailScreen(
-                                playlist = playlist,
+                                playlist = playlist ?: com.ncm.player.model.Playlist(playlistId, "Loading...", null, 0),
                                 songs = playerViewModel.playlistSongs,
                                 favoriteSongs = playerViewModel.favoriteSongs,
                                 completedSongs = completedSongs,
@@ -504,6 +514,7 @@ fun AppMainContent(
                         val nickname = backStackEntry.arguments?.getString("nickname") ?: ""
                         LaunchedEffect(userId) {
                             playerViewModel.fetchMessageHistory(userId, loginViewModel.cookie)
+                            playerViewModel.markMessageAsRead(userId, loginViewModel.cookie)
                         }
                         ChatScreen(
                             recipientUid = userId,
@@ -524,16 +535,22 @@ fun AppMainContent(
                         LaunchedEffect(userId) {
                             playerViewModel.fetchOtherUserProfile(userId, loginViewModel.cookie)
                         }
+
+                        val viewState = playerViewModel.otherUserViewState
+
                         UserProfileScreen(
-                            userProfile = playerViewModel.otherUserProfile,
-                            playlists = playerViewModel.otherUserPlaylists,
-                            songs = playerViewModel.otherUserSongs,
+                            userProfile = viewState.profile,
+                            playlists = viewState.playlists,
+                            albums = viewState.albums,
+                            songs = viewState.songs,
+                            isArtist = viewState.isArtist,
+                            isLoading = viewState.isLoading,
                             onPlaylistClick = { playlist ->
                                 playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
                                 navController.navigate("playlist/${playlist.id}")
                             },
                             onSongClick = { song ->
-                                playerViewModel.playSong(song, playerViewModel.otherUserSongs, loginViewModel.cookie)
+                                playerViewModel.playSong(song, viewState.songs, loginViewModel.cookie)
                                 navController.navigate("player") {
                                     launchSingleTop = true
                                 }

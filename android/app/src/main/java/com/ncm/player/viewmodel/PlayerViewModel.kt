@@ -39,9 +39,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     var currentSong by mutableStateOf<Song?>(null)
     var userProfile by mutableStateOf<UserProfile?>(null)
-    var otherUserProfile by mutableStateOf<UserProfile?>(null)
-    var otherUserPlaylists by mutableStateOf<List<Playlist>>(emptyList())
-    var otherUserSongs by mutableStateOf<List<Song>>(emptyList())
+
+    var otherUserViewState by mutableStateOf(com.ncm.player.model.OtherUserViewState())
+        private set
     var currentQueue by mutableStateOf<List<Song>>(emptyList())
     var isPlaying by mutableStateOf(false)
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
@@ -60,6 +60,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     var contacts by mutableStateOf<List<Contact>>(emptyList())
     var chatMessages by mutableStateOf<List<Message>>(emptyList())
+    var unreadMessagesCount by mutableStateOf(0)
+    private var lastUnreadFetchTime = 0L
+    private val recentlyReadUids = mutableSetOf<Long>()
 
     var currentQualityWifi by mutableStateOf("exhigh")
     var currentQualityCellular by mutableStateOf("standard")
@@ -174,69 +177,66 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun listLocalSongs(context: android.content.Context): List<Pair<Song, android.net.Uri>> {
-        val userDirUri = com.ncm.player.util.UserPreferences.getDownloadDir(context)
         val files = mutableListOf<Pair<Song, android.net.Uri>>()
-        val prefs = com.ncm.player.util.UserPreferences.getPrefs(context)
-        val completedIds = prefs.getStringSet("completed_downloads", emptySet()) ?: emptySet()
 
-        val metadataMap = completedIds.associateWith { id ->
-            prefs.getString("metadata_$id", null)?.split("|")
+        // 1. Add songs from our DownloadRegistry first (these are the "official" downloads)
+        val registrySongs = com.ncm.player.manager.DownloadRegistry.getAllDownloadedSongs()
+        registrySongs.forEach { metadata ->
+            val uri = android.net.Uri.parse(metadata.filePath)
+            // Verify file still exists (DownloadRegistry usually handles this, but let's be sure)
+            val exists = if (uri.scheme == "content") {
+                 androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.exists() == true
+            } else {
+                 java.io.File(uri.path ?: "").exists()
+            }
+
+            if (exists) {
+                files.add(metadata.song to uri)
+            }
         }
 
-        fun findMetadata(fileName: String): Song? {
-            val cleanName = fileName.removeSuffix(".mp3")
-            metadataMap.forEach { (id, parts) ->
-                if (parts != null && parts.size >= 3) {
-                    val songName = parts[0]
-                    val artist = parts[1]
-                    if (cleanName.contains(songName) && cleanName.contains(artist)) {
-                        return Song(
-                            id = id,
-                            name = songName,
-                            artist = artist,
-                            album = parts[2],
-                            albumArtUrl = parts.getOrNull(3)
-                        )
+        // 2. Scan common directories for other local music that might not be in our registry
+        val userDirUri = com.ncm.player.util.UserPreferences.getDownloadDir(context)
+        val registryIds = registrySongs.map { it.song.id }.toSet()
+
+        fun scanDir(tree: androidx.documentfile.provider.DocumentFile?) {
+            tree?.listFiles()?.forEach { file ->
+                if (file.name?.endsWith(".mp3") == true || file.name?.endsWith(".flac") == true) {
+                    // Only add if not already in registry to avoid duplicates
+                    if (files.none { it.second == file.uri }) {
+                        files.add(Song(
+                            id = "local_${file.name}",
+                            name = file.name?.removeSuffix(".mp3")?.removeSuffix(".flac") ?: "Unknown",
+                            artist = "Local File",
+                            album = "Local Storage"
+                        ) to file.uri)
                     }
                 }
             }
-            return null
         }
 
         if (userDirUri != null) {
             try {
                 val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, android.net.Uri.parse(userDirUri))
-                tree?.listFiles()?.forEach { file ->
-                    val name = file.name
-                    if (name?.endsWith(".mp3") == true) {
-                        val matchedSong = findMetadata(name)
-                        files.add((matchedSong ?: Song(
-                            id = "local_$name",
-                            name = name.removeSuffix(".mp3"),
-                            artist = "Local",
-                            album = "Downloads"
-                        )) to file.uri)
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+                scanDir(tree)
+            } catch (e: Exception) { e.printStackTrace() }
         }
 
         val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
         val ncmMusicDir = java.io.File(musicDir, "NCMPlayer")
-        val dirsToScan = listOf(musicDir, ncmMusicDir)
 
-        dirsToScan.forEach { dir ->
+        listOf(musicDir, ncmMusicDir).forEach { dir ->
             if (dir.exists()) {
-                dir.listFiles { _, name -> name.endsWith(".mp3") }?.forEach { file ->
-                    val matchedSong = findMetadata(file.name)
-                    files.add((matchedSong ?: Song(
-                        id = "local_${file.name}",
-                        name = file.nameWithoutExtension,
-                        artist = "Local File",
-                        album = "Downloads"
-                    )) to android.net.Uri.fromFile(file))
+                dir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
+                    val uri = android.net.Uri.fromFile(file)
+                    if (files.none { it.second == uri }) {
+                        files.add(Song(
+                            id = "local_${file.name}",
+                            name = file.nameWithoutExtension,
+                            artist = "Local File",
+                            album = "Local Storage"
+                        ) to uri)
+                    }
                 }
             }
         }
@@ -300,6 +300,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 cacheDir.deleteRecursively()
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
@@ -416,12 +418,63 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private var unreadCountJob: Job? = null
+    fun fetchUnreadCount(cookie: String?) {
+        if (cookie.isNullOrEmpty()) return
+        // Ignore frequent fetches after a manual mark-read to prevent stale server data overwriting
+        if (System.currentTimeMillis() - lastUnreadFetchTime < 3000) return
+
+        unreadCountJob?.cancel()
+        unreadCountJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val body = callApi("pl/count", mapOf("cookie" to cookie))
+                val count = body.get("msg")?.asInt
+                    ?: body.get("data")?.asJsonObject?.get("msg")?.asInt
+                    ?: 0
+                withContext(Dispatchers.Main) {
+                    unreadMessagesCount = count
+                    lastUnreadFetchTime = System.currentTimeMillis()
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun clearUserData() {
+        userProfile = null
+        recommendedSongs = emptyList()
+        userPlaylists = emptyList()
+        favoriteSongs = emptyList()
+        likedSongsPlaylistId = 0L
+        unreadMessagesCount = 0
+        contacts = emptyList()
+        chatMessages = emptyList()
+        playlistSongs = emptyList()
+        currentPlaylistMetadata = null
+        otherUserViewState = com.ncm.player.model.OtherUserViewState()
+        searchResults = emptyList()
+        searchPlaylists = emptyList()
+        recentlyReadUids.clear()
+    }
+
     fun fetchUserData(cookie: String?) {
         if (cookie.isNullOrEmpty()) return
 
         viewModelScope.launch {
             isLoading = true
             try {
+                val statusBody = withContext(Dispatchers.IO) { callApi("login/status", mapOf("cookie" to cookie)) }
+                val uid = statusBody.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: statusBody.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: 0L
+
+                if (uid != 0L && uid != userProfile?.userId) {
+                    withContext(Dispatchers.Main) {
+                        clearUserData()
+                    }
+                }
+
+                fetchUnreadCount(cookie)
+
                 coroutineScope {
                     val recDeferred = async(Dispatchers.IO) {
                         val body = callApi("recommend/songs", mapOf("cookie" to cookie))
@@ -574,6 +627,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 } ?: emptyList()
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -595,6 +652,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 searchSuggestions = allSuggestions
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -617,6 +678,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
@@ -631,6 +694,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 fetchPlaylistSongs(playlistId, cookie)
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -639,7 +706,18 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         songs.forEach { ncmDownloadManager.downloadSong(it, cookie, downloadQuality) }
     }
 
+    var currentPlaylistMetadata by mutableStateOf<Playlist?>(null)
+    private var playlistFetchJob: Job? = null
+
     fun fetchPlaylistSongs(playlistId: Long, cookie: String?, sort: String? = null) {
+        playlistFetchJob?.cancel()
+        // Clear previous metadata and songs to avoid mixing/flashing
+        currentPlaylistMetadata = userPlaylists.find { it.id == playlistId }
+            ?: otherUserViewState.playlists.find { it.id == playlistId }
+            ?: otherUserViewState.albums.find { it.id == playlistId }
+
+        playlistSongs = emptyList()
+
         // Load from cache first
         val cachedJson = UserPreferences.getPlaylistCache(getApplication(), playlistId)
         if (cachedJson != null) {
@@ -649,10 +727,26 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        viewModelScope.launch {
+        playlistFetchJob = viewModelScope.launch {
             isLoading = true
             try {
+                // If metadata is still null, try to fetch it
+                if (currentPlaylistMetadata == null) {
+                    val detailBody = withContext(Dispatchers.IO) { callApi("playlist/detail", mapOf("id" to playlistId.toString(), "cookie" to (cookie ?: ""))) }
+                    val plJson = detailBody.get("playlist")?.asJsonObject
+                    if (plJson != null) {
+                        currentPlaylistMetadata = Playlist(
+                            id = plJson.get("id").asLong,
+                            name = plJson.get("name").asString,
+                            coverImgUrl = plJson.get("coverImgUrl").asString,
+                            trackCount = plJson.get("trackCount").asInt
+                        )
+                    }
+                }
+
                 val body = withContext(Dispatchers.IO) { callApi("playlist/track/all", mapOf("id" to playlistId.toString(), "cookie" to (cookie ?: ""))) }
+                if (!isActive) return@launch
+
                 val songsJson = body.get("songs")?.asJsonArray
                 val unsortedSongs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
 
@@ -687,6 +781,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -792,6 +890,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -844,8 +946,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             .setExtras(extras)
             .build()
 
-        val uri = if (localUri != null) {
-            localUri.toString()
+        // Check registry for local version even if localUri is not provided explicitly
+        val finalLocalUri = localUri ?: com.ncm.player.manager.DownloadRegistry.getMetadata(song.id)?.let {
+             android.net.Uri.parse(it.filePath)
+        }
+
+        val uri = if (finalLocalUri != null) {
+            finalLocalUri.toString()
         } else {
             val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
             if (!cookie.isNullOrEmpty()) {
@@ -1070,32 +1177,92 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         updateQueue()
     }
 
+    private var contactsJob: Job? = null
     fun fetchRecentContacts(cookie: String?) {
         if (cookie.isNullOrEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
+        contactsJob?.cancel()
+        contacts = emptyList()
+        contactsJob = viewModelScope.launch(Dispatchers.IO) {
             try {
+                withContext(Dispatchers.Main) { isLoading = true }
                 DebugLog.d("Fetching recent contacts...")
-                val body = callApi("msg/recentcontact", mapOf("cookie" to cookie))
+                var body = callApi("msg/recentcontact", mapOf("cookie" to cookie, "limit" to "100"))
                 DebugLog.d("Recent contacts response: $body")
-                val contactJson = body.get("recentcontacts")?.asJsonArray
+
+                var contactJson = body.get("recentcontacts")?.asJsonArray
                     ?: body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray
+
+                // Fallback to msg/private if recentcontact is empty
+                if (contactJson == null || contactJson.size() == 0) {
+                    DebugLog.d("msg/recentcontact empty, trying msg/private...")
+                    body = callApi("msg/private", mapOf("cookie" to cookie, "limit" to "100"))
+                    contactJson = body.get("msgs")?.asJsonArray
+                }
+
                 val list = contactJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseContact(it) } ?: emptyList()
+                val finalList = list.map {
+                    if (recentlyReadUids.contains(it.userId)) it.copy(unreadCount = 0) else it
+                }
                 withContext(Dispatchers.Main) {
-                    contacts = list
+                    contacts = finalList
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
 
+    fun markMessageAsRead(uid: Long, cookie: String?) {
+        if (cookie.isNullOrEmpty()) return
+
+        // 1. Optimistic UI update
+        val targetContact = contacts.find { it.userId == uid }
+        val prevUnreadCount = targetContact?.unreadCount ?: 0
+        recentlyReadUids.add(uid)
+
+        if (prevUnreadCount > 0) {
+            contacts = contacts.map {
+                if (it.userId == uid) it.copy(unreadCount = 0) else it
+            }
+            unreadMessagesCount = (unreadMessagesCount - prevUnreadCount).coerceAtLeast(0)
+        }
+        lastUnreadFetchTime = System.currentTimeMillis() // Block immediate server-count overwrite
+
+        // 2. Server update
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                callApi("msg/private/mark/read", mapOf("uid" to uid.toString(), "cookie" to cookie))
+                // Wait slightly for server to sync before next automatic fetch
+                delay(1000)
+                fetchUnreadCount(cookie)
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    private var chatFetchJob: Job? = null
+
     fun fetchMessageHistory(uid: Long, cookie: String?) {
         if (cookie.isNullOrEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
+        chatFetchJob?.cancel()
+        chatMessages = emptyList()
+        chatFetchJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 val myUserId = userProfile?.userId ?: 0L
                 DebugLog.d("Fetching message history for $uid...")
-                val body = callApi("msg/private/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+                // Note: The Rust API might expect 'uid' parameter as 'userId' in some contexts, but callApi handles mapping.
+                // However, some versions of the API use msg/private/history while others use msg/history.
+                // We'll try both if one fails or returns empty, but for now we fix the route mapping.
+                var body = callApi("msg/private/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+
+                // If it fails or returns nothing, try alternative route
+                if (!body.has("msgs") || body.get("msgs").asJsonArray.size() == 0) {
+                     DebugLog.d("msg/private/history returned empty, trying msg/history...")
+                     body = callApi("msg/history", mapOf("uid" to uid.toString(), "cookie" to cookie, "limit" to "100"))
+                }
+
+                if (!isActive) return@launch
                 DebugLog.d("Message history response: $body")
                 val msgsJson = body.get("msgs")?.asJsonArray
                 val list = msgsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseMessage(it, myUserId) }?.reversed() ?: emptyList()
@@ -1104,6 +1271,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -1118,39 +1289,106 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
 
+    private var profileFetchJob: Job? = null
+
     fun fetchOtherUserProfile(uid: Long, cookie: String?) {
-        viewModelScope.launch(Dispatchers.IO) {
+        profileFetchJob?.cancel()
+        profileFetchJob = viewModelScope.launch(Dispatchers.IO) {
             try {
+                withContext(Dispatchers.Main) {
+                    otherUserViewState = com.ncm.player.model.OtherUserViewState(uid = uid, isLoading = true)
+                }
                 DebugLog.d("Fetching user profile for $uid...")
-                val body = callApi("user/detail", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
-                DebugLog.d("User profile response: $body")
-                val profileJson = body.get("profile")?.asJsonObject
-                if (profileJson != null) {
-                    val up = UserProfile(
+                var body = callApi("user/detail", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
+
+                if (!isActive) return@launch
+
+                // 1. Try standard user detail
+                var profileJson = body.get("profile")?.asJsonObject
+
+                // 2. Try user/detail/new fallback
+                if (profileJson == null) {
+                    DebugLog.d("user/detail failed, trying user/detail/new...")
+                    body = callApi("user/detail/new", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
+                    profileJson = body.get("profile")?.asJsonObject
+                }
+
+                if (!isActive) return@launch
+
+                var finalProfile: UserProfile? = null
+                var finalSongs = emptyList<Song>()
+                var finalAlbums = emptyList<Playlist>()
+                var finalPlaylists = emptyList<Playlist>()
+                var isArtist = false
+
+                // 3. Handle Result
+                if (profileJson == null) {
+                    DebugLog.d("User profile failed, trying artist/detail for $uid...")
+                    val artistBody = callApi("artist/detail", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                    if (!isActive) return@launch
+
+                    if (artistBody.has("data") || artistBody.has("artist")) {
+                        val artistData = if (artistBody.has("data")) artistBody.get("data").asJsonObject.get("artist").asJsonObject else artistBody.get("artist").asJsonObject
+                        isArtist = true
+                        finalProfile = UserProfile(
+                            userId = uid,
+                            nickname = artistData.get("name").asString,
+                            avatarUrl = artistData.get("cover")?.asString ?: artistData.get("picUrl")?.asString ?: "",
+                            signature = artistData.get("briefDesc")?.asString,
+                            playlistCount = 0,
+                            eventCount = artistData.get("musicSize")?.asInt ?: 0,
+                            follows = artistData.get("albumSize")?.asInt ?: 0,
+                            followeds = artistData.get("mvSize")?.asInt ?: 0
+                        )
+
+                        val songsBody = callApi("artist/songs", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                        if (!isActive) return@launch
+                        val songsJson = songsBody.get("songs")?.asJsonArray
+                        finalSongs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+
+                        val albumBody = callApi("artist/album", mapOf("id" to uid.toString(), "cookie" to (cookie ?: "")))
+                        if (!isActive) return@launch
+                        val albumsJson = albumBody.get("hotAlbums")?.asJsonArray
+                        finalAlbums = albumsJson?.map {
+                            val obj = it.asJsonObject
+                            Playlist(
+                                id = obj.get("id").asLong,
+                                name = obj.get("name").asString,
+                                coverImgUrl = obj.get("picUrl").asString,
+                                trackCount = obj.get("size").asInt
+                            )
+                        } ?: emptyList()
+                    }
+                } else {
+                    // Success with user profile
+                    finalProfile = UserProfile(
                         userId = uid,
                         nickname = profileJson.get("nickname").asString,
                         avatarUrl = profileJson.get("avatarUrl").asString,
                         signature = profileJson.get("signature")?.asString,
-                        gender = profileJson.get("gender").asInt,
-                        followed = profileJson.get("followed").asBoolean,
-                        follows = profileJson.get("follows").asInt,
-                        followeds = profileJson.get("followeds").asInt,
-                        eventCount = profileJson.get("eventCount").asInt,
-                        playlistCount = profileJson.get("playlistCount").asInt
+                        gender = profileJson.get("gender")?.asInt ?: 0,
+                        followed = profileJson.get("followed")?.asBoolean ?: false,
+                        follows = profileJson.get("follows")?.asInt ?: 0,
+                        followeds = profileJson.get("followeds")?.asInt ?: 0,
+                        eventCount = profileJson.get("eventCount")?.asInt ?: 0,
+                        playlistCount = profileJson.get("playlistCount")?.asInt ?: 0
                     )
-                    withContext(Dispatchers.Main) {
-                        otherUserProfile = up
-                    }
                 }
 
-                // Fetch their playlists
-                val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "cookie" to (cookie ?: "")))
+                // Fetch their playlists (if not an artist, or even if it is)
+                val plBody = callApi("user/playlist", mapOf("uid" to uid.toString(), "id" to uid.toString(), "cookie" to (cookie ?: "")))
+                if (!isActive) return@launch
+
                 val playlistJson = plBody.get("playlist")?.asJsonArray
-                val playlists = playlistJson?.map {
+                finalPlaylists = playlistJson?.map {
                     val obj = it.asJsonObject
                     Playlist(
                         id = obj.get("id").asLong,
@@ -1159,21 +1397,49 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         trackCount = obj.get("trackCount").asInt
                     )
                 } ?: emptyList()
-                withContext(Dispatchers.Main) {
-                    otherUserPlaylists = playlists
+
+                // Fetch user record (listening history) as "recent songs" if user and songs still empty
+                if (!isArtist && finalSongs.isEmpty()) {
+                    val recordBody = callApi("user/record", mapOf("uid" to uid.toString(), "type" to "1", "cookie" to (cookie ?: "")))
+                    if (isActive) {
+                        val recordJson = recordBody.get("weekData")?.asJsonArray ?: recordBody.get("allData")?.asJsonArray
+                        finalSongs = recordJson?.mapNotNull {
+                            it.asJsonObject.get("song")?.let { s -> com.ncm.player.util.JsonUtils.parseSong(s) }
+                        } ?: emptyList()
+                    }
                 }
 
-                // Fetch first playlist's songs as "popular" or recent songs if any
-                if (playlists.isNotEmpty()) {
-                    val sBody = callApi("playlist/track/all", mapOf("id" to playlists[0].id.toString(), "limit" to "20", "cookie" to (cookie ?: "")))
-                    val songsJson = sBody.get("songs")?.asJsonArray
-                    val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        otherUserSongs = songs
+                // Fallback: Fetch first playlist's songs as "popular" or recent songs if user and songs still empty
+                if (finalPlaylists.isNotEmpty() && finalSongs.isEmpty()) {
+                    val sBody = callApi("playlist/track/all", mapOf("id" to finalPlaylists[0].id.toString(), "limit" to "20", "cookie" to (cookie ?: "")))
+                    if (isActive) {
+                        val songsJson = sBody.get("songs")?.asJsonArray
+                        finalSongs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                    }
+                }
+
+                // Final Atomic Update
+                if (!isActive) return@launch
+                withContext(Dispatchers.Main) {
+                    if (otherUserViewState.uid == uid) {
+                        otherUserViewState = com.ncm.player.model.OtherUserViewState(
+                            uid = uid,
+                            profile = finalProfile,
+                            songs = finalSongs,
+                            albums = finalAlbums,
+                            playlists = finalPlaylists,
+                            isArtist = isArtist,
+                            isLoading = false
+                        )
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    if (otherUserViewState.uid == uid) {
+                        otherUserViewState = otherUserViewState.copy(isLoading = false)
+                    }
+                }
             }
         }
     }

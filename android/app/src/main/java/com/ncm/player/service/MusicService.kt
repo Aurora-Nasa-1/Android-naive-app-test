@@ -111,16 +111,8 @@ class MusicService : MediaSessionService() {
         player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
-                    fadeAudioProcessor.startFadeIn()
-                }
-            }
-
-            override fun onPositionDiscontinuity(
-                oldPosition: Player.PositionInfo,
-                newPosition: Player.PositionInfo,
-                reason: Int
-            ) {
-                if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION || reason == Player.DISCONTINUITY_REASON_SEEK) {
+                    // startFadeIn() is now handled by onFlush() for most cases (seek, transition).
+                    // We only trigger it here for resume-from-pause.
                     fadeAudioProcessor.startFadeIn()
                 }
             }

@@ -156,18 +156,6 @@ fun PlayerScreen(
                         shape = MaterialTheme.shapes.large,
                         shadowElevation = 8.dp
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                song.name,
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                            Text(
-                                song.artist,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                         if (song.albumArtUrl != null) {
                             AsyncImage(
                                 model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 600),
@@ -175,11 +163,13 @@ fun PlayerScreen(
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            Icon(
-                                Icons.Default.MusicNote,
-                                contentDescription = null,
-                                modifier = Modifier.size(128.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(128.dp)
+                                )
+                            }
                         }
                     }
 
@@ -203,12 +193,14 @@ fun PlayerScreen(
                                 Text(
                                     song.artist,
                                     style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                                 )
                             }
                             IconButton(onClick = onLikeClick, modifier = Modifier.size(48.dp)) {
                                 AnimatedContent(
                                     targetState = isFavorite,
+                                    label = "LikeAnimation",
                                     transitionSpec = {
                                         scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
                                         scaleOut()
@@ -277,6 +269,7 @@ fun PlayerScreen(
                             ) {
                                 AnimatedContent(
                                     targetState = isPlaying,
+                                    label = "PlayPauseAnimation",
                                     transitionSpec = {
                                         fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
                                         fadeOut(animationSpec = tween(200)) + scaleOut()
@@ -361,11 +354,13 @@ fun PlayerScreen(
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            Icon(
-                                Icons.Default.MusicNote,
-                                contentDescription = null,
-                                modifier = Modifier.size(128.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(128.dp)
+                                )
+                            }
                         }
                     }
 
@@ -385,12 +380,14 @@ fun PlayerScreen(
                                 Text(
                                     song.artist,
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                                 )
                             }
                             IconButton(onClick = onLikeClick) {
                                 AnimatedContent(
                                     targetState = isFavorite,
+                                    label = "LikeAnimationMobile",
                                     transitionSpec = {
                                         scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
                                         scaleOut()
@@ -458,6 +455,7 @@ fun PlayerScreen(
                         ) {
                             AnimatedContent(
                                 targetState = isPlaying,
+                                label = "PlayPauseAnimationMobile",
                                 transitionSpec = {
                                     fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
                                     fadeOut(animationSpec = tween(200)) + scaleOut()

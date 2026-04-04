@@ -9,11 +9,17 @@ impl ApiClient {
     /// 用户歌单
     /// 对应 /user/playlist
     pub async fn user_playlist(&self, query: &Query) -> Result<ApiResponse> {
+        let uid = if query.params.contains_key("uid") {
+            query.get_or("uid", "0")
+        } else {
+            query.get_or("id", "0")
+        };
         let data = json!({
-            "uid": query.get_or("uid", "0"),
-            "limit": query.get_or("limit", "30").parse::<i64>().unwrap_or(30),
+            "uid": uid,
+            "userId": uid,
+            "limit": query.get_or("limit", "100").parse::<i64>().unwrap_or(100),
             "offset": query.get_or("offset", "0").parse::<i64>().unwrap_or(0),
-            "includeVideo": true
+            "includeVideo": "true"
         });
         self.request(
             "/api/user/playlist",

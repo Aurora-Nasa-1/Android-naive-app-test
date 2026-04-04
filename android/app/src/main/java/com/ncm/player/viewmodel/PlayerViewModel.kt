@@ -778,6 +778,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     } else {
                         favoriteSongs - songId
                     }
+
+                    // Update current media item rating if it's the one being liked/unliked
+                    mediaController?.let { controller ->
+                        if (controller.currentMediaItem?.mediaId == songId) {
+                            val updatedMetadata = controller.currentMediaItem?.mediaMetadata?.buildUpon()
+                                ?.setUserRating(androidx.media3.common.HeartRating(like))
+                                ?.build()
+                            if (updatedMetadata != null) {
+                                // In Media3, we can't easily update metadata of current item without resetting.
+                                // However, some controllers support rating commands.
+                                controller.setRating(androidx.media3.common.HeartRating(like))
+                            }
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -938,11 +952,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val extras = android.os.Bundle().apply {
             putString("artistId", song.artistId)
         }
+        val isFavorite = favoriteSongs.contains(song.id)
         val metadata = MediaMetadata.Builder()
             .setTitle(song.name)
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
+            .setUserRating(androidx.media3.common.HeartRating(isFavorite))
             .setExtras(extras)
             .build()
 

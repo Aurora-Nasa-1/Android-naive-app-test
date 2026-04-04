@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.Futures
 import androidx.media3.common.Rating
 import androidx.media3.common.HeartRating
+import android.content.Context
 import java.io.File
 import com.ncm.player.util.UserPreferences
 import com.ncm.player.util.RustServerManager
@@ -40,6 +41,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.regex.Pattern
 
 class MusicService : MediaSessionService() {
@@ -126,6 +128,23 @@ class MusicService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player!!)
             .setSessionActivity(pendingIntent)
             .setCallback(object : MediaSession.Callback {
+                override fun onSetRating(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                    rating: Rating
+                ): ListenableFuture<SessionResult> {
+                    if (rating is HeartRating) {
+                        val mediaId = session.player.currentMediaItem?.mediaId
+                        if (mediaId != null) {
+                            val cookie = UserPreferences.getCookie(this@MusicService)
+                            serviceScope.launch(Dispatchers.IO) {
+                                RustServerManager.callApi("like", mapOf("id" to mediaId, "like" to rating.isHeart.toString(), "cookie" to (cookie ?: "")))
+                            }
+                        }
+                    }
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+
                 override fun onCustomCommand(
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo,
@@ -133,13 +152,30 @@ class MusicService : MediaSessionService() {
                     args: android.os.Bundle
                 ): ListenableFuture<SessionResult> {
                     if (customCommand.customAction == "ACTION_LIKE") {
-                        val mediaId = session.player.currentMediaItem?.mediaId
+                        val currentMediaItem = session.player.currentMediaItem
+                        val mediaId = currentMediaItem?.mediaId
                         if (mediaId != null) {
+                            val isLiked = currentMediaItem.mediaMetadata.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true
+                            val nextLikeState = !isLiked
                             val cookie = UserPreferences.getCookie(this@MusicService)
                             serviceScope.launch(Dispatchers.IO) {
                                 // Toggle like logic
-                                val result = RustServerManager.callApi("like", mapOf("id" to mediaId, "like" to "true", "cookie" to (cookie ?: "")))
-                                // Ideally broadcast state change back
+                                RustServerManager.callApi("like", mapOf("id" to mediaId, "like" to nextLikeState.toString(), "cookie" to (cookie ?: "")))
+
+                                // Update metadata locally to reflect change in notification immediately
+                                withContext(Dispatchers.Main) {
+                                    val index = session.player.currentMediaItemIndex
+                                    val currentItem = session.player.currentMediaItem
+                                    if (currentItem != null) {
+                                        val newMetadata = currentItem.mediaMetadata.buildUpon()
+                                            .setUserRating(HeartRating(nextLikeState))
+                                            .build()
+                                        val newItem = currentItem.buildUpon()
+                                            .setMediaMetadata(newMetadata)
+                                            .build()
+                                        session.player.replaceMediaItem(index, newItem)
+                                    }
+                                }
                             }
                         }
                         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -271,12 +307,15 @@ class MusicService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         val session = mediaSession ?: return null
 
+        val currentMediaItem = player?.currentMediaItem
+        val isLiked = currentMediaItem?.mediaMetadata?.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true
+
         // Update custom layout to include the Like button
         val likeCommand = SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY)
         val likeButton = CommandButton.Builder()
             .setSessionCommand(likeCommand)
             .setDisplayName("Like")
-            .setIconResId(com.ncm.player.R.drawable.ic_heart_filled)
+            .setIconResId(if (isLiked) com.ncm.player.R.drawable.ic_heart_filled else com.ncm.player.R.drawable.ic_heart_outline)
             .setEnabled(true)
             .build()
 

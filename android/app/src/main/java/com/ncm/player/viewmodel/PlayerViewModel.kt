@@ -61,6 +61,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var contacts by mutableStateOf<List<Contact>>(emptyList())
     var chatMessages by mutableStateOf<List<Message>>(emptyList())
     var unreadMessagesCount by mutableStateOf(0)
+    private var lastUnreadFetchTime = 0L
+    private val recentlyReadUids = mutableSetOf<Long>()
 
     var currentQualityWifi by mutableStateOf("exhigh")
     var currentQualityCellular by mutableStateOf("standard")
@@ -416,26 +418,63 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private var unreadCountJob: Job? = null
     fun fetchUnreadCount(cookie: String?) {
         if (cookie.isNullOrEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
+        // Ignore frequent fetches after a manual mark-read to prevent stale server data overwriting
+        if (System.currentTimeMillis() - lastUnreadFetchTime < 3000) return
+
+        unreadCountJob?.cancel()
+        unreadCountJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 val body = callApi("pl/count", mapOf("cookie" to cookie))
-                val count = body.get("msg")?.asInt ?: 0
+                val count = body.get("msg")?.asInt
+                    ?: body.get("data")?.asJsonObject?.get("msg")?.asInt
+                    ?: 0
                 withContext(Dispatchers.Main) {
                     unreadMessagesCount = count
+                    lastUnreadFetchTime = System.currentTimeMillis()
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
+    fun clearUserData() {
+        userProfile = null
+        recommendedSongs = emptyList()
+        userPlaylists = emptyList()
+        favoriteSongs = emptyList()
+        likedSongsPlaylistId = 0L
+        unreadMessagesCount = 0
+        contacts = emptyList()
+        chatMessages = emptyList()
+        playlistSongs = emptyList()
+        currentPlaylistMetadata = null
+        otherUserViewState = com.ncm.player.model.OtherUserViewState()
+        searchResults = emptyList()
+        searchPlaylists = emptyList()
+        recentlyReadUids.clear()
+    }
+
     fun fetchUserData(cookie: String?) {
         if (cookie.isNullOrEmpty()) return
-        fetchUnreadCount(cookie)
 
         viewModelScope.launch {
             isLoading = true
             try {
+                val statusBody = withContext(Dispatchers.IO) { callApi("login/status", mapOf("cookie" to cookie)) }
+                val uid = statusBody.get("data")?.asJsonObject?.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: statusBody.get("account")?.asJsonObject?.get("id")?.asLong
+                    ?: 0L
+
+                if (uid != 0L && uid != userProfile?.userId) {
+                    withContext(Dispatchers.Main) {
+                        clearUserData()
+                    }
+                }
+
+                fetchUnreadCount(cookie)
+
                 coroutineScope {
                     val recDeferred = async(Dispatchers.IO) {
                         val body = callApi("recommend/songs", mapOf("cookie" to cookie))
@@ -1138,9 +1177,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         updateQueue()
     }
 
+    private var contactsJob: Job? = null
     fun fetchRecentContacts(cookie: String?) {
         if (cookie.isNullOrEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
+        contactsJob?.cancel()
+        contacts = emptyList()
+        contactsJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) { isLoading = true }
                 DebugLog.d("Fetching recent contacts...")
@@ -1158,8 +1200,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 val list = contactJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseContact(it) } ?: emptyList()
+                val finalList = list.map {
+                    if (recentlyReadUids.contains(it.userId)) it.copy(unreadCount = 0) else it
+                }
                 withContext(Dispatchers.Main) {
-                    contacts = list
+                    contacts = finalList
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -1171,15 +1216,27 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun markMessageAsRead(uid: Long, cookie: String?) {
         if (cookie.isNullOrEmpty()) return
+
+        // 1. Optimistic UI update
+        val targetContact = contacts.find { it.userId == uid }
+        val prevUnreadCount = targetContact?.unreadCount ?: 0
+        recentlyReadUids.add(uid)
+
+        if (prevUnreadCount > 0) {
+            contacts = contacts.map {
+                if (it.userId == uid) it.copy(unreadCount = 0) else it
+            }
+            unreadMessagesCount = (unreadMessagesCount - prevUnreadCount).coerceAtLeast(0)
+        }
+        lastUnreadFetchTime = System.currentTimeMillis() // Block immediate server-count overwrite
+
+        // 2. Server update
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 callApi("msg/private/mark/read", mapOf("uid" to uid.toString(), "cookie" to cookie))
-                withContext(Dispatchers.Main) {
-                    contacts = contacts.map {
-                        if (it.userId == uid) it.copy(unreadCount = 0) else it
-                    }
-                    fetchUnreadCount(cookie)
-                }
+                // Wait slightly for server to sync before next automatic fetch
+                delay(1000)
+                fetchUnreadCount(cookie)
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -1189,6 +1246,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun fetchMessageHistory(uid: Long, cookie: String?) {
         if (cookie.isNullOrEmpty()) return
         chatFetchJob?.cancel()
+        chatMessages = emptyList()
         chatFetchJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 val myUserId = userProfile?.userId ?: 0L
@@ -1340,16 +1398,28 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 } ?: emptyList()
 
-                // Fetch first playlist's songs as "popular" or recent songs if user and songs still empty
+                // Fetch user record (listening history) as "recent songs" if user and songs still empty
+                if (!isArtist && finalSongs.isEmpty()) {
+                    val recordBody = callApi("user/record", mapOf("uid" to uid.toString(), "type" to "1", "cookie" to (cookie ?: "")))
+                    if (isActive) {
+                        val recordJson = recordBody.get("weekData")?.asJsonArray ?: recordBody.get("allData")?.asJsonArray
+                        finalSongs = recordJson?.mapNotNull {
+                            it.asJsonObject.get("song")?.let { s -> com.ncm.player.util.JsonUtils.parseSong(s) }
+                        } ?: emptyList()
+                    }
+                }
+
+                // Fallback: Fetch first playlist's songs as "popular" or recent songs if user and songs still empty
                 if (finalPlaylists.isNotEmpty() && finalSongs.isEmpty()) {
                     val sBody = callApi("playlist/track/all", mapOf("id" to finalPlaylists[0].id.toString(), "limit" to "20", "cookie" to (cookie ?: "")))
-                    if (!isActive) return@launch
-
-                    val songsJson = sBody.get("songs")?.asJsonArray
-                    finalSongs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                    if (isActive) {
+                        val songsJson = sBody.get("songs")?.asJsonArray
+                        finalSongs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                    }
                 }
 
                 // Final Atomic Update
+                if (!isActive) return@launch
                 withContext(Dispatchers.Main) {
                     if (otherUserViewState.uid == uid) {
                         otherUserViewState = com.ncm.player.model.OtherUserViewState(

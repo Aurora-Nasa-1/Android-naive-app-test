@@ -72,6 +72,8 @@ fun UserProfileScreen(
             var isAlbumsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
             var isPlaylistsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
 
+            val currentUid = userProfile.userId
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(

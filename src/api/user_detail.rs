@@ -14,7 +14,9 @@ impl ApiClient {
         } else {
             query.get_or("id", "0")
         };
-        let data = json!({});
+        let data = json!({
+            "userId": uid
+        });
         self.request(
             &format!("/api/v1/user/detail/{}", uid),
             data,

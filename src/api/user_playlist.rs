@@ -16,6 +16,7 @@ impl ApiClient {
         };
         let data = json!({
             "uid": uid,
+            "userId": uid,
             "limit": query.get_or("limit", "100").parse::<i64>().unwrap_or(100),
             "offset": query.get_or("offset", "0").parse::<i64>().unwrap_or(0),
             "includeVideo": "true"

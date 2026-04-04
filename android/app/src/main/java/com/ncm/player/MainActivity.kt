@@ -303,6 +303,8 @@ fun AppMainContent(
                         LaunchedEffect(Unit) {
                             if (playerViewModel.recommendedSongs.isEmpty()) {
                                 playerViewModel.fetchUserData(loginViewModel.cookie)
+                            } else {
+                                playerViewModel.fetchUnreadCount(loginViewModel.cookie)
                             }
                         }
                         val tasks by playerViewModel.ncmDownloadManager.tasks.collectAsState()

@@ -618,8 +618,15 @@ fun AppMainContent(
                         val isFavorite = currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false
                         val isDownloaded = currentSong?.let { completedSongs.contains(it.id) } ?: false
 
+                        if (useSideNav && currentSong != null) {
+                            LaunchedEffect(currentSong.id) {
+                                playerViewModel.fetchLyrics(currentSong.id)
+                            }
+                        }
+
                         PlayerScreen(
                             song = currentSong,
+                            lyrics = playerViewModel.currentLyrics,
                             isPlaying = playerViewModel.isPlaying,
                             currentPosition = playerViewModel.currentPosition,
                             duration = playerViewModel.duration,

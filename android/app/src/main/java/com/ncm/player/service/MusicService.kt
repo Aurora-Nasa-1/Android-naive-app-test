@@ -142,6 +142,21 @@ class MusicService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player!!)
             .setSessionActivity(pendingIntent)
             .setCallback(object : MediaSession.Callback {
+                override fun onConnect(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo
+                ): MediaSession.ConnectionResult {
+                    val connectionResult = super.onConnect(session, controller)
+                    val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
+                        .add(SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY))
+                        .add(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY))
+                        .build()
+                    return MediaSession.ConnectionResult.accept(
+                        availableSessionCommands,
+                        connectionResult.availablePlayerCommands
+                    )
+                }
+
                 override fun onSetRating(
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo,
@@ -200,6 +215,7 @@ class MusicService : MediaSessionService() {
             .build()
 
         initLyricon()
+        updateMediaSessionLayout()
     }
 
     private fun initLyricon() {
@@ -264,10 +280,10 @@ class MusicService : MediaSessionService() {
         playbackInfoJob = serviceScope.launch {
             while (true) {
                 player?.let { p ->
-                    val format = p.audioFormat
+                    val format = p.audioFormat ?: p.videoFormat
                     if (format != null) {
-                        val sampleRate = format.sampleRate
-                        val bitrate = format.bitrate
+                        val sampleRate = if (format.sampleRate != -1) format.sampleRate else 0
+                        val bitrate = if (format.bitrate != -1) format.bitrate else 0
 
                         val args = android.os.Bundle().apply {
                             putInt("sampleRate", sampleRate)

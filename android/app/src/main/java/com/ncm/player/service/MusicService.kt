@@ -62,6 +62,7 @@ class MusicService : MediaSessionService() {
     }
     private var lyriconProvider: LyriconProvider? = null
     private var lyricJob: Job? = null
+    private var playbackInfoJob: Job? = null
     private val fadeAudioProcessor = FadeAudioProcessor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -117,8 +118,21 @@ class MusicService : MediaSessionService() {
                     // We only trigger it here for resume-from-pause.
                     fadeAudioProcessor.startFadeIn()
                 }
+                updateMediaSessionLayout()
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                updateMediaSessionLayout()
+            }
+
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
+                    updateMediaSessionLayout()
+                }
             }
         })
+
+        startPlaybackInfoLoop()
 
         val intent = Intent(this, com.ncm.player.MainActivity::class.java).apply {
             action = "ACTION_SHOW_PLAYER"
@@ -245,6 +259,28 @@ class MusicService : MediaSessionService() {
         p.currentMediaItem?.let { updateLyriconSong(it) }
     }
 
+    private fun startPlaybackInfoLoop() {
+        playbackInfoJob?.cancel()
+        playbackInfoJob = serviceScope.launch {
+            while (true) {
+                player?.let { p ->
+                    val format = p.audioFormat
+                    if (format != null) {
+                        val sampleRate = format.sampleRate
+                        val bitrate = format.bitrate
+
+                        val args = android.os.Bundle().apply {
+                            putInt("sampleRate", sampleRate)
+                            putInt("bitrate", bitrate)
+                        }
+                        mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), args)
+                    }
+                }
+                delay(2000)
+            }
+        }
+    }
+
     private fun updateLyriconSong(mediaItem: MediaItem) {
         val songId = mediaItem.mediaId
         val metadata = mediaItem.mediaMetadata
@@ -304,13 +340,13 @@ class MusicService : MediaSessionService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        val session = mediaSession ?: return null
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
+    private fun updateMediaSessionLayout() {
+        val session = mediaSession ?: return
         val currentMediaItem = player?.currentMediaItem
         val isLiked = currentMediaItem?.mediaMetadata?.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true
 
-        // Update custom layout to include the Like button
         val likeCommand = SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY)
         val likeButton = CommandButton.Builder()
             .setSessionCommand(likeCommand)
@@ -320,7 +356,6 @@ class MusicService : MediaSessionService() {
             .build()
 
         session.setCustomLayout(listOf(likeButton))
-        return session
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {

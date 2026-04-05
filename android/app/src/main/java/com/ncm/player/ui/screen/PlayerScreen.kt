@@ -65,6 +65,8 @@ fun PlayerScreen(
     onClearQueue: () -> Unit = {},
     qualityWifi: String = "Unknown",
     qualityCellular: String = "Unknown",
+    sampleRate: Int = 0,
+    bitrate: Int = 0,
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -117,9 +119,20 @@ fun PlayerScreen(
             onDismissRequest = { showQualityInfoDialog = false },
             title = { Text("Audio Quality Info") },
             text = {
-                Column {
-                    Text("Current Wi-Fi Quality: $qualityWifi")
-                    Text("Current Cellular Quality: $qualityCellular")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Configured Wi-Fi Quality: $qualityWifi", style = MaterialTheme.typography.bodyMedium)
+                    Text("Configured Cellular Quality: $qualityCellular", style = MaterialTheme.typography.bodyMedium)
+                    HorizontalDivider()
+                    Text("Playback Statistics:", style = MaterialTheme.typography.titleSmall)
+                    if (sampleRate > 0) {
+                        Text("Sample Rate: ${sampleRate} Hz", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (bitrate > 0) {
+                        Text("Bitrate: ${bitrate / 1000} kbps", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (sampleRate == 0 && bitrate <= 0) {
+                        Text("Loading playback info...", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
                 }
             },
             confirmButton = {

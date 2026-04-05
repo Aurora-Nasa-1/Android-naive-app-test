@@ -15,6 +15,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
@@ -53,6 +54,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var hotSearches by mutableStateOf<List<Pair<String, String>>>(emptyList())
     var searchSuggestions by mutableStateOf<List<String>>(emptyList())
     var currentLyrics by mutableStateOf<List<LyricLine>>(emptyList())
+    var currentSampleRate by mutableIntStateOf(0)
+    var currentBitrate by mutableIntStateOf(0)
     var isLoading by mutableStateOf(false)
     var likedSongsPlaylistId by mutableStateOf(0L)
     var isFmMode by mutableStateOf(false)

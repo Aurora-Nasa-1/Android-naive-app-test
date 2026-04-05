@@ -676,6 +676,8 @@ fun AppMainContent(
                             onClearQueue = { playerViewModel.clearQueue() },
                             qualityWifi = playerViewModel.currentQualityWifi,
                             qualityCellular = playerViewModel.currentQualityCellular,
+                            sampleRate = playerViewModel.currentSampleRate,
+                            bitrate = playerViewModel.currentBitrate,
                             onBackPressed = { navController.popBackStack() }
                         )
                     }

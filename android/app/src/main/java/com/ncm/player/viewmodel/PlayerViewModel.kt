@@ -15,6 +15,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
@@ -53,6 +54,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var hotSearches by mutableStateOf<List<Pair<String, String>>>(emptyList())
     var searchSuggestions by mutableStateOf<List<String>>(emptyList())
     var currentLyrics by mutableStateOf<List<LyricLine>>(emptyList())
+    var currentSampleRate by mutableIntStateOf(0)
+    var currentBitrate by mutableIntStateOf(0)
     var isLoading by mutableStateOf(false)
     var likedSongsPlaylistId by mutableStateOf(0L)
     var isFmMode by mutableStateOf(false)
@@ -308,7 +311,36 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun initController(context: Context) {
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
-        mediaControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        mediaControllerFuture = MediaController.Builder(context, sessionToken)
+            .setListener(object : MediaController.Listener {
+                override fun onCustomCommand(
+                    controller: MediaController,
+                    command: androidx.media3.session.SessionCommand,
+                    args: android.os.Bundle
+                ): ListenableFuture<androidx.media3.session.SessionResult> {
+                    when (command.customAction) {
+                        "UPDATE_PLAYBACK_INFO" -> {
+                            currentSampleRate = args.getInt("sampleRate")
+                            currentBitrate = args.getInt("bitrate")
+                        }
+                        "ACTION_PLAYER_ERROR" -> {
+                            val errorMsg = args.getString("error") ?: "Unknown player error"
+                            com.ncm.player.util.DebugLog.toast(getApplication(), errorMsg)
+                        }
+                    }
+                    return Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
+                }
+
+                override fun onExtrasChanged(controller: MediaController, extras: android.os.Bundle) {
+                    if (extras.containsKey("sampleRate")) {
+                        currentSampleRate = extras.getInt("sampleRate")
+                    }
+                    if (extras.containsKey("bitrate")) {
+                        currentBitrate = extras.getInt("bitrate")
+                    }
+                }
+            })
+            .buildAsync()
         mediaControllerFuture?.addListener({
             mediaController?.let { controller ->
                 // Sync initial state when connected
@@ -778,6 +810,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     } else {
                         favoriteSongs - songId
                     }
+
+                    // Update current media item rating if it's the one being liked/unliked
+                    mediaController?.let { controller ->
+                        if (controller.currentMediaItem?.mediaId == songId) {
+                            val updatedMetadata = controller.currentMediaItem?.mediaMetadata?.buildUpon()
+                                ?.setUserRating(androidx.media3.common.HeartRating(like))
+                                ?.build()
+                            if (updatedMetadata != null) {
+                                // In Media3, we can't easily update metadata of current item without resetting.
+                                // However, some controllers support rating commands.
+                                controller.setRating(androidx.media3.common.HeartRating(like))
+                            }
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -938,11 +984,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val extras = android.os.Bundle().apply {
             putString("artistId", song.artistId)
         }
+        val isFavorite = favoriteSongs.contains(song.id)
         val metadata = MediaMetadata.Builder()
             .setTitle(song.name)
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
             .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
+            .setUserRating(androidx.media3.common.HeartRating(isFavorite))
             .setExtras(extras)
             .build()
 

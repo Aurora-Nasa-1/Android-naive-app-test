@@ -190,7 +190,7 @@ fun PlaylistDetailScreen(
                                     showSortMenu = false
                                 }
                             )
-                            Divider()
+                            HorizontalDivider()
                             val context = androidx.compose.ui.platform.LocalContext.current
                             DropdownMenuItem(
                                 text = { Text("Share Playlist") },

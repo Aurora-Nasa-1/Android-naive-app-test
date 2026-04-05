@@ -31,6 +31,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
@@ -38,6 +41,12 @@ import com.ncm.player.model.Song
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.UserProfile
 import com.ncm.player.ui.component.UserAccountDialog
+
+fun Context.findActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -52,6 +61,7 @@ fun MainScreen(
     onHeartbeatClick: () -> Unit,
     onLikeClick: (Song) -> Unit,
     onNavigateToMessages: () -> Unit,
+    onNavigateToLogs: () -> Unit = {},
     unreadMessagesCount: Int = 0,
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
@@ -60,8 +70,10 @@ fun MainScreen(
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     val context = LocalContext.current
-    val windowSizeClass = calculateWindowSizeClass(context as android.app.Activity)
-    val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+    val activity = remember(context) { context.findActivity() }
+    val windowSizeClass = if (activity != null) calculateWindowSizeClass(activity) else null
+    val widthClass = windowSizeClass?.widthSizeClass ?: WindowWidthSizeClass.Compact
+    val isWideScreen = widthClass != WindowWidthSizeClass.Compact
 
     var showAccountDialog by remember { mutableStateOf(false) }
 
@@ -69,7 +81,12 @@ fun MainScreen(
         UserAccountDialog(
             userProfile = userProfile,
             versionName = versionName,
-            onDismiss = { showAccountDialog = false }
+            onDismiss = { showAccountDialog = false },
+            onNavigateToLogs = {
+                showAccountDialog = false
+                com.ncm.player.util.DebugLog.toast(context, "Entering Logs")
+                onNavigateToLogs()
+            }
         )
     }
 
@@ -86,17 +103,7 @@ fun MainScreen(
                 actions = {
                     actions()
                     IconButton(onClick = onNavigateToMessages) {
-                        BadgedBox(
-                            badge = {
-                                if (unreadMessagesCount > 0) {
-                                    Badge {
-                                        Text(if (unreadMessagesCount > 99) "99+" else unreadMessagesCount.toString())
-                                    }
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.Email, contentDescription = "Messages")
-                        }
+                        Icon(Icons.Default.Email, contentDescription = "Messages")
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -140,14 +147,13 @@ fun MainScreen(
         ) {
             // Quick Access Grid
             item {
-                val gridColumns = if (isWideScreen) 3 else 2
+                val gridColumns = when (widthClass) {
+                    WindowWidthSizeClass.Expanded -> 4
+                    WindowWidthSizeClass.Medium -> 3
+                    else -> 2
+                }
                 Column {
-                    val quickAccessItems = listOf(
-                        "Private FM" to onPersonalFmClick to Icons.Default.Radio to MaterialTheme.colorScheme.primary,
-                        "Heartbeat" to onHeartbeatClick to Icons.Default.AutoGraph to MaterialTheme.colorScheme.secondary
-                    )
-
-                    val displayPlaylists = userPlaylists.take(if (isWideScreen) 9 else 6)
+                    val displayPlaylists = userPlaylists.take(gridColumns * 3)
 
                     // Simplified logic for quick access and playlists
                     val itemsToRender = mutableListOf<@Composable (Modifier) -> Unit>()
@@ -190,15 +196,39 @@ fun MainScreen(
             }
 
             item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(end = 16.dp)
-                ) {
-                    items(
-                        items = recommendedSongs.take(10),
-                        key = { "rec_${it.id}" }
-                    ) { song ->
-                        SongCard(song, onClick = { onSongClick(song) })
+                if (widthClass != WindowWidthSizeClass.Compact) {
+                    // Grid for wide screens
+                    val columns = if (widthClass == WindowWidthSizeClass.Expanded) 5 else 4
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        for (i in recommendedSongs.take(10).indices step columns) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                for (j in 0 until columns) {
+                                    val index = i + j
+                                    if (index < recommendedSongs.size && index < 10) {
+                                        val song = recommendedSongs[index]
+                                        SongCard(
+                                            song = song,
+                                            onClick = { onSongClick(song) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(end = 16.dp)
+                    ) {
+                        items(
+                            items = recommendedSongs.take(10),
+                            key = { "rec_${it.id}" }
+                        ) { song ->
+                            SongCard(song, onClick = { onSongClick(song) })
+                        }
                     }
                 }
             }
@@ -211,17 +241,32 @@ fun MainScreen(
                 )
             }
 
-            items(
-                items = recommendedSongs.drop(10).take(5),
-                key = { "recent_${it.id}" }
-            ) { song ->
-                SongItem(
-                    song = song,
-                    isFavorite = favoriteSongs.contains(song.id),
-                    isDownloaded = completedSongs.contains(song.id),
-                    onLikeClick = { onLikeClick(song) },
-                    onClick = { onSongClick(song) }
-                )
+            item {
+                val columns = if (widthClass != WindowWidthSizeClass.Compact) 2 else 1
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val items = recommendedSongs.drop(10).take(if (columns > 1) 10 else 5)
+                    for (i in items.indices step columns) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            for (j in 0 until columns) {
+                                val index = i + j
+                                if (index < items.size) {
+                                    val song = items[index]
+                                    SongItem(
+                                        song = song,
+                                        isFavorite = favoriteSongs.contains(song.id),
+                                        isDownloaded = completedSongs.contains(song.id),
+                                        onLikeClick = { onLikeClick(song) },
+                                        onClick = { onSongClick(song) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else if (columns > 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -293,15 +338,15 @@ fun PlaylistQuickCard(
 }
 
 @Composable
-fun SongCard(song: Song, onClick: () -> Unit) {
+fun SongCard(song: Song, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
-            .width(160.dp)
+        modifier = modifier
+            .then(if (modifier == Modifier) Modifier.width(160.dp) else Modifier)
             .clickable { onClick() }
     ) {
         Surface(
             modifier = Modifier
-                .size(160.dp)
+                .fillMaxWidth()
                 .aspectRatio(1f),
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surfaceVariant
@@ -343,7 +388,8 @@ fun SongItem(
     isFavorite: Boolean = false,
     isDownloaded: Boolean = false,
     onLikeClick: () -> Unit = {},
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     ListItem(
         headlineContent = {
@@ -402,7 +448,7 @@ fun SongItem(
                 )
             }
         },
-        modifier = Modifier
+        modifier = modifier
             .clip(MaterialTheme.shapes.medium)
             .clickable { onClick() },
         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)

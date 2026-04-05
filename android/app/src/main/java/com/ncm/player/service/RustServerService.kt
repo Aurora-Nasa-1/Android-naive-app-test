@@ -17,6 +17,7 @@ class RustServerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        com.ncm.player.util.DebugLog.i("RustServerService onCreate")
         createNotificationChannel()
         val notification = createNotification()
 

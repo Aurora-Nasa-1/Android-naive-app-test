@@ -318,9 +318,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     command: androidx.media3.session.SessionCommand,
                     args: android.os.Bundle
                 ): ListenableFuture<androidx.media3.session.SessionResult> {
-                    if (command.customAction == "UPDATE_PLAYBACK_INFO") {
-                        currentSampleRate = args.getInt("sampleRate")
-                        currentBitrate = args.getInt("bitrate")
+                    when (command.customAction) {
+                        "UPDATE_PLAYBACK_INFO" -> {
+                            currentSampleRate = args.getInt("sampleRate")
+                            currentBitrate = args.getInt("bitrate")
+                        }
+                        "ACTION_PLAYER_ERROR" -> {
+                            val errorMsg = args.getString("error") ?: "Unknown player error"
+                            com.ncm.player.util.DebugLog.toast(getApplication(), errorMsg)
+                        }
                     }
                     return Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
                 }

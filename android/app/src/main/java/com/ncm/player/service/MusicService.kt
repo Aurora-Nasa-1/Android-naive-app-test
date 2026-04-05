@@ -145,7 +145,14 @@ class MusicService : MediaSessionService() {
             }
 
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                android.util.Log.e("MusicService", "Player Error: ${error.errorCodeName} (${error.errorCode}): ${error.message}", error)
+                val errorMsg = "${error.errorCodeName} (${error.errorCode}): ${error.message}"
+                android.util.Log.e("MusicService", "Player Error: $errorMsg", error)
+
+                val args = android.os.Bundle().apply {
+                    putString("error", errorMsg)
+                }
+                mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY), args)
+
                 if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
                     error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED) {
                     // Retry once on network/IO error

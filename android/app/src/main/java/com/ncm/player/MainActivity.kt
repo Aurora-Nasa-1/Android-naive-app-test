@@ -358,6 +358,9 @@ fun AppMainContent(
                             onNavigateToMessages = {
                                 navController.navigate("messages")
                             },
+                            onNavigateToLogs = {
+                                navController.navigate("logs")
+                            },
                             onNavigateToSettings = {
                                 navController.navigate("settings")
                             },
@@ -688,6 +691,9 @@ fun AppMainContent(
                             currentPosition = playerViewModel.currentPosition,
                             onBackPressed = { navController.popBackStack() }
                         )
+                    }
+                    composable("logs") {
+                        LogViewerScreen(onBackPressed = { navController.popBackStack() })
                     }
                 }
             }

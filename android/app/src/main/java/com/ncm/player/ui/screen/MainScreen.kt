@@ -61,6 +61,7 @@ fun MainScreen(
     onHeartbeatClick: () -> Unit,
     onLikeClick: (Song) -> Unit,
     onNavigateToMessages: () -> Unit,
+    onNavigateToLogs: () -> Unit = {},
     unreadMessagesCount: Int = 0,
     favoriteSongs: List<String>,
     completedSongs: Set<String> = emptySet(),
@@ -80,7 +81,12 @@ fun MainScreen(
         UserAccountDialog(
             userProfile = userProfile,
             versionName = versionName,
-            onDismiss = { showAccountDialog = false }
+            onDismiss = { showAccountDialog = false },
+            onNavigateToLogs = {
+                showAccountDialog = false
+                com.ncm.player.util.DebugLog.toast(context, "Entering Logs")
+                onNavigateToLogs()
+            }
         )
     }
 

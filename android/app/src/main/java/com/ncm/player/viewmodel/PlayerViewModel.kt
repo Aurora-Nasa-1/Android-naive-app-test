@@ -311,7 +311,30 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun initController(context: Context) {
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
-        mediaControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        mediaControllerFuture = MediaController.Builder(context, sessionToken)
+            .setListener(object : MediaController.Listener {
+                override fun onCustomCommand(
+                    controller: MediaController,
+                    command: androidx.media3.session.SessionCommand,
+                    args: android.os.Bundle
+                ): ListenableFuture<androidx.media3.session.SessionResult> {
+                    if (command.customAction == "UPDATE_PLAYBACK_INFO") {
+                        currentSampleRate = args.getInt("sampleRate")
+                        currentBitrate = args.getInt("bitrate")
+                    }
+                    return Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
+                }
+
+                override fun onExtrasChanged(controller: MediaController, extras: android.os.Bundle) {
+                    if (extras.containsKey("sampleRate")) {
+                        currentSampleRate = extras.getInt("sampleRate")
+                    }
+                    if (extras.containsKey("bitrate")) {
+                        currentBitrate = extras.getInt("bitrate")
+                    }
+                }
+            })
+            .buildAsync()
         mediaControllerFuture?.addListener({
             mediaController?.let { controller ->
                 // Sync initial state when connected

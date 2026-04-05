@@ -94,7 +94,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        recreate()
+        // Removed recreate() to prevent unnecessary activity resets and playback glitches
     }
 }
 

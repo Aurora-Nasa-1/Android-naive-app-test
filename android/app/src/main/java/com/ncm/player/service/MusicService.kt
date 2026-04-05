@@ -22,6 +22,8 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.CommandButton
+import androidx.media3.session.MediaNotification
+import androidx.media3.session.DefaultMediaNotificationProvider
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.Futures
 import androidx.media3.common.Rating
@@ -63,6 +65,7 @@ class MusicService : MediaSessionService() {
     private var lyriconProvider: LyriconProvider? = null
     private var lyricJob: Job? = null
     private var playbackInfoJob: Job? = null
+    private val likedSongIds = mutableSetOf<String>()
     private val fadeAudioProcessor = FadeAudioProcessor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -99,6 +102,7 @@ class MusicService : MediaSessionService() {
             .setCache(getCache(this))
             .setUpstreamDataSourceFactory(DefaultDataSource.Factory(this, httpDataSourceFactory))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+            .setCacheWriteDataSinkFactory(null) // Disable cache writing on playback error
 
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)
@@ -114,20 +118,44 @@ class MusicService : MediaSessionService() {
         player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
-                    // startFadeIn() is now handled by onFlush() for most cases (seek, transition).
-                    // We only trigger it here for resume-from-pause.
                     fadeAudioProcessor.startFadeIn()
                 }
                 updateMediaSessionLayout()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                android.util.Log.d("MusicService", "MediaItem transition to: ${mediaItem?.mediaId}")
                 updateMediaSessionLayout()
+                // Ensure fade-in on transition
+                fadeAudioProcessor.startFadeIn()
             }
 
             override fun onEvents(player: Player, events: Player.Events) {
                 if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
                     updateMediaSessionLayout()
+                }
+                if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
+                    val state = player.playbackState
+                    android.util.Log.d("MusicService", "Playback State changed: $state, isPlaying: ${player.isPlaying}")
+                    updateMediaSessionLayout()
+                    if (state == Player.STATE_READY) {
+                        startPlaybackInfoLoop()
+                    }
+                }
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                android.util.Log.e("MusicService", "Player Error: ${error.errorCodeName} (${error.errorCode}): ${error.message}", error)
+                if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                    error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED) {
+                    // Retry once on network/IO error
+                    player?.let {
+                        val currentItem = it.currentMediaItem
+                        if (currentItem != null) {
+                            it.prepare()
+                            it.play()
+                        }
+                    }
                 }
             }
         })
@@ -138,6 +166,9 @@ class MusicService : MediaSessionService() {
             action = "ACTION_SHOW_PLAYER"
         }
         val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+        val notificationProvider = DefaultMediaNotificationProvider.Builder(this).build()
+        setMediaNotificationProvider(notificationProvider)
 
         mediaSession = MediaSession.Builder(this, player!!)
             .setSessionActivity(pendingIntent)
@@ -150,6 +181,7 @@ class MusicService : MediaSessionService() {
                     val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
                         .add(SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY))
                         .add(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY))
+                        .add(SessionCommand("LAYOUT_UPDATED", android.os.Bundle.EMPTY))
                         .build()
                     return MediaSession.ConnectionResult.accept(
                         availableSessionCommands,
@@ -165,9 +197,11 @@ class MusicService : MediaSessionService() {
                     if (rating is HeartRating) {
                         val mediaId = session.player.currentMediaItem?.mediaId
                         if (mediaId != null) {
+                            if (rating.isHeart) likedSongIds.add(mediaId) else likedSongIds.remove(mediaId)
                             val cookie = UserPreferences.getCookie(this@MusicService)
                             serviceScope.launch(Dispatchers.IO) {
                                 RustServerManager.callApi("like", mapOf("id" to mediaId, "like" to rating.isHeart.toString(), "cookie" to (cookie ?: "")))
+                                withContext(Dispatchers.Main) { updateMediaSessionLayout() }
                             }
                         }
                     }
@@ -184,27 +218,15 @@ class MusicService : MediaSessionService() {
                         val currentMediaItem = session.player.currentMediaItem
                         val mediaId = currentMediaItem?.mediaId
                         if (mediaId != null) {
-                            val isLiked = currentMediaItem.mediaMetadata.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true
+                            val isLiked = likedSongIds.contains(mediaId) || (currentMediaItem.mediaMetadata.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true)
                             val nextLikeState = !isLiked
+                            if (nextLikeState) likedSongIds.add(mediaId) else likedSongIds.remove(mediaId)
+
                             val cookie = UserPreferences.getCookie(this@MusicService)
                             serviceScope.launch(Dispatchers.IO) {
                                 // Toggle like logic
                                 RustServerManager.callApi("like", mapOf("id" to mediaId, "like" to nextLikeState.toString(), "cookie" to (cookie ?: "")))
-
-                                // Update metadata locally to reflect change in notification immediately
-                                withContext(Dispatchers.Main) {
-                                    val index = session.player.currentMediaItemIndex
-                                    val currentItem = session.player.currentMediaItem
-                                    if (currentItem != null) {
-                                        val newMetadata = currentItem.mediaMetadata.buildUpon()
-                                            .setUserRating(HeartRating(nextLikeState))
-                                            .build()
-                                        val newItem = currentItem.buildUpon()
-                                            .setMediaMetadata(newMetadata)
-                                            .build()
-                                        session.player.replaceMediaItem(index, newItem)
-                                    }
-                                }
+                                withContext(Dispatchers.Main) { updateMediaSessionLayout() }
                             }
                         }
                         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -276,23 +298,49 @@ class MusicService : MediaSessionService() {
     }
 
     private fun startPlaybackInfoLoop() {
-        playbackInfoJob?.cancel()
+        if (playbackInfoJob?.isActive == true) return
         playbackInfoJob = serviceScope.launch {
             while (true) {
                 player?.let { p ->
-                    val format = p.audioFormat ?: p.videoFormat
-                    if (format != null) {
-                        val sampleRate = if (format.sampleRate != -1) format.sampleRate else 0
-                        val bitrate = if (format.bitrate != -1) format.bitrate else 0
+                    if (p.playbackState != Player.STATE_READY) return@let
 
-                        val args = android.os.Bundle().apply {
-                            putInt("sampleRate", sampleRate)
-                            putInt("bitrate", bitrate)
+                    // Try to get format from current tracks if direct access fails
+                    var activeFormat = p.audioFormat
+                    if (activeFormat == null) {
+                        val currentTracks = p.currentTracks
+                        for (group in currentTracks.groups) {
+                            if (group.type == C.TRACK_TYPE_AUDIO && group.isSelected) {
+                                for (i in 0 until group.length) {
+                                    if (group.isTrackSelected(i)) {
+                                        activeFormat = group.getTrackFormat(i)
+                                        break
+                                    }
+                                }
+                            }
+                            if (activeFormat != null) break
                         }
-                        mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), args)
+                    }
+
+                    if (activeFormat != null) {
+                        val sampleRate = if (activeFormat.sampleRate != -1) activeFormat.sampleRate else 0
+                        val bitrate = if (activeFormat.bitrate != -1) activeFormat.bitrate else 0
+
+                        android.util.Log.d("MusicService", "Playback Info: sampleRate=$sampleRate, bitrate=$bitrate")
+
+                        if (sampleRate > 0 || bitrate > 0) {
+                            val extras = android.os.Bundle().apply {
+                                putInt("sampleRate", sampleRate)
+                                putInt("bitrate", bitrate)
+                            }
+
+                            mediaSession?.setSessionExtras(extras)
+                            mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), extras)
+                        }
+                    } else {
+                        android.util.Log.d("MusicService", "Playback Info: activeFormat is null")
                     }
                 }
-                delay(2000)
+                delay(1500)
             }
         }
     }
@@ -361,7 +409,8 @@ class MusicService : MediaSessionService() {
     private fun updateMediaSessionLayout() {
         val session = mediaSession ?: return
         val currentMediaItem = player?.currentMediaItem
-        val isLiked = currentMediaItem?.mediaMetadata?.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true
+        val mediaId = currentMediaItem?.mediaId
+        val isLiked = (mediaId != null && likedSongIds.contains(mediaId)) || (currentMediaItem?.mediaMetadata?.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true)
 
         val likeCommand = SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY)
         val likeButton = CommandButton.Builder()
@@ -371,14 +420,15 @@ class MusicService : MediaSessionService() {
             .setEnabled(true)
             .build()
 
-        session.setCustomLayout(listOf(likeButton))
+        val customLayout = com.google.common.collect.ImmutableList.of(likeButton)
+        session.setCustomLayout(customLayout)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = player ?: return
         // If not playing or queue is empty, stop the service to clean up.
         // Otherwise, keep it running for background playback.
-        if (!player.isPlaying || player.mediaItemCount == 0) {
+        if ((!player.isPlaying && player.playbackState != Player.STATE_BUFFERING) || player.mediaItemCount == 0) {
             stopSelf()
         }
     }

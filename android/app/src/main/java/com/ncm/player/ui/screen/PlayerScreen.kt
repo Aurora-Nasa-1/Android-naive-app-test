@@ -126,12 +126,14 @@ fun PlayerScreen(
                     Text("Playback Statistics:", style = MaterialTheme.typography.titleSmall)
                     if (sampleRate > 0) {
                         Text("Sample Rate: ${sampleRate} Hz", style = MaterialTheme.typography.bodyMedium)
+                    } else if (sampleRate == 0) {
+                        Text("Sample Rate: N/A", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                     }
+
                     if (bitrate > 0) {
                         Text("Bitrate: ${bitrate / 1000} kbps", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    if (sampleRate == 0 && bitrate <= 0) {
-                        Text("Loading playback info...", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    } else if (bitrate == 0) {
+                        Text("Bitrate: N/A", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                     }
                 }
             },

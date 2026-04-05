@@ -24,7 +24,7 @@ object LogManager {
             time = dateFormat.format(Date()),
             level = level,
             message = message,
-            throwable = throwable?.stackTraceToString()
+            throwable = throwable?.let { android.util.Log.getStackTraceString(it) }
         )
         val currentList = _logs.value.toMutableList()
         currentList.add(entry)

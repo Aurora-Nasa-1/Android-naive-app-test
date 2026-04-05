@@ -5,11 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,7 +28,20 @@ import com.ncm.player.util.LogManager
 @Composable
 fun LogViewerScreen(onBackPressed: () -> Unit) {
     val logs by LogManager.logs.collectAsState()
+    var systemLogs by remember { mutableStateOf("") }
+    var showSystemLogs by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    LaunchedEffect(showSystemLogs) {
+        if (showSystemLogs) {
+            systemLogs = try {
+                val process = Runtime.getRuntime().exec("logcat -d -v time")
+                process.inputStream.bufferedReader().use { it.readText() }
+            } catch (e: Exception) {
+                "Failed to fetch system logs: ${e.message}"
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -37,7 +54,12 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
                 },
                 actions = {
                     IconButton(onClick = {
-                        val text = logs.joinToString("\n") { "${it.time} [${it.level}] ${it.message}" }
+                        showSystemLogs = !showSystemLogs
+                    }) {
+                        Icon(if (showSystemLogs) Icons.Default.ViewList else Icons.Default.Terminal, contentDescription = "Toggle System Logs")
+                    }
+                    IconButton(onClick = {
+                        val text = if (showSystemLogs) systemLogs else logs.joinToString("\n") { "${it.time} [${it.level}] ${it.message}" }
                         val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(android.content.Intent.EXTRA_TEXT, text)
@@ -54,16 +76,34 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
         }
     ) { innerPadding ->
         SelectionContainer {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(Color.Black),
-                contentPadding = PaddingValues(8.dp)
-            ) {
-                items(logs) { entry ->
-                    LogEntryItem(entry)
-                    HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding).background(Color.Black)) {
+                if (showSystemLogs) {
+                    val scrollState = rememberScrollState()
+                    Text(
+                        text = systemLogs,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                            .verticalScroll(scrollState)
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(8.dp)
+                    ) {
+                        items(logs) { entry ->
+                            LogEntryItem(entry)
+                            HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+                        }
+                        if (logs.isEmpty()) {
+                            item {
+                                Text("No app logs recorded yet.", color = Color.Gray, modifier = Modifier.padding(16.dp))
+                            }
+                        }
+                    }
                 }
             }
         }

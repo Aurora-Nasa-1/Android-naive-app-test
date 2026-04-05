@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
                     val context = LocalContext.current
 
                     LaunchedEffect(Unit) {
+                        com.ncm.player.util.DebugLog.i("MainActivity composition started")
                         playerViewModel.initController(context)
                         // Ensure service is running
                         try {

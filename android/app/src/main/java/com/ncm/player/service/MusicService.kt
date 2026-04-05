@@ -72,6 +72,7 @@ class MusicService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        android.util.Log.d("MusicService", "Service onCreate")
 
         val fadeDuration = UserPreferences.getFadeDuration(this)
         fadeAudioProcessor.setFadeDuration((fadeDuration * 1000).toLong())
@@ -102,7 +103,6 @@ class MusicService : MediaSessionService() {
             .setCache(getCache(this))
             .setUpstreamDataSourceFactory(DefaultDataSource.Factory(this, httpDataSourceFactory))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-            .setCacheWriteDataSinkFactory(null) // Disable cache writing on playback error
 
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)
@@ -184,15 +184,14 @@ class MusicService : MediaSessionService() {
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo
                 ): MediaSession.ConnectionResult {
-                    val connectionResult = super.onConnect(session, controller)
-                    val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
+                    val availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY))
                         .add(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY))
-                        .add(SessionCommand("LAYOUT_UPDATED", android.os.Bundle.EMPTY))
+                        .add(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY))
                         .build()
                     return MediaSession.ConnectionResult.accept(
                         availableSessionCommands,
-                        connectionResult.availablePlayerCommands
+                        MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
                     )
                 }
 
@@ -313,7 +312,7 @@ class MusicService : MediaSessionService() {
 
                     // Try to get format from current tracks if direct access fails
                     var activeFormat = p.audioFormat
-                    if (activeFormat == null) {
+                    if (activeFormat == null || activeFormat.sampleRate == -1) {
                         val currentTracks = p.currentTracks
                         for (group in currentTracks.groups) {
                             if (group.type == C.TRACK_TYPE_AUDIO && group.isSelected) {
@@ -324,7 +323,7 @@ class MusicService : MediaSessionService() {
                                     }
                                 }
                             }
-                            if (activeFormat != null) break
+                            if (activeFormat != null && activeFormat!!.sampleRate != -1) break
                         }
                     }
 
@@ -418,6 +417,8 @@ class MusicService : MediaSessionService() {
         val currentMediaItem = player?.currentMediaItem
         val mediaId = currentMediaItem?.mediaId
         val isLiked = (mediaId != null && likedSongIds.contains(mediaId)) || (currentMediaItem?.mediaMetadata?.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true)
+
+        android.util.Log.d("MusicService", "Updating layout. MediaId: $mediaId, isLiked: $isLiked")
 
         val likeCommand = SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY)
         val likeButton = CommandButton.Builder()

@@ -6,7 +6,7 @@
 
 [![Rust](https://img.shields.io/badge/Rust-1.70+-orange?logo=rust)](https://www.rust-lang.org/)
 [![Crates.io](https://img.shields.io/crates/v/ncm-api-rs.svg)](https://crates.io/crates/ncm-api-rs)
-[![GitHub Release](https://img.shields.io/github/v/release/imsyy/ncm-api-rs)](https://github.com/imsyy/ncm-api-rs/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/SPlayer-Dev/ncm-api-rs)](https://github.com/SPlayer-Dev/ncm-api-rs/releases)
 [![License](https://img.shields.io/badge/license-WTFPL-brightgreen.svg)](LICENSE)
 [![Tokio](https://img.shields.io/badge/async-tokio-blue?logo=rust)](https://tokio.rs/)
 
@@ -51,7 +51,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```toml
 [dependencies]
-ncm-api-rs = { git = "https://github.com/imsyy/ncm-api-rs.git" }
+ncm-api-rs = { git = "https://github.com/SPlayer-Dev/ncm-api-rs.git" }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -63,7 +63,7 @@ tokio = { version = "1", features = ["full"] }
 cargo install ncm-api-rs --features server
 ```
 
-或从 [GitHub Releases](https://github.com/imsyy/ncm-api-rs/releases) 下载预编译二进制文件，支持以下平台：
+或从 [GitHub Releases](https://github.com/SPlayer-Dev/ncm-api-rs/releases) 下载预编译二进制文件，支持以下平台：
 
 | 平台 | 架构 | 文件 |
 |------|------|------|

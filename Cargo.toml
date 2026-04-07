@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "Netease Cloud Music API Rust SDK"
 license = "WTFPL"
-repository = "https://github.com/imsyy/ncm-api-rs"
-homepage = "https://github.com/imsyy/ncm-api-rs"
+repository = "https://github.com/SPlayer-Dev/ncm-api-rs"
+homepage = "https://github.com/SPlayer-Dev/ncm-api-rs"
 
 [features]
 default = []

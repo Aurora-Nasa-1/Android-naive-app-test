@@ -1509,8 +1509,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                 val eventJson = when {
                     body.has("event") && body.get("event").isJsonArray -> body.get("event").asJsonArray
-                    body.has("data") && body.get("data").isJsonArray -> body.get("data").asJsonArray
                     body.has("events") && body.get("events").isJsonArray -> body.get("events").asJsonArray
+                    body.has("data") && body.get("data").isJsonArray -> body.get("data").asJsonArray
+                    body.has("data") && body.get("data").isJsonObject && body.get("data").asJsonObject.has("events") -> body.get("data").asJsonObject.get("events").asJsonArray
+                    body.has("actList") && body.get("actList").isJsonArray -> body.get("actList").asJsonArray
+                    body.has("result") && body.get("result").isJsonArray -> body.get("result").asJsonArray
                     else -> null
                 }
 

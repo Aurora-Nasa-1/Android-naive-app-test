@@ -41,7 +41,7 @@ object JsonUtils {
     fun parseComment(it: JsonElement): Comment? {
         return try {
             val obj = it.asJsonObject
-            val user = obj.get("user").asJsonObject
+            val user = obj.get("user")?.asJsonObject ?: return null
             val beReplied = obj.get("beReplied")?.asJsonArray?.mapNotNull {
                 val replyObj = it.asJsonObject
                 val replyUser = replyObj.get("user")?.asJsonObject
@@ -76,19 +76,19 @@ object JsonUtils {
         return try {
             val obj = it.asJsonObject
             val user = when {
-                obj.has("user") -> obj.get("user").asJsonObject
-                obj.has("author") -> obj.get("author").asJsonObject
-                else -> return null
-            }
+                obj.has("user") && obj.get("user").isJsonObject -> obj.get("user").asJsonObject
+                obj.has("author") && obj.get("author").isJsonObject -> obj.get("author").asJsonObject
+                else -> null
+            } ?: return null
             val jsonStr = obj.get("json")?.asString ?: "{}"
-            val eventJson = JsonParser.parseString(jsonStr).asJsonObject
+            val eventJson = try { JsonParser.parseString(jsonStr).asJsonObject } catch (e: Exception) { JsonObject() }
 
             var song: Song? = null
             var playlist: Playlist? = null
 
-            if (eventJson.has("song")) {
+            if (eventJson.has("song") && eventJson.get("song").isJsonObject) {
                 song = parseSong(eventJson.get("song"))
-            } else if (eventJson.has("playlist")) {
+            } else if (eventJson.has("playlist") && eventJson.get("playlist").isJsonObject) {
                 val plObj = eventJson.get("playlist").asJsonObject
                 playlist = Playlist(
                     id = plObj.get("id").asLong,

@@ -34,12 +34,24 @@ fun LyricContent(
         if (index == -1) 0 else index
     }
 
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+
     LaunchedEffect(activeIndex) {
-        if (lyrics.isNotEmpty()) {
-            listState.animateScrollToItem(
-                index = (activeIndex - 2).coerceAtLeast(0),
-                scrollOffset = -100
-            )
+        if (lyrics.isNotEmpty() && activeIndex >= 0) {
+            // MD3 Expressive: Smooth centering of active lyric
+            val layoutInfo = listState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            val activeItem = visibleItems.find { it.index == activeIndex }
+
+            if (activeItem == null || activeItem.offset < 100 || activeItem.offset > layoutInfo.viewportEndOffset - 100) {
+                 // Item not visible or too close to edges, center it
+                 listState.animateScrollToItem(
+                     index = activeIndex,
+                     scrollOffset = -(screenHeightPx / 3).toInt()
+                 )
+            }
         }
     }
 
@@ -61,8 +73,11 @@ fun LyricContent(
                     animationSpec = tween(500)
                 )
                 val scale by animateFloatAsState(
-                    targetValue = if (isActive) 1.1f else 1.0f,
-                    animationSpec = spring(stiffness = Spring.StiffnessLow)
+                    targetValue = if (isActive) 1.05f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
                 )
 
                 Column(

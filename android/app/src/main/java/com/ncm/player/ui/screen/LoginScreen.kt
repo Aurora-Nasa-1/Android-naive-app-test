@@ -50,6 +50,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
                 )
             }
             else -> {
+
                 CircularProgressIndicator()
             }
         }

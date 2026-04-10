@@ -25,9 +25,17 @@ object RustServerManager {
     private external fun nativeCallApi(method: String, paramsJson: String): String
 
     fun callApi(method: String, params: Map<String, String>): String {
-        if (!isNativeLoaded) return "{\"code\": 500, \"msg\": \"Native library not loaded\"}"
+        if (!isNativeLoaded) {
+            DebugLog.e("JNI: native library not loaded")
+            return "{\"code\": 500, \"msg\": \"Native library not loaded\"}"
+        }
         val json = com.google.gson.Gson().toJson(params)
-        return nativeCallApi(method, json)
+        DebugLog.d("JNI: calling $method with $json")
+        val result = nativeCallApi(method, json)
+        // Log a summary or head of result to avoid flooding but still provide info
+        val logResult = if (result.length > 200) result.take(200) + "..." else result
+        DebugLog.d("JNI: $method result: $logResult")
+        return result
     }
 
     fun startServer(context: android.content.Context, port: Int = 3000) {

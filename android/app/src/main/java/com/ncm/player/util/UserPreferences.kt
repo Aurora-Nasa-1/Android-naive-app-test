@@ -170,4 +170,12 @@ object UserPreferences {
     fun getUserProfileCache(context: Context): String? {
         return getPrefs(context).getString(KEY_USER_PROFILE_CACHE, null)
     }
+
+    fun saveLocalSongsCache(context: Context, json: String) {
+        getPrefs(context).edit().putString("cache_local_songs", json).apply()
+    }
+
+    fun getLocalSongsCache(context: Context): String? {
+        return getPrefs(context).getString("cache_local_songs", null)
+    }
 }

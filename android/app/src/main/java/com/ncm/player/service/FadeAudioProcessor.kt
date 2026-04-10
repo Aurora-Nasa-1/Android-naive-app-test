@@ -43,7 +43,7 @@ class FadeAudioProcessor : BaseAudioProcessor() {
 
     override fun onFlush() {
         super.onFlush()
-        // Removed automatic startFadeIn() on flush to prevent glitches during track transition/loading
+        startFadeIn()
     }
 
     override fun onConfigure(inputAudioFormat: AudioFormat): AudioFormat {

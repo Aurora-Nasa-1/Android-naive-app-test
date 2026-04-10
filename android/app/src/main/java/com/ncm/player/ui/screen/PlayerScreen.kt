@@ -83,6 +83,7 @@ fun PlayerScreen(
 
     if (song == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            @Suppress("DEPRECATION")
             CircularProgressIndicator()
         }
         return

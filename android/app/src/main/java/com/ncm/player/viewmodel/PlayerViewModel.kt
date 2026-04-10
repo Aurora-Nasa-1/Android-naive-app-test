@@ -83,6 +83,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val ncmDownloadManager = com.ncm.player.manager.NcmDownloadManager(application)
 
     var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
+    private var lastLocalSongsScanTime = 0L
 
     var repeatMode by mutableStateOf(Player.REPEAT_MODE_OFF)
     var shuffleMode by mutableStateOf(false)
@@ -111,9 +112,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
         loadInitialCache()
         fetchHotSearches()
+        refreshLocalSongs(force = false)
 
         viewModelScope.launch {
             ncmDownloadManager.completedSongs.collect {
+                DebugLog.d("PlayerVM: Completed songs updated, refreshing local list...")
                 refreshLocalSongs()
             }
         }
@@ -170,49 +173,59 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun refreshLocalSongs() {
+    fun refreshLocalSongs(force: Boolean = false) {
+        if (!force && System.currentTimeMillis() - lastLocalSongsScanTime < 5000) return
         viewModelScope.launch(Dispatchers.IO) {
             val list = listLocalSongs(getApplication())
             withContext(Dispatchers.Main) {
                 localSongs = list
+                lastLocalSongsScanTime = System.currentTimeMillis()
             }
         }
     }
 
     private fun listLocalSongs(context: android.content.Context): List<Pair<Song, android.net.Uri>> {
+        DebugLog.d("PlayerVM: Starting local songs scan...")
         val files = mutableListOf<Pair<Song, android.net.Uri>>()
 
         // 1. Add songs from our DownloadRegistry first (these are the "official" downloads)
         val registrySongs = com.ncm.player.manager.DownloadRegistry.getAllDownloadedSongs()
         registrySongs.forEach { metadata ->
-            val uri = android.net.Uri.parse(metadata.filePath)
-            // Verify file still exists (DownloadRegistry usually handles this, but let's be sure)
-            val exists = if (uri.scheme == "content") {
-                 androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.exists() == true
-            } else {
-                 java.io.File(uri.path ?: "").exists()
-            }
-
-            if (exists) {
-                files.add(metadata.song to uri)
-            }
+            files.add(metadata.song to android.net.Uri.parse(metadata.filePath))
         }
 
         // 2. Scan common directories for other local music that might not be in our registry
         val userDirUri = com.ncm.player.util.UserPreferences.getDownloadDir(context)
-        val registryIds = registrySongs.map { it.song.id }.toSet()
+        val idRegex = Regex("\\[(\\d+)\\]\\.(mp3|flac)$")
+        val registrySongPaths = registrySongs.map { it.filePath }.toSet()
 
         fun scanDir(tree: androidx.documentfile.provider.DocumentFile?) {
             tree?.listFiles()?.forEach { file ->
-                if (file.name?.endsWith(".mp3") == true || file.name?.endsWith(".flac") == true) {
+                val fileName = file.name ?: return@forEach
+                if (fileName.endsWith(".mp3") || fileName.endsWith(".flac")) {
                     // Only add if not already in registry to avoid duplicates
-                    if (files.none { it.second == file.uri }) {
-                        files.add(Song(
-                            id = "local_${file.name}",
-                            name = file.name?.removeSuffix(".mp3")?.removeSuffix(".flac") ?: "Unknown",
-                            artist = "Local File",
-                            album = "Local Storage"
-                        ) to file.uri)
+                    if (!registrySongPaths.contains(file.uri.toString())) {
+                        val match = idRegex.find(fileName)
+                        val songId = match?.groupValues?.get(1)
+
+                        if (songId != null) {
+                            // Recovered from filename [ID]
+                            val baseName = fileName.removeSuffix(".mp3").removeSuffix(".flac")
+                            val nameArtist = baseName.substringBeforeLast(" [").split(" - ")
+                            files.add(Song(
+                                id = songId,
+                                name = nameArtist.getOrNull(0) ?: baseName,
+                                artist = nameArtist.getOrNull(1) ?: "Unknown",
+                                album = "Local Storage"
+                            ) to file.uri)
+                        } else {
+                            files.add(Song(
+                                id = "local_${fileName}",
+                                name = fileName.removeSuffix(".mp3").removeSuffix(".flac"),
+                                artist = "Local File",
+                                album = "Local Storage"
+                            ) to file.uri)
+                        }
                     }
                 }
             }
@@ -232,13 +245,28 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (dir.exists()) {
                 dir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
                     val uri = android.net.Uri.fromFile(file)
-                    if (files.none { it.second == uri }) {
-                        files.add(Song(
-                            id = "local_${file.name}",
-                            name = file.nameWithoutExtension,
-                            artist = "Local File",
-                            album = "Local Storage"
-                        ) to uri)
+                    if (!registrySongPaths.contains(uri.toString())) {
+                        val fileName = file.name
+                        val match = idRegex.find(fileName)
+                        val songId = match?.groupValues?.get(1)
+
+                        if (songId != null) {
+                            val baseName = file.nameWithoutExtension
+                            val nameArtist = baseName.substringBeforeLast(" [").split(" - ")
+                            files.add(Song(
+                                id = songId,
+                                name = nameArtist.getOrNull(0) ?: baseName,
+                                artist = nameArtist.getOrNull(1) ?: "Unknown",
+                                album = "Local Storage"
+                            ) to uri)
+                        } else {
+                            files.add(Song(
+                                id = "local_${file.name}",
+                                name = file.nameWithoutExtension,
+                                artist = "Local File",
+                                album = "Local Storage"
+                            ) to uri)
+                        }
                     }
                 }
             }
@@ -420,6 +448,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun loadInitialCache() {
         val application = getApplication<Application>()
+
+        val localCache = UserPreferences.getLocalSongsCache(application)
+        if (localCache != null) {
+            try {
+                val array = JsonParser.parseString(localCache).asJsonArray
+                localSongs = array.map {
+                    val obj = it.asJsonObject
+                    val song = com.ncm.player.util.JsonUtils.parseSong(obj.get("song"))!!
+                    val uri = android.net.Uri.parse(obj.get("uri").asString)
+                    song to uri
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+
         val recCache = UserPreferences.getRecommendedSongsCache(application)
         if (recCache != null) {
             try {

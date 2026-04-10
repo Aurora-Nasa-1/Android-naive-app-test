@@ -238,6 +238,7 @@ fun PlaylistDetailScreen(
         }
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                @Suppress("DEPRECATION")
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
         } else {

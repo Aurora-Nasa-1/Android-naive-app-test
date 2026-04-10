@@ -39,6 +39,7 @@ fun UserProfileScreen(
 ) {
     if (userProfile != null && userProfile.userId == 0L) {
          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+             @Suppress("DEPRECATION")
              CircularProgressIndicator()
          }
          return
@@ -65,6 +66,7 @@ fun UserProfileScreen(
     ) { innerPadding ->
         if (isLoading || userProfile == null) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                @Suppress("DEPRECATION")
                 CircularProgressIndicator()
             }
         } else {

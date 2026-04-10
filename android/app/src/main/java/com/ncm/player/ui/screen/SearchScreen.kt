@@ -124,6 +124,7 @@ fun SearchScreen(
 
         if (!active) {
             if (isLoading) {
+                @Suppress("DEPRECATION")
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 

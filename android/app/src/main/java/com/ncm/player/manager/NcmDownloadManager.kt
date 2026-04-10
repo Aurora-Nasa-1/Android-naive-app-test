@@ -76,7 +76,7 @@ class NcmDownloadManager(private val application: Application) {
                             val tree = DocumentFile.fromTreeUri(application, treeUri)
                             val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
                             val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-                            val fileName = "$sanitizedName - $sanitizedArtist.mp3"
+                            val fileName = "$sanitizedName - $sanitizedArtist [${song.id}].mp3"
                             val file = tree?.createFile("audio/mpeg", fileName)
 
                             if (file != null) {
@@ -146,7 +146,7 @@ class NcmDownloadManager(private val application: Application) {
                     val downloadUrl = url
                     val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
                     val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-                    val fileName = "$sanitizedName - $sanitizedArtist.mp3"
+                    val fileName = "$sanitizedName - $sanitizedArtist [${song.id}].mp3"
 
                     val request = DownloadManager.Request(Uri.parse(downloadUrl))
                         .setTitle("Downloading ${song.name}")

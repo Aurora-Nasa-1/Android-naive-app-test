@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
                     val context = LocalContext.current
 
                     LaunchedEffect(Unit) {
+                        com.ncm.player.util.DebugLog.i("MainActivity composition started")
                         playerViewModel.initController(context)
                         // Ensure service is running
                         try {
@@ -94,7 +95,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        recreate()
+        // Removed recreate() to prevent unnecessary activity resets and playback glitches
     }
 }
 
@@ -358,6 +359,9 @@ fun AppMainContent(
                             onNavigateToMessages = {
                                 navController.navigate("messages")
                             },
+                            onNavigateToLogs = {
+                                navController.navigate("logs")
+                            },
                             onNavigateToSettings = {
                                 navController.navigate("settings")
                             },
@@ -618,8 +622,15 @@ fun AppMainContent(
                         val isFavorite = currentSong?.let { playerViewModel.favoriteSongs.contains(it.id) } ?: false
                         val isDownloaded = currentSong?.let { completedSongs.contains(it.id) } ?: false
 
+                        if (useSideNav && currentSong != null) {
+                            LaunchedEffect(currentSong.id) {
+                                playerViewModel.fetchLyrics(currentSong.id)
+                            }
+                        }
+
                         PlayerScreen(
                             song = currentSong,
+                            lyrics = playerViewModel.currentLyrics,
                             isPlaying = playerViewModel.isPlaying,
                             currentPosition = playerViewModel.currentPosition,
                             duration = playerViewModel.duration,
@@ -667,6 +678,10 @@ fun AppMainContent(
                             onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
                             onRemoveQueueItem = { index -> playerViewModel.removeQueueItem(index) },
                             onClearQueue = { playerViewModel.clearQueue() },
+                            qualityWifi = playerViewModel.currentQualityWifi,
+                            qualityCellular = playerViewModel.currentQualityCellular,
+                            sampleRate = playerViewModel.currentSampleRate,
+                            bitrate = playerViewModel.currentBitrate,
                             onBackPressed = { navController.popBackStack() }
                         )
                     }
@@ -677,6 +692,9 @@ fun AppMainContent(
                             currentPosition = playerViewModel.currentPosition,
                             onBackPressed = { navController.popBackStack() }
                         )
+                    }
+                    composable("logs") {
+                        LogViewerScreen(onBackPressed = { navController.popBackStack() })
                     }
                 }
             }

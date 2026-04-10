@@ -26,6 +26,10 @@ class FadeAudioProcessor : BaseAudioProcessor() {
     }
 
     fun startFadeIn() {
+        if (fadeDurationFrames == 0L) {
+            isFadingIn = false
+            return
+        }
         currentFrameCount = 0
         isFadingIn = true
         isFadingOut = false
@@ -39,9 +43,7 @@ class FadeAudioProcessor : BaseAudioProcessor() {
 
     override fun onFlush() {
         super.onFlush()
-        // ExoPlayer flushes processors on seek or when starting a new item.
-        // We trigger fade-in here to ensure it aligns perfectly with the first audio samples.
-        startFadeIn()
+        // Removed automatic startFadeIn() on flush to prevent glitches during track transition/loading
     }
 
     override fun onConfigure(inputAudioFormat: AudioFormat): AudioFormat {

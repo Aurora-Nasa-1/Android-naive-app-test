@@ -16,6 +16,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 class NCMApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
+        com.ncm.player.util.DebugLog.i("Application onCreate")
         com.ncm.player.manager.DownloadRegistry.init(this)
         // Start Rust Backend Service at the earliest moment
         val serviceIntent = Intent(this, RustServerService::class.java)

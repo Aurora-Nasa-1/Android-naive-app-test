@@ -12,18 +12,19 @@ object DebugLog {
         if (BuildConfig.DEBUG) {
             Log.d(TAG, message)
         }
+        LogManager.log("D", message)
     }
 
     fun e(message: String, throwable: Throwable? = null) {
-        if (BuildConfig.DEBUG) {
-            Log.e(TAG, message, throwable)
-        }
+        Log.e(TAG, message, throwable)
+        LogManager.log("E", message, throwable)
     }
 
     fun i(message: String) {
         if (BuildConfig.DEBUG) {
             Log.i(TAG, message)
         }
+        LogManager.log("I", message)
     }
 
     fun toast(context: Context, message: String) {

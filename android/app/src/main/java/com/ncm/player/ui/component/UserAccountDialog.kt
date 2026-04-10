@@ -24,8 +24,11 @@ import com.ncm.player.model.UserProfile
 fun UserAccountDialog(
     userProfile: UserProfile?,
     versionName: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onNavigateToLogs: () -> Unit = {}
 ) {
+    var tapCount by remember { mutableStateOf(0) }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = MaterialTheme.shapes.extraLarge,
@@ -107,7 +110,13 @@ fun UserAccountDialog(
                         Text(
                             text = "Version $versionName",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.clickable {
+                                tapCount++
+                                if (tapCount >= 7) {
+                                    onNavigateToLogs()
+                                }
+                            }
                         )
                     }
                 }

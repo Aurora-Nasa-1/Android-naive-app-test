@@ -58,12 +58,10 @@ class NcmDataSource(
         val params = mutableMapOf("id" to songId, "level" to quality)
         cookie?.let { params["cookie"] = it }
 
-        val result = RustServerManager.callApi("song/url/v1/302", params)
+        val result = RustServerManager.callApi("song/url/v1", params)
         val body = JsonParser.parseString(result).asJsonObject
 
-        // 302 response in our Rust API returns { "redirectUrl": "..." }
-        val cdnUrl = body.get("redirectUrl")?.asString
-            ?: JsonUtils.findUrl(body) // Fallback if it wasn't a 302-wrapped response
+        val cdnUrl = JsonUtils.findUrl(body)
             ?: throw IOException("Failed to resolve NCM URL for ID $songId: $result")
 
         val resolvedUri = Uri.parse(cdnUrl)

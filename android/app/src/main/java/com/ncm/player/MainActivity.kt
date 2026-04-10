@@ -39,7 +39,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.withContext
-import com.ncm.player.service.RustServerService
 import com.ncm.player.ui.component.BottomPlaybackBar
 import com.ncm.player.ui.component.DownloadIndicator
 import com.ncm.player.ui.screen.*
@@ -72,18 +71,6 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         com.ncm.player.util.DebugLog.i("MainActivity composition started")
                         playerViewModel.initController(context)
-                        // Ensure service is running
-                        try {
-                            val serviceIntent = Intent(context, RustServerService::class.java)
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                context.startForegroundService(serviceIntent)
-                            } else {
-                                context.startService(serviceIntent)
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("MainActivity", "Failed to start RustServerService", e)
-                        }
-
                     }
 
                     AppNavigation(loginViewModel, playerViewModel, useSideNav, intent)

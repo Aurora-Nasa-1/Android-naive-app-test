@@ -119,17 +119,12 @@ class MusicService : MediaSessionService() {
 
         player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isPlaying) {
-                    fadeAudioProcessor.startFadeIn()
-                }
                 updateMediaSessionLayout()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 android.util.Log.d("MusicService", "MediaItem transition to: ${mediaItem?.mediaId}")
                 updateMediaSessionLayout()
-                // Ensure fade-in on transition
-                fadeAudioProcessor.startFadeIn()
             }
 
             override fun onEvents(player: Player, events: Player.Events) {
@@ -156,7 +151,8 @@ class MusicService : MediaSessionService() {
                 mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY), args)
 
                 if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
-                    error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED) {
+                    error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                    error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
                     // Retry once on network/IO error
                     player?.let {
                         val currentItem = it.currentMediaItem

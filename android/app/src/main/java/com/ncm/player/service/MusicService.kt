@@ -92,9 +92,11 @@ class MusicService : MediaSessionService() {
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
 
+        val ncmDataSourceFactory = NcmDataSource.Factory(this, httpDataSourceFactory)
+
         val dataSourceFactory: DataSource.Factory = CacheDataSource.Factory()
             .setCache(getCache(this))
-            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(this, httpDataSourceFactory))
+            .setUpstreamDataSourceFactory(ncmDataSourceFactory)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
         val mediaSourceFactory = DefaultMediaSourceFactory(this)

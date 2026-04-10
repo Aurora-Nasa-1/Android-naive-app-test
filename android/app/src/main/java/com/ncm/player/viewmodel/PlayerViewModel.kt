@@ -865,11 +865,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         ncmDownloadManager.downloadSong(song, cookie, downloadQuality, allowCellular = true)
     }
 
+    private fun runWithController(action: (MediaController) -> Unit) {
+        val controller = mediaController
+        if (controller != null) {
+            action(controller)
+        } else {
+            mediaControllerFuture?.addListener({
+                mediaController?.let { action(it) }
+            }, MoreExecutors.directExecutor())
+        }
+    }
+
     fun playSong(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null, localUri: android.net.Uri? = null) {
         isFmMode = false // Reset FM mode on normal song play
         viewModelScope.launch {
             try {
-                mediaController?.let { controller ->
+                isLoading = true
+                runWithController { controller ->
                     controller.stop()
                     controller.clearMediaItems()
 
@@ -877,30 +889,24 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     val startIndex = targetPlaylist.indexOf(song).coerceAtLeast(0)
 
                     val mediaItems = targetPlaylist.map { s ->
-                        if (s.id == song.id && localUri != null) {
-                            createMediaItem(s, localUri = localUri)
-                        } else {
-                            createMediaItem(s, cookie)
-                        }
+                        createMediaItem(s, cookie)
                     }
 
                     controller.setMediaItems(mediaItems, startIndex, 0L)
                     controller.prepare()
                     controller.play()
+                    isLoading = false
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-            } finally {
-                withContext(Dispatchers.Main) {
-                    isLoading = false
-                }
+                isLoading = false
             }
         }
     }
 
 
     fun toggleRepeatMode() {
-        mediaController?.let { controller ->
+        runWithController { controller ->
             val nextMode = when (controller.repeatMode) {
                 Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
                 Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
@@ -912,7 +918,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun toggleShuffleMode() {
-        mediaController?.let { controller ->
+        runWithController { controller ->
             val nextMode = !controller.shuffleModeEnabled
             controller.shuffleModeEnabled = nextMode
             shuffleMode = nextMode
@@ -920,21 +926,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun addToQueue(song: Song, cookie: String? = null) {
-        mediaController?.let { controller ->
+        runWithController { controller ->
             val mediaItem = createMediaItem(song, cookie)
             controller.addMediaItem(mediaItem)
         }
     }
 
     fun playNext(song: Song, cookie: String? = null) {
-        mediaController?.let { controller ->
+        runWithController { controller ->
             val mediaItem = createMediaItem(song, cookie)
             val nextIndex = if (controller.mediaItemCount > 0) controller.currentMediaItemIndex + 1 else 0
             controller.addMediaItem(nextIndex, mediaItem)
         }
     }
 
-    private fun createMediaItem(song: Song, cookie: String? = null, localUri: android.net.Uri? = null): MediaItem {
+    private fun createMediaItem(song: Song, cookie: String? = null): MediaItem {
         val extras = android.os.Bundle().apply {
             putString("artistId", song.artistId)
         }
@@ -946,44 +952,38 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             .setExtras(extras)
             .build()
 
-        // Check registry for local version even if localUri is not provided explicitly
-        val finalLocalUri = localUri ?: com.ncm.player.manager.DownloadRegistry.getMetadata(song.id)?.let {
-             android.net.Uri.parse(it.filePath)
-        }
+        val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
+        val uriBuilder = android.net.Uri.Builder()
+            .scheme("ncm")
+            .authority(song.id)
+            .appendQueryParameter("quality", quality)
 
-        val uri = if (finalLocalUri != null) {
-            finalLocalUri.toString()
-        } else {
-            val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
-            if (!cookie.isNullOrEmpty()) {
-                "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$quality&cookie=${URLEncoder.encode(cookie, "UTF-8")}"
-            } else {
-                "http://127.0.0.1:3000/song/url/v1/302?id=${song.id}&level=$quality"
-            }
+        if (!cookie.isNullOrEmpty()) {
+            uriBuilder.appendQueryParameter("cookie", cookie)
         }
 
         return MediaItem.Builder()
             .setMediaId(song.id)
-            .setUri(uri)
+            .setUri(uriBuilder.build())
             .setMediaMetadata(metadata)
             .build()
     }
 
     fun skipNext() {
-        mediaController?.seekToNext()
+        runWithController { it.seekToNext() }
     }
 
     fun skipPrevious() {
-        mediaController?.seekToPrevious()
+        runWithController { it.seekToPrevious() }
     }
 
     fun seekTo(position: Long) {
-        mediaController?.seekTo(position)
+        runWithController { it.seekTo(position) }
         currentPosition = position
     }
 
     fun togglePlayPause() {
-        mediaController?.let { controller ->
+        runWithController { controller ->
             if (controller.isPlaying) {
                 controller.pause()
             } else {
@@ -1039,9 +1039,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 val body = withContext(Dispatchers.IO) { callApi("personal_fm", mapOf("cookie" to (cookie ?: ""))) }
                 if (body.has("data") || body.has("result")) {
                     val songsJson = body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray
-                val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
+                    val songs = songsJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseSong(it) } ?: emptyList()
 
-                    mediaController?.let { controller ->
+                    runWithController { controller ->
                         songs.forEach { song ->
                             controller.addMediaItem(createMediaItem(song, cookie))
                         }
@@ -1059,7 +1059,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private fun playSongInternal(song: Song, playlist: List<Song> = emptyList(), cookie: String? = null) {
         viewModelScope.launch {
             try {
-                mediaController?.let { controller ->
+                runWithController { controller ->
                     controller.stop()
                     controller.clearMediaItems()
                     val targetPlaylist = if (playlist.isNotEmpty()) playlist else listOf(song)
@@ -1163,18 +1163,24 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun moveQueueItem(fromIndex: Int, toIndex: Int) {
-        mediaController?.moveMediaItem(fromIndex, toIndex)
-        updateQueue()
+        runWithController { controller ->
+            controller.moveMediaItem(fromIndex, toIndex)
+            updateQueue()
+        }
     }
 
     fun removeQueueItem(index: Int) {
-        mediaController?.removeMediaItem(index)
-        updateQueue()
+        runWithController { controller ->
+            controller.removeMediaItem(index)
+            updateQueue()
+        }
     }
 
     fun clearQueue() {
-        mediaController?.clearMediaItems()
-        updateQueue()
+        runWithController { controller ->
+            controller.clearMediaItems()
+            updateQueue()
+        }
     }
 
     private var contactsJob: Job? = null

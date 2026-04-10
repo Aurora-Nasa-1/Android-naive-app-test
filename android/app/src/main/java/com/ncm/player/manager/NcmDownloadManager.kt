@@ -85,12 +85,20 @@ class NcmDownloadManager(private val application: Application) {
                                         input.copyTo(output)
                                     }
                                 }
+                                // Try to get an absolute path if possible, fallback to URI
                                 finalFilePath = file.uri.toString()
                             } else {
                                 finalFilePath = uri.toString()
                             }
                         } else {
-                            finalFilePath = uri.toString()
+                            // Default public storage path
+                            val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+                            val ncmDir = File(musicDir, "NCMPlayer")
+                            val sanitizedName = song.name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                            val sanitizedArtist = song.artist.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                            val fileName = "$sanitizedName - $sanitizedArtist [${song.id}].mp3"
+                            val localFile = File(ncmDir, fileName)
+                            finalFilePath = if (localFile.exists()) localFile.absolutePath else uri.toString()
                         }
 
                         // Save to registry

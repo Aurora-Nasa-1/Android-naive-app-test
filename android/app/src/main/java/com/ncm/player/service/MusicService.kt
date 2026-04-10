@@ -98,6 +98,7 @@ class MusicService : MediaSessionService() {
 
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
+            .setUserAgent("NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
 
         val ncmDataSourceFactory = NcmDataSource.Factory(this, httpDataSourceFactory)
 

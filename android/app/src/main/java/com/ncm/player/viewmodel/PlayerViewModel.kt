@@ -453,11 +453,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (localCache != null) {
             try {
                 val array = JsonParser.parseString(localCache).asJsonArray
-                localSongs = array.map {
-                    val obj = it.asJsonObject
-                    val song = com.ncm.player.util.JsonUtils.parseSong(obj.get("song"))!!
-                    val uri = android.net.Uri.parse(obj.get("uri").asString)
-                    song to uri
+                localSongs = array.mapNotNull {
+                    try {
+                        val obj = it.asJsonObject
+                        val song = com.google.gson.Gson().fromJson(obj.get("song"), Song::class.java)
+                        val uri = android.net.Uri.parse(obj.get("uri").asString)
+                        song to uri
+                    } catch (e: Exception) { null }
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }

@@ -50,15 +50,6 @@
             </intent-filter>
         </service>
 
-        <service
-            android:name=".service.RustServerService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Backend API service for NCM Music Player"/>
-        </service>
-
     </application>
 
 </manifest>

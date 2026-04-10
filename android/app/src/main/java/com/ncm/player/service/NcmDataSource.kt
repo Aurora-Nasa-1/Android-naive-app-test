@@ -75,9 +75,14 @@ class NcmDataSource(
         val resolvedDataSpec = dataSpec.withUri(resolvedUri)
 
         activeDataSource = httpDataSource
-        val bytesRead = httpDataSource.open(resolvedDataSpec)
-        transferStarted(dataSpec)
-        return bytesRead
+        return try {
+            val bytesRead = httpDataSource.open(resolvedDataSpec)
+            transferStarted(dataSpec)
+            bytesRead
+        } catch (e: IOException) {
+            DebugLog.e("NcmDS: HTTP open failed for $songId: ${e.message}", e)
+            throw e
+        }
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {

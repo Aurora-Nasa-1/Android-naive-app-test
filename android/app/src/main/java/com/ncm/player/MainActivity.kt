@@ -472,7 +472,8 @@ fun AppMainContent(
                         DownloadsScreen(
                             onBackPressed = { navController.popBackStack() },
                             onPlayLocalSong = { song, uri ->
-                                playerViewModel.playSong(song, localUri = uri)
+                                val playlist = playerViewModel.localSongs.map { it.first }
+                                playerViewModel.playSong(song, playlist, localUri = uri)
                                 navController.navigate("player") {
                                     launchSingleTop = true
                                 }

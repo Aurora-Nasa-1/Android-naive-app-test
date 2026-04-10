@@ -50,7 +50,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
                 )
             }
             else -> {
-                @Suppress("DEPRECATION")
+
                 CircularProgressIndicator()
             }
         }

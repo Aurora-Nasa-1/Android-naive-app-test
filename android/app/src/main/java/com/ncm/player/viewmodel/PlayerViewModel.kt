@@ -180,6 +180,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             withContext(Dispatchers.Main) {
                 localSongs = list
                 lastLocalSongsScanTime = System.currentTimeMillis()
+
+                // Save to cache
+                try {
+                    val array = com.google.gson.JsonArray()
+                    list.forEach { (song, uri) ->
+                        val obj = com.google.gson.JsonObject()
+                        val songObj = com.google.gson.JsonParser.parseString(com.google.gson.Gson().toJson(song)).asJsonObject
+                        obj.add("song", songObj)
+                        obj.addProperty("uri", uri.toString())
+                        array.add(obj)
+                    }
+                    UserPreferences.saveLocalSongsCache(getApplication(), array.toString())
+                } catch (e: Exception) {
+                    DebugLog.e("PlayerVM: Failed to save local songs cache", e)
+                }
             }
         }
     }
@@ -1050,19 +1065,26 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             .setExtras(extras)
             .build()
 
-        val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
-        val uriBuilder = android.net.Uri.Builder()
-            .scheme("ncm")
-            .authority(song.id)
-            .appendQueryParameter("quality", quality)
+        val localUri = localSongs.find { it.first.id == song.id }?.second
+        val mediaUri = if (localUri != null) {
+            DebugLog.d("PlayerVM: createMediaItem: Using direct local URI for ${song.id}")
+            localUri
+        } else {
+            val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
+            val uriBuilder = android.net.Uri.Builder()
+                .scheme("ncm")
+                .authority(song.id)
+                .appendQueryParameter("quality", quality)
 
-        if (!cookie.isNullOrEmpty()) {
-            uriBuilder.appendQueryParameter("cookie", cookie)
+            if (!cookie.isNullOrEmpty()) {
+                uriBuilder.appendQueryParameter("cookie", cookie)
+            }
+            uriBuilder.build()
         }
 
         return MediaItem.Builder()
             .setMediaId(song.id)
-            .setUri(uriBuilder.build())
+            .setUri(mediaUri)
             .setMediaMetadata(metadata)
             .build()
     }

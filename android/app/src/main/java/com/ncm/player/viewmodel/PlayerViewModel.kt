@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -22,6 +23,8 @@ import com.ncm.player.model.Song
 import com.ncm.player.model.UserProfile
 import com.ncm.player.model.Contact
 import com.ncm.player.model.Message
+import com.ncm.player.model.Comment
+import com.ncm.player.model.Event
 import com.ncm.player.service.MusicService
 import com.ncm.player.util.UserPreferences
 import com.ncm.player.util.DebugLog
@@ -83,6 +86,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val ncmDownloadManager = com.ncm.player.manager.NcmDownloadManager(application)
 
     var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
+
+    var hotComments by mutableStateOf<List<Comment>>(emptyList())
+    var newestComments by mutableStateOf<List<Comment>>(emptyList())
+    var commentTotal by mutableIntStateOf(0)
+    var isCommentsLoading by mutableStateOf(false)
+    var currentCommentPage by mutableIntStateOf(0)
+    var hasMoreComments by mutableStateOf(true)
+
+    var events by mutableStateOf<List<Event>>(emptyList())
+    var isEventsLoading by mutableStateOf(false)
+
+    var sleepTimerRemaining by mutableLongStateOf(0L)
+    private var sleepTimerJob: Job? = null
 
     var repeatMode by mutableStateOf(Player.REPEAT_MODE_OFF)
     var shuffleMode by mutableStateOf(false)
@@ -1352,6 +1368,153 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private var profileFetchJob: Job? = null
+
+    fun startSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        if (minutes <= 0) {
+            sleepTimerRemaining = 0L
+            return
+        }
+        sleepTimerRemaining = minutes * 60 * 1000L
+        sleepTimerJob = viewModelScope.launch {
+            while (sleepTimerRemaining > 0) {
+                delay(1000)
+                sleepTimerRemaining -= 1000
+            }
+            runWithController { it.pause() }
+            sleepTimerRemaining = 0L
+        }
+    }
+
+    fun fetchComments(id: String, type: String = "music", cookie: String? = null, page: Int = 0) {
+        if (page == 0) {
+            hotComments = emptyList()
+            newestComments = emptyList()
+            currentCommentPage = 0
+            hasMoreComments = true
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                withContext(Dispatchers.Main) { isCommentsLoading = true }
+                val method = when (type) {
+                    "music" -> "comment/music"
+                    "playlist" -> "comment/playlist"
+                    "album" -> "comment/album"
+                    "video" -> "comment/video"
+                    "dj" -> "comment/dj"
+                    "event" -> "comment/event"
+                    else -> "comment/music"
+                }
+
+                val params = mutableMapOf(
+                    "id" to id,
+                    "limit" to "20",
+                    "offset" to (page * 20).toString()
+                )
+                if (!cookie.isNullOrEmpty()) params["cookie"] = cookie
+
+                val body = callApi(method, params)
+
+                val hot = body.get("hotComments")?.asJsonArray?.mapNotNull { com.ncm.player.util.JsonUtils.parseComment(it) } ?: emptyList()
+                val new = body.get("comments")?.asJsonArray?.mapNotNull { com.ncm.player.util.JsonUtils.parseComment(it) } ?: emptyList()
+                val total = body.get("total")?.asInt ?: 0
+                val more = body.get("more")?.asBoolean ?: false
+
+                withContext(Dispatchers.Main) {
+                    if (page == 0) hotComments = hot
+                    newestComments = if (page == 0) new else newestComments + new
+                    commentTotal = total
+                    hasMoreComments = more
+                    currentCommentPage = page
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isCommentsLoading = false }
+            }
+        }
+    }
+
+    fun toggleCommentLike(id: String, cid: Long, type: String, liked: Boolean, cookie: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val t = when (type) {
+                    "music" -> "0"
+                    "mv" -> "1"
+                    "playlist" -> "2"
+                    "album" -> "3"
+                    "dj" -> "4"
+                    "video" -> "5"
+                    "event" -> "6"
+                    else -> "0"
+                }
+                callApi("comment/like", mapOf(
+                    "id" to id,
+                    "cid" to cid.toString(),
+                    "t" to t,
+                    "type" to if (liked) "1" else "0",
+                    "cookie" to cookie
+                ))
+                // Refresh comments or update local state
+                withContext(Dispatchers.Main) {
+                    val update: (Comment) -> Comment = {
+                        if (it.id == cid) it.copy(liked = liked, likedCount = it.likedCount + if (liked) 1 else -1) else it
+                    }
+                    hotComments = hotComments.map(update)
+                    newestComments = newestComments.map(update)
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun postComment(id: String, type: String, content: String, cookie: String, replyId: Long? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val t = when (type) {
+                    "music" -> "0"
+                    "mv" -> "1"
+                    "playlist" -> "2"
+                    "album" -> "3"
+                    "dj" -> "4"
+                    "video" -> "5"
+                    "event" -> "6"
+                    else -> "0"
+                }
+                val params = mutableMapOf(
+                    "id" to id,
+                    "type" to t,
+                    "content" to content,
+                    "cookie" to cookie,
+                    "op" to if (replyId != null) "reply" else "add"
+                )
+                if (replyId != null) params["commentId"] = replyId.toString()
+
+                val body = callApi("comment", params)
+                if (body.get("code")?.asInt == 200) {
+                    fetchComments(id, type, cookie, 0)
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun fetchEvents(cookie: String?) {
+        if (cookie.isNullOrEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                withContext(Dispatchers.Main) { isEventsLoading = true }
+                val body = callApi("event", mapOf("cookie" to cookie))
+                val eventList = body.get("event")?.asJsonArray?.mapNotNull { com.ncm.player.util.JsonUtils.parseEvent(it) } ?: emptyList()
+                withContext(Dispatchers.Main) {
+                    events = eventList
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) { isEventsLoading = false }
+            }
+        }
+    }
 
     fun fetchOtherUserProfile(uid: Long, cookie: String?) {
         profileFetchJob?.cancel()

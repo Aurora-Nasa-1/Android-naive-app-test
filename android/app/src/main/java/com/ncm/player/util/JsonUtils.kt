@@ -7,6 +7,9 @@ import com.google.gson.JsonParser
 import com.ncm.player.model.Song
 import com.ncm.player.model.Contact
 import com.ncm.player.model.Message
+import com.ncm.player.model.Comment
+import com.ncm.player.model.Event
+import com.ncm.player.model.Playlist
 
 object JsonUtils {
     fun parseSong(it: JsonElement): Song? {
@@ -29,6 +32,82 @@ object JsonUtils {
                 artistId = artistId,
                 album = albumName,
                 albumArtUrl = picUrl
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun parseComment(it: JsonElement): Comment? {
+        return try {
+            val obj = it.asJsonObject
+            val user = obj.get("user").asJsonObject
+            val beReplied = obj.get("beReplied")?.asJsonArray?.mapNotNull {
+                val replyObj = it.asJsonObject
+                val replyUser = replyObj.get("user")?.asJsonObject
+                if (replyUser != null) {
+                    Comment.Reply(
+                        userId = replyUser.get("userId").asLong,
+                        nickname = replyUser.get("nickname").asString,
+                        content = replyObj.get("content").asString
+                    )
+                } else null
+            }
+
+            Comment(
+                id = obj.get("commentId").asLong,
+                userId = user.get("userId").asLong,
+                nickname = user.get("nickname").asString,
+                avatarUrl = user.get("avatarUrl").asString,
+                content = obj.get("content").asString,
+                time = obj.get("time").asLong,
+                timeStr = obj.get("timeStr")?.asString ?: "",
+                likedCount = obj.get("likedCount").asInt,
+                liked = obj.get("liked").asBoolean,
+                replyCount = obj.get("replyCount")?.asInt ?: 0,
+                beReplied = beReplied
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun parseEvent(it: JsonElement): Event? {
+        return try {
+            val obj = it.asJsonObject
+            val user = obj.get("user").asJsonObject
+            val jsonStr = obj.get("json").asString
+            val eventJson = JsonParser.parseString(jsonStr).asJsonObject
+
+            var song: Song? = null
+            var playlist: Playlist? = null
+
+            if (eventJson.has("song")) {
+                song = parseSong(eventJson.get("song"))
+            } else if (eventJson.has("playlist")) {
+                val plObj = eventJson.get("playlist").asJsonObject
+                playlist = Playlist(
+                    id = plObj.get("id").asLong,
+                    name = plObj.get("name").asString,
+                    coverImgUrl = plObj.get("coverImgUrl").asString,
+                    trackCount = plObj.get("trackCount")?.asInt ?: 0
+                )
+            }
+
+            val pics = obj.get("pics")?.asJsonArray?.map { it.asJsonObject.get("pcurl").asString } ?: emptyList()
+
+            Event(
+                id = obj.get("id").asLong,
+                userId = user.get("userId").asLong,
+                nickname = user.get("nickname").asString,
+                avatarUrl = user.get("avatarUrl").asString,
+                eventTime = obj.get("eventTime").asLong,
+                type = obj.get("type").asInt,
+                json = jsonStr,
+                msg = eventJson.get("msg")?.asString ?: "",
+                pics = pics,
+                song = song,
+                playlist = playlist
             )
         } catch (e: Exception) {
             null

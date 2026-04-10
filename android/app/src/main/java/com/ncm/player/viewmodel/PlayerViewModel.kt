@@ -1503,12 +1503,25 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) { isEventsLoading = true }
+                DebugLog.d("Fetching events...")
                 val body = callApi("event", mapOf("cookie" to cookie))
-                val eventList = body.get("event")?.asJsonArray?.mapNotNull { com.ncm.player.util.JsonUtils.parseEvent(it) } ?: emptyList()
+                DebugLog.d("Event response code: ${body.get("code")}")
+
+                val eventJson = when {
+                    body.has("event") && body.get("event").isJsonArray -> body.get("event").asJsonArray
+                    body.has("data") && body.get("data").isJsonArray -> body.get("data").asJsonArray
+                    body.has("events") && body.get("events").isJsonArray -> body.get("events").asJsonArray
+                    else -> null
+                }
+
+                val eventList = eventJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseEvent(it) } ?: emptyList()
+                DebugLog.d("Parsed ${eventList.size} events")
+
                 withContext(Dispatchers.Main) {
                     events = eventList
                 }
             } catch (e: Exception) {
+                DebugLog.e("Error fetching events", e)
                 e.printStackTrace()
             } finally {
                 withContext(Dispatchers.Main) { isEventsLoading = false }

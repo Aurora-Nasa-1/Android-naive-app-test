@@ -1,5 +1,11 @@
 package com.ncm.player.ui.component
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -68,11 +74,19 @@ fun CommentItem(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { onLikeClick() }
                 ) {
-                    Text(
-                        text = if (comment.likedCount > 0) comment.likedCount.toString() else "",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                    )
+                    AnimatedContent(
+                        targetState = comment.likedCount,
+                        transitionSpec = {
+                            scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith scaleOut()
+                        },
+                        label = "LikeCountAnimation"
+                    ) { count ->
+                        Text(
+                            text = if (count > 0) count.toString() else "",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                        )
+                    }
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = if (comment.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,

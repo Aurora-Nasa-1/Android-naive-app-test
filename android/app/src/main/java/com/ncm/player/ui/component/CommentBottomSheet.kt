@@ -1,11 +1,16 @@
 package com.ncm.player.ui.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,9 +61,9 @@ fun CommentBottomSheet(
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
                 text = "Comments ($totalCount)",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
 
             Box(modifier = Modifier.weight(1f)) {
@@ -71,18 +76,24 @@ fun CommentBottomSheet(
                         item {
                             Text(
                                 text = "Hot Comments",
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                         items(hotComments, key = { "hot_${it.id}" }) { comment ->
-                            CommentItem(
-                                comment = comment,
-                                onLikeClick = { onLikeClick(comment) },
-                                onReplyClick = { onReplyClick(comment) },
-                                onAvatarClick = { onAvatarClick(comment.userId) }
-                            )
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn() + slideInVertically()
+                            ) {
+                                CommentItem(
+                                    comment = comment,
+                                    onLikeClick = { onLikeClick(comment) },
+                                    onReplyClick = { onReplyClick(comment) },
+                                    onAvatarClick = { onAvatarClick(comment.userId) }
+                                )
+                            }
                         }
                     }
 
@@ -90,18 +101,24 @@ fun CommentBottomSheet(
                         item {
                             Text(
                                 text = "Newest Comments",
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                         items(newestComments, key = { "new_${it.id}" }) { comment ->
-                            CommentItem(
-                                comment = comment,
-                                onLikeClick = { onLikeClick(comment) },
-                                onReplyClick = { onReplyClick(comment) },
-                                onAvatarClick = { onAvatarClick(comment.userId) }
-                            )
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn() + slideInVertically()
+                            ) {
+                                CommentItem(
+                                    comment = comment,
+                                    onLikeClick = { onLikeClick(comment) },
+                                    onReplyClick = { onReplyClick(comment) },
+                                    onAvatarClick = { onAvatarClick(comment.userId) }
+                                )
+                            }
                         }
                     }
 
@@ -126,35 +143,42 @@ fun CommentBottomSheet(
             }
 
             Surface(
-                tonalElevation = 2.dp,
-                modifier = Modifier.fillMaxWidth()
+                tonalElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                         .windowInsetsPadding(WindowInsets.ime),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextField(
+                    OutlinedTextField(
                         value = commentText,
                         onValueChange = { commentText = it },
                         placeholder = { Text("Add a comment...") },
                         modifier = Modifier.weight(1f),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
+                        shape = CircleShape,
+                        maxLines = 4,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
                     )
-                    IconButton(
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilledIconButton(
                         onClick = {
                             if (commentText.isNotBlank()) {
                                 onPostComment(commentText)
                                 commentText = ""
                             }
                         },
-                        enabled = commentText.isNotBlank()
+                        enabled = commentText.isNotBlank(),
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send")
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                     }
                 }
             }

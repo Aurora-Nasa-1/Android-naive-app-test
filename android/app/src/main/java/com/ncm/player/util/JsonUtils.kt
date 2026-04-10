@@ -75,8 +75,12 @@ object JsonUtils {
     fun parseEvent(it: JsonElement): Event? {
         return try {
             val obj = it.asJsonObject
-            val user = obj.get("user").asJsonObject
-            val jsonStr = obj.get("json").asString
+            val user = when {
+                obj.has("user") -> obj.get("user").asJsonObject
+                obj.has("author") -> obj.get("author").asJsonObject
+                else -> return null
+            }
+            val jsonStr = obj.get("json")?.asString ?: "{}"
             val eventJson = JsonParser.parseString(jsonStr).asJsonObject
 
             var song: Song? = null

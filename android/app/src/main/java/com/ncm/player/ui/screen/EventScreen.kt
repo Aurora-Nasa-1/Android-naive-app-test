@@ -1,5 +1,8 @@
 package com.ncm.player.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -57,11 +60,16 @@ fun EventScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(events, key = { it.id }) { event ->
-                        EventItem(
-                            event = event,
-                            onSongClick = onSongClick,
-                            onAvatarClick = { onAvatarClick(event.userId) }
-                        )
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn() + slideInVertically()
+                        ) {
+                            EventItem(
+                                event = event,
+                                onSongClick = onSongClick,
+                                onAvatarClick = { onAvatarClick(event.userId) }
+                            )
+                        }
                     }
                 }
             }
@@ -78,13 +86,15 @@ fun EventItem(
     val sdf = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     val date = sdf.format(Date(event.eventTime))
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-            .padding(12.dp)
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = event.avatarUrl,
                 contentDescription = null,
@@ -180,4 +190,5 @@ fun EventItem(
             }
         }
     }
+}
 }

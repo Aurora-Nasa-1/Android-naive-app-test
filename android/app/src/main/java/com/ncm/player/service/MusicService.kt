@@ -72,7 +72,7 @@ class MusicService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        android.util.Log.d("MusicService", "Service onCreate")
+        com.ncm.player.util.DebugLog.i("MusicService: Service onCreate")
 
         val fadeDuration = UserPreferences.getFadeDuration(this)
         fadeAudioProcessor.setFadeDuration((fadeDuration * 1000).toLong())
@@ -119,11 +119,12 @@ class MusicService : MediaSessionService() {
 
         player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                com.ncm.player.util.DebugLog.d("MusicService: onIsPlayingChanged: $isPlaying")
                 updateMediaSessionLayout()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                android.util.Log.d("MusicService", "MediaItem transition to: ${mediaItem?.mediaId}")
+                com.ncm.player.util.DebugLog.d("MusicService: MediaItem transition to: ${mediaItem?.mediaId}, reason: $reason")
                 updateMediaSessionLayout()
             }
 
@@ -133,7 +134,7 @@ class MusicService : MediaSessionService() {
                 }
                 if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
                     val state = player.playbackState
-                    android.util.Log.d("MusicService", "Playback State changed: $state, isPlaying: ${player.isPlaying}")
+                    com.ncm.player.util.DebugLog.d("MusicService: Playback State changed: $state, isPlaying: ${player.isPlaying}")
                     updateMediaSessionLayout()
                     if (state == Player.STATE_READY) {
                         startPlaybackInfoLoop()

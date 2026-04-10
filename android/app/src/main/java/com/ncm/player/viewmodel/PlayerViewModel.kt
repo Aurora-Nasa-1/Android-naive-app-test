@@ -310,6 +310,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun initController(context: Context) {
+        DebugLog.i("PlayerVM: Initializing MediaController...")
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
         mediaControllerFuture = MediaController.Builder(context, sessionToken)
             .setListener(object : MediaController.Listener {
@@ -342,7 +343,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             })
             .buildAsync()
         mediaControllerFuture?.addListener({
+            DebugLog.i("PlayerVM: MediaController connection listener triggered. isDone: ${mediaControllerFuture?.isDone}")
             mediaController?.let { controller ->
+                DebugLog.i("PlayerVM: MediaController connected successfully")
                 // Sync initial state when connected
                 isPlaying = controller.isPlaying
                 currentPosition = controller.currentPosition
@@ -914,10 +917,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private fun runWithController(action: (MediaController) -> Unit) {
         val controller = mediaController
         if (controller != null) {
+            DebugLog.d("PlayerVM: runWithController: Using existing controller")
             action(controller)
         } else {
+            DebugLog.d("PlayerVM: runWithController: Controller not ready, waiting...")
             mediaControllerFuture?.addListener({
-                mediaController?.let { action(it) }
+                mediaController?.let {
+                    DebugLog.d("PlayerVM: runWithController: Controller ready now, executing action")
+                    action(it)
+                } ?: DebugLog.e("PlayerVM: runWithController: Controller still null after waiting")
             }, MoreExecutors.directExecutor())
         }
     }

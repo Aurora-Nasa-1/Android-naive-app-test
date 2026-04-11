@@ -1505,16 +1505,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 withContext(Dispatchers.Main) { isEventsLoading = true }
                 DebugLog.d("Fetching events...")
                 val body = callApi("event", mapOf("cookie" to cookie))
-                DebugLog.d("Event response code: ${body.get("code")}")
+                DebugLog.d("Event response: $body")
 
                 val eventJson = when {
                     body.has("event") && body.get("event").isJsonArray -> body.get("event").asJsonArray
                     body.has("events") && body.get("events").isJsonArray -> body.get("events").asJsonArray
                     body.has("data") && body.get("data").isJsonArray -> body.get("data").asJsonArray
                     body.has("data") && body.get("data").isJsonObject && body.get("data").asJsonObject.has("events") -> body.get("data").asJsonObject.get("events").asJsonArray
+                    body.has("data") && body.get("data").isJsonObject && body.get("data").asJsonObject.has("event") -> body.get("data").asJsonObject.get("event").asJsonArray
                     body.has("actList") && body.get("actList").isJsonArray -> body.get("actList").asJsonArray
                     body.has("result") && body.get("result").isJsonArray -> body.get("result").asJsonArray
-                    else -> null
+                    else -> {
+                         // Search for any array field that might contain events
+                         body.entrySet().find { it.value.isJsonArray }?.value?.asJsonArray
+                    }
                 }
 
                 val eventList = eventJson?.mapNotNull { com.ncm.player.util.JsonUtils.parseEvent(it) } ?: emptyList()

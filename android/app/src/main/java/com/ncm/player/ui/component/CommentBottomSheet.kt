@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -25,19 +26,32 @@ fun CommentAnimatedItem(
     comment: Comment,
     onLikeClick: (Comment) -> Unit,
     onReplyClick: (Comment) -> Unit,
-    onAvatarClick: (Long) -> Unit
+    onAvatarClick: (Long) -> Unit,
+    shouldAnimate: Boolean = true,
+    hasAnimatedBefore: Boolean = false,
+    onAnimated: () -> Unit = {}
 ) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(index * 60L)
-        visible = true
+    var visible by remember(comment.id) { mutableStateOf(!shouldAnimate || hasAnimatedBefore) }
+    if (shouldAnimate && !hasAnimatedBefore) {
+        LaunchedEffect(comment.id) {
+            delay(index * 40L)
+            visible = true
+            onAnimated()
+        }
     }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = tween(400)) + slideInVertically(
+
+    val enterTransition = if (shouldAnimate) {
+        fadeIn(animationSpec = tween(400)) + slideInVertically(
             initialOffsetY = { it / 2 },
             animationSpec = tween(400, easing = EaseOutQuart)
         )
+    } else {
+        EnterTransition.None
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = enterTransition
     ) {
         CommentItem(
             comment = comment,
@@ -65,6 +79,7 @@ fun CommentBottomSheet(
 ) {
     var commentText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val animatedIds = rememberSaveable { mutableStateSetOf<Long>() }
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
@@ -81,7 +96,8 @@ fun CommentBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        modifier = Modifier.fillMaxHeight(0.9f)
+        modifier = Modifier.fillMaxHeight(0.9f),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
@@ -108,7 +124,16 @@ fun CommentBottomSheet(
                             )
                         }
                         itemsIndexed(hotComments, key = { _, c -> "hot_${c.id}" }) { index, comment ->
-                            CommentAnimatedItem(index, comment, onLikeClick, onReplyClick, onAvatarClick)
+                            CommentAnimatedItem(
+                                index = index,
+                                comment = comment,
+                                onLikeClick = onLikeClick,
+                                onReplyClick = onReplyClick,
+                                onAvatarClick = onAvatarClick,
+                                shouldAnimate = index < 15,
+                                hasAnimatedBefore = animatedIds.contains(comment.id),
+                                onAnimated = { animatedIds.add(comment.id) }
+                            )
                         }
                     }
 
@@ -123,7 +148,16 @@ fun CommentBottomSheet(
                             )
                         }
                         itemsIndexed(newestComments, key = { _, c -> "new_${c.id}" }) { index, comment ->
-                            CommentAnimatedItem(index % 10, comment, onLikeClick, onReplyClick, onAvatarClick)
+                            CommentAnimatedItem(
+                                index = index % 10,
+                                comment = comment,
+                                onLikeClick = onLikeClick,
+                                onReplyClick = onReplyClick,
+                                onAvatarClick = onAvatarClick,
+                                shouldAnimate = index < 15,
+                                hasAnimatedBefore = animatedIds.contains(comment.id),
+                                onAnimated = { animatedIds.add(comment.id) }
+                            )
                         }
                     }
 

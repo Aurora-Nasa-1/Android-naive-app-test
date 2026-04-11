@@ -266,9 +266,10 @@ fun PlayerScreen(
                     Column(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)
                     ) {
                         Surface(
                             modifier = Modifier
@@ -295,7 +296,7 @@ fun PlayerScreen(
                             }
                         }
 
-                        Column(modifier = Modifier.fillMaxWidth(0.85f)) {
+                        Column(modifier = Modifier.fillMaxWidth(0.9f)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -319,10 +320,10 @@ fun PlayerScreen(
                                     IconButton(onClick = {
                                         onCommentClick()
                                         showCommentBottomSheet = true
-                                    }, modifier = Modifier.size(40.dp)) {
+                                    }, modifier = Modifier.size(44.dp)) {
                                         Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", modifier = Modifier.size(28.dp))
                                     }
-                                    IconButton(onClick = onLikeClick, modifier = Modifier.size(40.dp)) {
+                                    IconButton(onClick = onLikeClick, modifier = Modifier.size(44.dp)) {
                                         AnimatedContent(
                                             targetState = isFavorite,
                                             label = "LikeAnimation",
@@ -341,6 +342,8 @@ fun PlayerScreen(
                                     }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             Slider(
                                 value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
@@ -361,24 +364,27 @@ fun PlayerScreen(
                                 Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
                             }
 
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = onShuffleClick, modifier = Modifier.size(40.dp)) {
+                                IconButton(onClick = onShuffleClick, modifier = Modifier.requiredSize(48.dp)) {
                                     Icon(
                                         Icons.Default.Shuffle,
                                         contentDescription = "Shuffle",
+                                        modifier = Modifier.size(26.dp),
                                         tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
                                     )
                                 }
-                                IconButton(onClick = onSkipPrevious, modifier = Modifier.size(48.dp)) {
-                                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(32.dp))
+                                IconButton(onClick = onSkipPrevious, modifier = Modifier.requiredSize(56.dp)) {
+                                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(36.dp))
                                 }
                                 FloatingActionButton(
                                     onClick = onPlayPause,
-                                    modifier = Modifier.size(56.dp),
+                                    modifier = Modifier.requiredSize(64.dp),
                                     shape = androidx.compose.foundation.shape.CircleShape,
                                     containerColor = Color.White,
                                     contentColor = Color.Black
@@ -386,13 +392,13 @@ fun PlayerScreen(
                                     Icon(
                                         if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                         contentDescription = "Play/Pause",
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(36.dp)
                                     )
                                 }
-                                IconButton(onClick = onSkipNext, modifier = Modifier.size(48.dp)) {
-                                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(32.dp))
+                                IconButton(onClick = onSkipNext, modifier = Modifier.requiredSize(56.dp)) {
+                                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(36.dp))
                                 }
-                                IconButton(onClick = onRepeatClick, modifier = Modifier.size(40.dp)) {
+                                IconButton(onClick = onRepeatClick, modifier = Modifier.requiredSize(48.dp)) {
                                     val icon = when (repeatMode) {
                                         Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
                                         else -> Icons.Default.Repeat
@@ -400,21 +406,24 @@ fun PlayerScreen(
                                     Icon(
                                         icon,
                                         contentDescription = "Repeat",
+                                        modifier = Modifier.size(26.dp),
                                         tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
                                     )
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                IconButton(onClick = { showQueueBottomSheet = true }, modifier = Modifier.size(40.dp)) {
-                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
+                                IconButton(onClick = { showQueueBottomSheet = true }, modifier = Modifier.size(44.dp)) {
+                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue", modifier = Modifier.size(28.dp))
                                 }
                                 Box {
-                                    IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(40.dp)) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                    IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(44.dp)) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(28.dp))
                                     }
                                     DropdownMenu(
                                         expanded = showMoreMenu,
@@ -467,11 +476,11 @@ fun PlayerScreen(
                     }
 
                     // Right Side: Lyrics
-                    Box(modifier = Modifier.weight(1.2f)) {
+                    Box(modifier = Modifier.weight(1.3f)) {
                         LyricContent(
                             lyrics = lyrics,
                             currentPosition = currentPosition,
-                            contentPadding = PaddingValues(vertical = 100.dp, horizontal = 0.dp)
+                            contentPadding = PaddingValues(vertical = 120.dp, horizontal = 0.dp)
                         )
                     }
                 }

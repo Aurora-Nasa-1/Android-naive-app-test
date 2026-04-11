@@ -40,18 +40,13 @@ fun LyricContent(
 
     LaunchedEffect(activeIndex) {
         if (lyrics.isNotEmpty() && activeIndex >= 0) {
-            // MD3 Expressive: Smooth centering of active lyric
-            val layoutInfo = listState.layoutInfo
-            val visibleItems = layoutInfo.visibleItemsInfo
-            val activeItem = visibleItems.find { it.index == activeIndex }
-
-            if (activeItem == null || activeItem.offset < 100 || activeItem.offset > layoutInfo.viewportEndOffset - 100) {
-                 // Item not visible or too close to edges, center it
-                 listState.animateScrollToItem(
-                     index = activeIndex,
-                     scrollOffset = -(screenHeightPx / 3).toInt()
-                 )
-            }
+            // MD3 Expressive: Precise centering of active lyric
+            // The goal is to align the item's top to (screenHeight/2 - itemHeight/2)
+            // Since we don't know itemHeight easily, we approximate with a 1/3 offset
+            listState.animateScrollToItem(
+                index = activeIndex,
+                scrollOffset = -(screenHeightPx / 2.2).toInt()
+            )
         }
     }
 

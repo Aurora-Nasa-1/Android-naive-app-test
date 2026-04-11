@@ -1317,8 +1317,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     songsWithPaths.add(Pair(song, tempFile.absolutePath))
                 } else {
-                    val resultStr = callApi("song/url/v1", mapOf("id" to song.id, "level" to "standard", "cookie" to (cookie ?: "")))
-                    val body = JsonParser.parseString(resultStr).asJsonObject
+                    val body = callApi("song/url/v1", mapOf("id" to song.id, "level" to "standard", "cookie" to (cookie ?: "")))
                     val dataArray = body.get("data")?.asJsonArray
                     val url = dataArray?.firstOrNull()?.asJsonObject?.get("url")?.asString
 

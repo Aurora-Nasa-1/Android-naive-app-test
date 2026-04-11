@@ -60,6 +60,7 @@ fun MainScreen(
     onPlaylistClick: (Playlist) -> Unit,
     onPersonalFmClick: () -> Unit,
     onHeartbeatClick: () -> Unit,
+    onLiveSortClick: () -> Unit,
     onLikeClick: (Song) -> Unit,
     onNavigateToMessages: () -> Unit,
     onNavigateToLogs: () -> Unit = {},
@@ -167,6 +168,9 @@ fun MainScreen(
                     }
                     itemsToRender.add { modifier ->
                         QuickAccessCard("Heartbeat", { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) }, onHeartbeatClick, modifier)
+                    }
+                    itemsToRender.add { modifier ->
+                        QuickAccessCard("LiveSort", { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.tertiary) }, onLiveSortClick, modifier)
                     }
                     displayPlaylists.forEach { playlist ->
                         itemsToRender.add { modifier ->

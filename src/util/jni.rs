@@ -7,8 +7,8 @@ use jni::JNIEnv;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
-use tracing_subscriber::prelude::*;
 use tokio::runtime::Runtime;
+use tracing_subscriber::prelude::*;
 
 static SERVER_STARTED: AtomicBool = AtomicBool::new(false);
 static API_CLIENT: OnceLock<ApiClient> = OnceLock::new();
@@ -115,6 +115,37 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_nativeC
             Err(e) => format!("{{\"code\": 500, \"msg\": \"{}\"}}", e),
         }
     });
+
+    env.new_string(result).unwrap().into_raw()
+}
+
+/// # Safety
+///
+/// Analyzes an audio file and returns its features as a JSON string.
+#[no_mangle]
+#[allow(unsafe_code)]
+pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_analyzeAudioFile(
+    mut env: JNIEnv,
+    _class: JClass,
+    path: JString,
+) -> jstring {
+    let path_str: String = match env.get_string(&path) {
+        Ok(s) => s.into(),
+        Err(_) => {
+            return env
+                .new_string("{\"error\": \"Invalid string\"}")
+                .unwrap()
+                .into_raw()
+        }
+    };
+
+    let result = match crate::util::livesort::analyze_audio_file(&path_str) {
+        Ok(features) => format!(
+            "{{\"bpm\": {}, \"energy\": {}, \"brightness\": {}}}",
+            features.bpm, features.energy, features.brightness
+        ),
+        Err(e) => format!("{{\"error\": \"{}\"}}", e.replace("\"", "\\\"")),
+    };
 
     env.new_string(result).unwrap().into_raw()
 }

@@ -36,6 +36,7 @@ class FadeAudioProcessor : BaseAudioProcessor() {
     }
 
     fun startFadeOut() {
+        if (isFadingOut) return
         currentFrameCount = 0
         isFadingIn = false
         isFadingOut = true

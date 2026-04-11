@@ -24,6 +24,24 @@ object RustServerManager {
     @JvmStatic
     private external fun nativeCallApi(method: String, paramsJson: String): String
 
+    @JvmStatic
+    private external fun analyzeAudioFile(path: String): String
+
+    fun analyzeAudio(path: String): String {
+        if (!isNativeLoaded) {
+            DebugLog.e("JNI: native library not loaded")
+            return "{\"code\": 500, \"msg\": \"Native library not loaded\"}"
+        }
+        return try {
+            val result = analyzeAudioFile(path)
+            DebugLog.d("JNI: analyzeAudio result length: ${result.length}")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "JNI analyzeAudio failed", e)
+            "{\"code\": 500, \"msg\": \"${e.message}\"}"
+        }
+    }
+
     fun callApi(method: String, params: Map<String, String>): String {
         if (!isNativeLoaded) {
             DebugLog.e("JNI: native library not loaded")

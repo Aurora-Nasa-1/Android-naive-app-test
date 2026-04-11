@@ -8,17 +8,28 @@ API_LEVEL=24
 
 # For standard environments, NDK might be elsewhere
 if [ ! -d "$NDK_PATH" ]; then
-    NDK_PATH=$(find /opt/android-sdk/ndk -maxdepth 1 -mindepth 1 | head -n 1)
+    NDK_PATH=$(find /opt/android-sdk/ndk -maxdepth 1 -mindepth 1 | head -n 1 2>/dev/null || echo "")
+    if [ -z "$NDK_PATH" ] || [ ! -d "$NDK_PATH" ]; then
+        NDK_PATH=$(ls -d ~/Android/Sdk/ndk/* | head -n 1 2>/dev/null || echo "")
+    fi
     echo "Using NDK at $NDK_PATH"
 fi
 
-targets=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android" "i686-linux-android")
+export ANDROID_NDK_HOME="$NDK_PATH"
 
-for target in "${targets[@]}"; do
+cargo_targets=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android" "i686-linux-android")
+ndk_targets=("arm64-v8a" "armeabi-v7a" "x86_64" "x86")
+
+for i in "${!cargo_targets[@]}"; do
+    target="${cargo_targets[$i]}"
+    ndk_target="${ndk_targets[$i]}"
     echo "Building for $target..."
     # Support 16KB page size for Android 15+ (AOSP 16kb page size support)
     # Ref: https://developer.android.com/guide/practices/page-alignment
-    RUSTFLAGS="-Clink-arg=-Wl,-z,max-page-size=16384" cargo build --release --features server --bin ncm-server --target "$target"
+    RUSTFLAGS="-Clink-arg=-Wl,-z,max-page-size=16384" cargo ndk -t "$ndk_target" --platform $API_LEVEL build --release --features server,jni --bin ncm-server
+    
+    # Also explicitly build the library to be sure it's verified
+    RUSTFLAGS="-Clink-arg=-Wl,-z,max-page-size=16384" cargo ndk -t "$ndk_target" --platform $API_LEVEL build --release --features jni --lib
 done
 
 # Copy to android assets

@@ -281,15 +281,22 @@ class MusicService : MediaSessionService() {
             }
         })
 
-        // Regular position sync for Lyricon
+        // Regular position sync for Lyricon and Fade checking
         serviceScope.launch {
             while (true) {
                 player?.let {
                     if (it.isPlaying) {
                         lyriconProvider?.player?.setPosition(it.currentPosition)
+                        
+                        val dur = it.duration
+                        val pos = it.currentPosition
+                        val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
+                        if (dur != C.TIME_UNSET && dur - pos <= fadeDur && dur - pos > 0) {
+                            fadeAudioProcessor.startFadeOut()
+                        }
                     }
                 }
-                delay(500)
+                delay(100)
             }
         }
     }

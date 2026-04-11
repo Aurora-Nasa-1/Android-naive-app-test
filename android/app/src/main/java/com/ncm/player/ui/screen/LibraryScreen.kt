@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -28,6 +29,7 @@ fun LibraryScreen(
     userPlaylists: List<Playlist>,
     onPlaylistClick: (Playlist) -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToLiveSort: () -> Unit,
     onNavigateToSettings: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
@@ -76,6 +78,22 @@ fun LibraryScreen(
                         }
                     },
                     modifier = Modifier.clickable { onNavigateToDownloads() }
+                )
+            }
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
+                ListItem(
+                    headlineContent = { Text("LiveSort") },
+                    supportingContent = { Text("Smart playlist reordering") },
+                    leadingContent = {
+                        Surface(
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Icon(Icons.Default.AutoGraph, contentDescription = null, modifier = Modifier.padding(8.dp))
+                        }
+                    },
+                    modifier = Modifier.clickable { onNavigateToLiveSort() }
                 )
             }
             items(

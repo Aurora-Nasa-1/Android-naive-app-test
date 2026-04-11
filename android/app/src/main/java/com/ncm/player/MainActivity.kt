@@ -49,6 +49,7 @@ import com.ncm.player.viewmodel.PlayerViewModel
 class MainActivity : ComponentActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
     private val playerViewModel: PlayerViewModel by viewModels()
+    private val liveSortViewModel: com.ncm.player.viewmodel.LiveSortViewModel by viewModels()
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,7 +74,7 @@ class MainActivity : ComponentActivity() {
                         playerViewModel.initController(context)
                     }
 
-                    AppNavigation(loginViewModel, playerViewModel, useSideNav, intent)
+                    AppNavigation(loginViewModel, playerViewModel, liveSortViewModel, useSideNav, intent)
                 }
             }
         }
@@ -90,6 +91,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     loginViewModel: LoginViewModel,
     playerViewModel: PlayerViewModel,
+    liveSortViewModel: com.ncm.player.viewmodel.LiveSortViewModel,
     useSideNav: Boolean,
     intent: Intent? = null
 ) {
@@ -196,6 +198,7 @@ fun AppNavigation(
                 navController = navController,
                 loginViewModel = loginViewModel,
                 playerViewModel = playerViewModel,
+                liveSortViewModel = liveSortViewModel,
                 useSideNav = useSideNav,
                 hasBottomBar = hasBottomBar,
                 bottomBarHeight = bottomBarHeight,
@@ -216,6 +219,7 @@ fun AppNavigation(
                 navController = navController,
                 loginViewModel = loginViewModel,
                 playerViewModel = playerViewModel,
+                liveSortViewModel = liveSortViewModel,
                 useSideNav = useSideNav,
                 hasBottomBar = hasBottomBar,
                 bottomBarHeight = bottomBarHeight,
@@ -236,6 +240,7 @@ fun AppMainContent(
     navController: androidx.navigation.NavHostController,
     loginViewModel: LoginViewModel,
     playerViewModel: PlayerViewModel,
+    liveSortViewModel: com.ncm.player.viewmodel.LiveSortViewModel,
     useSideNav: Boolean,
     hasBottomBar: Boolean,
     bottomBarHeight: androidx.compose.ui.unit.Dp,
@@ -336,6 +341,9 @@ fun AppMainContent(
                                     com.ncm.player.util.DebugLog.toast(context, "No liked songs to start Heartbeat")
                                 }
                             },
+                            onLiveSortClick = {
+                                navController.navigate("livesort")
+                            },
                             onLikeClick = { song ->
                                 val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
                                 playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
@@ -401,6 +409,9 @@ fun AppMainContent(
                                 playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
                                 navController.navigate("playlist/${playlist.id}")
                             },
+                            onNavigateToLiveSort = {
+                                navController.navigate("livesort")
+                            },
                             onNavigateToDownloads = {
                                 navController.navigate("downloads")
                             },
@@ -408,6 +419,13 @@ fun AppMainContent(
                                 navController.navigate("settings")
                             },
                             bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
+                        )
+                    }
+                    composable("livesort") {
+                        LiveSortScreen(
+                            liveSortViewModel = liveSortViewModel,
+                            playerViewModel = playerViewModel,
+                            onBackPressed = { navController.popBackStack() }
                         )
                     }
                     composable("playlist/{playlistId}") { backStackEntry ->

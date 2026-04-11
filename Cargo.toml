@@ -37,6 +37,8 @@ rand = "0.8"
 hex = "0.4"
 base64 = "0.22"
 # Utils
+symphonia = { version = "0.5", features = ["all"] }
+rustfft = "6.2"
 thiserror = "2"
 urlencoding = "2"
 chrono = "0.4"

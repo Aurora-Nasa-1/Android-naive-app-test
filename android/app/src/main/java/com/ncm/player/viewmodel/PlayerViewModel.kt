@@ -32,6 +32,7 @@ import com.ncm.player.util.RustServerManager
 import java.io.File
 import java.net.URLEncoder
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
@@ -1280,6 +1281,83 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         runWithController { controller ->
             controller.clearMediaItems()
             updateQueue()
+        }
+    }
+
+    fun reorderQueueByLiveSort(liveSortViewModel: LiveSortViewModel, cookie: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>()
+            val cacheDir = java.io.File(context.cacheDir, "livesort_cache")
+            if (!cacheDir.exists()) cacheDir.mkdirs()
+
+            val songsWithPaths = mutableListOf<Pair<Song, String>>()
+            val queue = currentQueue.toList()
+
+            for (song in queue) {
+                val localUri = localSongs.find { it.first.id == song.id }?.second
+                if (localUri != null && localUri.scheme == "file") {
+                    songsWithPaths.add(Pair(song, localUri.path ?: ""))
+                } else if (localUri != null && localUri.scheme == "content") {
+                    val tempFile = java.io.File(cacheDir, "${song.id}_local.mp3")
+                    if (!tempFile.exists()) {
+                        context.contentResolver.openInputStream(localUri)?.use { input ->
+                            tempFile.outputStream().use { output -> input.copyTo(output) }
+                        }
+                    }
+                    songsWithPaths.add(Pair(song, tempFile.absolutePath))
+                } else {
+                    val result = callApi("song/url/v1", mapOf("id" to song.id, "level" to "standard", "cookie" to (cookie ?: "")))
+                    val dataArray = result.get("data")?.asJsonArray
+                    val url = dataArray?.firstOrNull()?.asJsonObject?.get("url")?.asString
+                    
+                    if (!url.isNullOrEmpty()) {
+                        val tempFile = java.io.File(cacheDir, "${song.id}.mp3")
+                        if (!tempFile.exists()) {
+                            try {
+                                val urlObj = java.net.URL(url)
+                                val connection = urlObj.openConnection() as java.net.HttpURLConnection
+                                connection.requestMethod = "GET"
+                                connection.connect()
+                                connection.inputStream.use { input ->
+                                    tempFile.outputStream().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                        if (tempFile.exists()) {
+                            songsWithPaths.add(Pair(song, tempFile.absolutePath))
+                        }
+                    }
+                }
+            }
+
+            liveSortViewModel.processPlaylist(songsWithPaths)
+
+            val finalState = liveSortViewModel.sortState.first { it is com.ncm.player.viewmodel.LiveSortState.Completed || it is com.ncm.player.viewmodel.LiveSortState.Error }
+
+            if (finalState is com.ncm.player.viewmodel.LiveSortState.Completed) {
+                val sortedSongs = finalState.sortedSongs.map { it.song }
+                withContext(Dispatchers.Main) {
+                    runWithController { controller ->
+                        val currentItem = controller.currentMediaItem
+                        val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
+                        
+                        controller.setMediaItems(mediaItems)
+                        val newIndex = sortedSongs.indexOfFirst { it.id == currentItem?.mediaId }.coerceAtLeast(0)
+                        controller.seekTo(newIndex, controller.currentPosition)
+                        controller.prepare()
+                        if (!controller.isPlaying) controller.play()
+                        updateQueue()
+                    }
+                }
+            } else if (finalState is com.ncm.player.viewmodel.LiveSortState.Error) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, "Live Sort failed: ${finalState.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 

@@ -12,6 +12,7 @@ import androidx.media3.datasource.ContentDataSource
 import com.ncm.player.manager.DownloadRegistry
 import com.ncm.player.util.RustServerManager
 import com.ncm.player.util.JsonUtils
+import com.ncm.player.util.DebugLog
 import com.google.gson.JsonParser
 import java.io.IOException
 
@@ -39,6 +40,7 @@ class NcmDataSource(
         // 1. Check local registry
         val metadata = DownloadRegistry.getMetadata(songId)
         if (metadata != null) {
+            DebugLog.d("NcmDS: Found local file for $songId: ${metadata.filePath}")
             val localUri = Uri.parse(metadata.filePath)
             val localDataSpec = dataSpec.withUri(localUri)
 
@@ -57,7 +59,6 @@ class NcmDataSource(
         // 2. Resolve via JNI
         val params = mutableMapOf("id" to songId, "level" to quality)
         cookie?.let { params["cookie"] = it }
-
         // Retry logic for unstable network or API errors (2000/1004)
         var lastError = ""
         var cdnUrl: String? = null
@@ -85,13 +86,19 @@ class NcmDataSource(
             throw IOException("Failed to resolve NCM URL for ID $songId after 3 attempts: $lastError")
         }
 
+        DebugLog.d("NcmDS: Resolved URL for $songId: $cdnUrl")
         val resolvedUri = Uri.parse(cdnUrl)
         val resolvedDataSpec = dataSpec.withUri(resolvedUri)
 
         activeDataSource = httpDataSource
-        val bytesRead = httpDataSource.open(resolvedDataSpec)
-        transferStarted(dataSpec)
-        return bytesRead
+        return try {
+            val bytesRead = httpDataSource.open(resolvedDataSpec)
+            transferStarted(dataSpec)
+            bytesRead
+        } catch (e: IOException) {
+            DebugLog.e("NcmDS: HTTP open failed for $songId: ${e.message}", e)
+            throw e
+        }
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {

@@ -124,6 +124,7 @@ fun SearchScreen(
 
         if (!active) {
             if (isLoading) {
+
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 

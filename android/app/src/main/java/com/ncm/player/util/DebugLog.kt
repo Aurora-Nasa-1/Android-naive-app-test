@@ -9,6 +9,7 @@ object DebugLog {
     private const val TAG = "NCMPlayerDebug"
 
     fun d(message: String) {
+  feature/song-comments-and-dynamics-13655779103225213096
         if (BuildConfig.DEBUG) {
             Log.d(TAG, message)
             LogManager.log("D", message)
@@ -21,6 +22,7 @@ object DebugLog {
     }
 
     fun i(message: String) {
+feature/song-comments-and-dynamics-13655779103225213096
         if (BuildConfig.DEBUG) {
             Log.i(TAG, message)
             LogManager.log("I", message)
@@ -28,8 +30,6 @@ object DebugLog {
     }
 
     fun toast(context: Context, message: String) {
-        if (BuildConfig.DEBUG) {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        }
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 }

@@ -1,8 +1,6 @@
 package com.ncm.player
 
 import android.app.Application
-import android.content.Intent
-import com.ncm.player.service.RustServerService
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.PlatformContext
@@ -18,13 +16,8 @@ class NCMApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         com.ncm.player.util.DebugLog.i("Application onCreate")
         com.ncm.player.manager.DownloadRegistry.init(this)
-        // Start Rust Backend Service at the earliest moment
-        val serviceIntent = Intent(this, RustServerService::class.java)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
+        // Start native server via JNI
+        com.ncm.player.util.RustServerManager.startServer(this)
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

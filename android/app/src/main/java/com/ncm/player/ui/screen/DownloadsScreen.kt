@@ -79,11 +79,13 @@ fun DownloadsScreen(
                                     )
                                 }
                                 if (task.progress >= 0f) {
+
                                     LinearProgressIndicator(
                                         progress = { task.progress },
                                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                                     )
                                 } else {
+
                                     LinearProgressIndicator(
                                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                                     )

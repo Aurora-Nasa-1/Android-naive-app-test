@@ -72,7 +72,7 @@ class MusicService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        android.util.Log.d("MusicService", "Service onCreate")
+        com.ncm.player.util.DebugLog.i("MusicService: Service onCreate")
 
         val fadeDuration = UserPreferences.getFadeDuration(this)
         fadeAudioProcessor.setFadeDuration((fadeDuration * 1000).toLong())
@@ -98,6 +98,7 @@ class MusicService : MediaSessionService() {
 
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
+            .setUserAgent("NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
 
         val ncmDataSourceFactory = NcmDataSource.Factory(this, httpDataSourceFactory)
 
@@ -119,17 +120,13 @@ class MusicService : MediaSessionService() {
 
         player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isPlaying) {
-                    fadeAudioProcessor.startFadeIn()
-                }
+                com.ncm.player.util.DebugLog.d("MusicService: onIsPlayingChanged: $isPlaying")
                 updateMediaSessionLayout()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                android.util.Log.d("MusicService", "MediaItem transition to: ${mediaItem?.mediaId}")
+                com.ncm.player.util.DebugLog.d("MusicService: MediaItem transition to: ${mediaItem?.mediaId}, reason: $reason")
                 updateMediaSessionLayout()
-                // Ensure fade-in on transition
-                fadeAudioProcessor.startFadeIn()
             }
 
             override fun onEvents(player: Player, events: Player.Events) {
@@ -138,7 +135,7 @@ class MusicService : MediaSessionService() {
                 }
                 if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
                     val state = player.playbackState
-                    android.util.Log.d("MusicService", "Playback State changed: $state, isPlaying: ${player.isPlaying}")
+                    com.ncm.player.util.DebugLog.d("MusicService: Playback State changed: $state, isPlaying: ${player.isPlaying}")
                     updateMediaSessionLayout()
                     if (state == Player.STATE_READY) {
                         startPlaybackInfoLoop()
@@ -156,7 +153,8 @@ class MusicService : MediaSessionService() {
                 mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY), args)
 
                 if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
-                    error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED) {
+                    error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                    error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
                     // Retry once on network/IO error
                     player?.let {
                         val currentItem = it.currentMediaItem

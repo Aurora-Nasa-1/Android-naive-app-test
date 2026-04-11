@@ -53,7 +53,9 @@ class NcmDataSource(
         if (metadata != null) {
             DebugLog.d("NcmDS: Found local file for $songId: ${metadata.filePath}")
             val localUri = Uri.parse(metadata.filePath)
-            val localDataSpec = dataSpec.withUri(localUri)
+            val localDataSpec = dataSpec.withUri(localUri).buildUpon()
+                .setKey(songId)
+                .build()
 
             val ds = when (localUri.scheme) {
                 "content" -> contentDataSource
@@ -94,11 +96,11 @@ class NcmDataSource(
                 val message = body.get("message")?.asString ?: body.get("msg")?.asString ?: "No URL in response"
                 lastError = "Code $code: $message"
 
-                if (code == 404 || code == 403) break // Don't retry on permanent errors
+                if (code == 404 || code == 403) break
             } catch (e: Exception) {
                 lastError = e.message ?: "Unknown error"
             }
-            if (attempt < 3) Thread.sleep(500L * attempt)
+            if (attempt < 3) Thread.sleep(200L * attempt)
         }
 
         if (cdnUrl == null || !cdnUrl.startsWith("http")) {
@@ -109,13 +111,18 @@ class NcmDataSource(
         DebugLog.d("NcmDS: Resolved URL for $songId: $cdnUrl")
         val resolvedUri = Uri.parse(cdnUrl)
         val resolvedDataSpec = dataSpec.withUri(resolvedUri).buildUpon()
-            .setCustomCacheKey(songId) // Force consistent cache key
+            .setKey(songId)
             .build()
 
         activeDataSource = httpDataSource
-        val bytesRead = httpDataSource.open(resolvedDataSpec)
-        transferStarted(dataSpec)
-        return bytesRead
+        return try {
+            val bytesRead = httpDataSource.open(resolvedDataSpec)
+            transferStarted(dataSpec)
+            bytesRead
+        } catch (e: IOException) {
+            DebugLog.e("NcmDS: HTTP open failed for $songId: ${e.message}")
+            throw e
+        }
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
@@ -132,8 +139,11 @@ class NcmDataSource(
 
     override fun close() {
         transferEnded()
-        activeDataSource?.close()
-        activeDataSource = null
+        try {
+            activeDataSource?.close()
+        } finally {
+            activeDataSource = null
+        }
     }
 
     class Factory(

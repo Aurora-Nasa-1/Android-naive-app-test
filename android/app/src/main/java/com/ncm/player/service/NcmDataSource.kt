@@ -3,11 +3,11 @@ package com.ncm.player.service
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.C
+import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.ContentDataSource
-import androidx.media3.datasource.TransferListener
 import com.ncm.player.manager.DownloadRegistry
 import com.ncm.player.util.RustServerManager
 import com.ncm.player.util.JsonUtils
@@ -15,24 +15,34 @@ import com.ncm.player.util.DebugLog
 import com.google.gson.JsonParser
 import java.io.IOException
 
+/**
+ * NcmDataSource handles ncm://songId URIs.
+ * It resolves them to either local files or CDN URLs.
+ * It extends BaseDataSource to ensure proper notification to CacheDataSource.
+ */
 class NcmDataSource(
     private val context: Context,
     private val httpDataSource: DataSource
-) : DataSource {
+) : BaseDataSource(/* isNetwork= */ true) {
 
     private val fileDataSource = FileDataSource()
     private val contentDataSource = ContentDataSource(context)
     private var activeDataSource: DataSource? = null
-
-    override fun addTransferListener(transferListener: TransferListener) {
-        httpDataSource.addTransferListener(transferListener)
-        fileDataSource.addTransferListener(transferListener)
-        contentDataSource.addTransferListener(transferListener)
-    }
+    private var openedDataSpec: DataSpec? = null
 
     override fun open(dataSpec: DataSpec): Long {
+        openedDataSpec = dataSpec
+        transferInitializing(dataSpec)
+
         val uri = dataSpec.uri
-        DebugLog.d("NcmDS: Opening URI: $uri")
+        val songId = if (uri.scheme == "ncm") uri.host else null
+
+        // Ensure consistent key for caching
+        val baseDataSpec = if (songId != null && dataSpec.key == null) {
+            dataSpec.buildUpon().setKey(songId).build()
+        } else {
+            dataSpec
+        }
 
         if (uri.scheme != "ncm") {
             val ds = when (uri.scheme) {
@@ -40,20 +50,21 @@ class NcmDataSource(
                 else -> fileDataSource
             }
             activeDataSource = ds
-            return ds.open(dataSpec)
+            val bytesRead = ds.open(dataSpec)
+            transferStarted(baseDataSpec)
+            return bytesRead
         }
 
-        val songId = uri.host ?: throw IOException("Invalid song ID in URI: $uri")
+        val id = songId ?: throw IOException("Invalid song ID in URI: $uri")
         val quality = uri.getQueryParameter("quality") ?: "standard"
         val cookie = uri.getQueryParameter("cookie")
 
         // 1. Check local registry
-        val metadata = DownloadRegistry.getMetadata(songId)
+        val metadata = DownloadRegistry.getMetadata(id)
         if (metadata != null) {
-            DebugLog.d("NcmDS: Found local file for $songId: ${metadata.filePath}")
             val localUri = Uri.parse(metadata.filePath)
             val localDataSpec = dataSpec.withUri(localUri).buildUpon()
-                .setKey(songId)
+                .setKey(id)
                 .build()
 
             val ds = when (localUri.scheme) {
@@ -62,11 +73,18 @@ class NcmDataSource(
             }
 
             activeDataSource = ds
-            return ds.open(localDataSpec)
+            val bytesRead = try {
+                ds.open(localDataSpec)
+            } catch (e: Exception) {
+                DebugLog.e("NcmDS: Local open failed for $id: ${e.message}")
+                throw e
+            }
+            transferStarted(baseDataSpec)
+            return bytesRead
         }
 
         // 2. Resolve via JNI
-        val params = mutableMapOf("id" to songId, "level" to quality)
+        val params = mutableMapOf("id" to id, "level" to quality)
         cookie?.let { params["cookie"] = it }
 
         var lastError = ""
@@ -85,44 +103,55 @@ class NcmDataSource(
                 }
 
                 val code = body.get("code")?.asInt ?: -1
-                val message = body.get("message")?.asString ?: body.get("msg")?.asString ?: "No URL in response"
+                val message = body.get("message")?.asString ?: body.get("msg")?.asString ?: "No URL"
                 lastError = "Code $code: $message"
-
                 if (code == 404 || code == 403) break
             } catch (e: Exception) {
-                lastError = e.message ?: "Unknown error"
+                lastError = e.message ?: "Unknown"
             }
-            if (attempt < 3) Thread.sleep(200L * attempt)
+            if (attempt < 3) Thread.sleep(200L)
         }
 
         if (cdnUrl == null || !cdnUrl.startsWith("http")) {
-            DebugLog.e("NcmDS: Failed to resolve $songId. Last error: $lastError")
-            throw IOException("Failed to resolve NCM URL for ID $songId: $lastError")
+            throw IOException("Failed to resolve $id: $lastError")
         }
 
-        DebugLog.d("NcmDS: Resolved URL for $songId: $cdnUrl")
         val resolvedUri = Uri.parse(cdnUrl)
         val resolvedDataSpec = dataSpec.withUri(resolvedUri).buildUpon()
-            .setKey(songId)
+            .setKey(id)
             .build()
 
         activeDataSource = httpDataSource
-        return httpDataSource.open(resolvedDataSpec)
+        val bytesRead = try {
+            httpDataSource.open(resolvedDataSpec)
+        } catch (e: IOException) {
+            DebugLog.e("NcmDS: HTTP open failed for $id: ${e.message}")
+            throw e
+        }
+
+        transferStarted(baseDataSpec)
+        return bytesRead
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        return activeDataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        val bytesRead = activeDataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        if (bytesRead != C.RESULT_END_OF_INPUT) {
+            bytesTransferred(bytesRead)
+        }
+        return bytesRead
     }
 
     override fun getUri(): Uri? {
-        return activeDataSource?.uri
+        return openedDataSpec?.uri // Return the original NCM URI so CacheDataSource stays consistent
     }
 
     override fun close() {
+        transferEnded()
         try {
             activeDataSource?.close()
         } finally {
             activeDataSource = null
+            openedDataSpec = null
         }
     }
 
@@ -131,6 +160,7 @@ class NcmDataSource(
         private val httpDataSourceFactory: DataSource.Factory
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource {
+            // We don't pass the TransferListeners here because NcmDataSource notifies them itself
             return NcmDataSource(context, httpDataSourceFactory.createDataSource())
         }
     }

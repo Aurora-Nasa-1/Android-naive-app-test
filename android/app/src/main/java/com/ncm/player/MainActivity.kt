@@ -46,6 +46,7 @@ import com.ncm.player.ui.theme.NCMPlayerTheme
 import com.ncm.player.viewmodel.LoginViewModel
 import com.ncm.player.viewmodel.PlayerViewModel
 import com.ncm.player.viewmodel.LiveSortViewModel
+import LiveSortViewModel
 
 class MainActivity : ComponentActivity() {
     private val loginViewModel: LoginViewModel by viewModels()

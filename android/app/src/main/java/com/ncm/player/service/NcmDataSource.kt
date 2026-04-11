@@ -59,16 +59,32 @@ class NcmDataSource(
         // 2. Resolve via JNI
         val params = mutableMapOf("id" to songId, "level" to quality)
         cookie?.let { params["cookie"] = it }
+        // Retry logic for unstable network or API errors (2000/1004)
+        var lastError = ""
+        var cdnUrl: String? = null
 
-        DebugLog.d("NcmDS: Resolving CDN URL for $songId (quality: $quality)...")
-        val result = RustServerManager.callApi("song/url/v1", params)
-        val body = JsonParser.parseString(result).asJsonObject
+        for (attempt in 1..3) {
+            try {
+                // Try song/url/v1 first for direct metadata (sometimes 302 wrapper fails)
+                val method = if (attempt == 1) "song/url/v1/302" else "song/url/v1"
+                val result = RustServerManager.callApi(method, params)
+                val body = JsonParser.parseString(result).asJsonObject
 
-        val cdnUrl = JsonUtils.findUrl(body)
-            ?: run {
-                DebugLog.e("NcmDS: Failed to find URL in response for $songId: $result")
-                throw IOException("Failed to resolve NCM URL for ID $songId: $result")
+                cdnUrl = body.get("redirectUrl")?.asString ?: JsonUtils.findUrl(body)
+
+                if (cdnUrl != null && cdnUrl.startsWith("http")) {
+                    break
+                }
+                lastError = result
+            } catch (e: Exception) {
+                lastError = e.message ?: "Unknown error"
             }
+            if (attempt < 3) Thread.sleep(500L * attempt)
+        }
+
+        if (cdnUrl == null || !cdnUrl.startsWith("http")) {
+            throw IOException("Failed to resolve NCM URL for ID $songId after 3 attempts: $lastError")
+        }
 
         DebugLog.d("NcmDS: Resolved URL for $songId: $cdnUrl")
         val resolvedUri = Uri.parse(cdnUrl)

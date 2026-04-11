@@ -9,8 +9,11 @@ object DebugLog {
     private const val TAG = "NCMPlayerDebug"
 
     fun d(message: String) {
-        Log.d(TAG, message)
-        LogManager.log("D", message)
+  feature/song-comments-and-dynamics-13655779103225213096
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, message)
+            LogManager.log("D", message)
+        }
     }
 
     fun e(message: String, throwable: Throwable? = null) {
@@ -19,8 +22,11 @@ object DebugLog {
     }
 
     fun i(message: String) {
-        Log.i(TAG, message)
-        LogManager.log("I", message)
+feature/song-comments-and-dynamics-13655779103225213096
+        if (BuildConfig.DEBUG) {
+            Log.i(TAG, message)
+            LogManager.log("I", message)
+        }
     }
 
     fun toast(context: Context, message: String) {

@@ -346,6 +346,10 @@ fun AppMainContent(
                             onNavigateToMessages = {
                                 navController.navigate("messages")
                             },
+                            onNavigateToEvents = {
+                                playerViewModel.fetchEvents(loginViewModel.cookie)
+                                navController.navigate("events")
+                            },
                             onNavigateToLogs = {
                                 navController.navigate("logs")
                             },
@@ -652,6 +656,32 @@ fun AppMainContent(
                                 }
                             },
                             isDownloaded = isDownloaded,
+                            hotComments = playerViewModel.hotComments,
+                            newestComments = playerViewModel.newestComments,
+                            commentTotal = playerViewModel.commentTotal,
+                            isCommentsLoading = playerViewModel.isCommentsLoading,
+                            hasMoreComments = playerViewModel.hasMoreComments,
+                            onLoadMoreComments = {
+                                currentSong?.let { playerViewModel.fetchComments(it.id, cookie = loginViewModel.cookie, page = playerViewModel.currentCommentPage + 1) }
+                            },
+                            onLikeComment = { comment ->
+                                currentSong?.let { playerViewModel.toggleCommentLike(it.id, comment.id, "music", !comment.liked, loginViewModel.cookie ?: "") }
+                            },
+                            onReplyComment = { comment ->
+                                // Implementation for reply can be added if needed, for now just focus on viewing
+                            },
+                            onPostComment = { content ->
+                                currentSong?.let { playerViewModel.postComment(it.id, "music", content, loginViewModel.cookie ?: "") }
+                            },
+                            onCommentClick = {
+                                currentSong?.let { playerViewModel.fetchComments(it.id, cookie = loginViewModel.cookie) }
+                            },
+                            onAvatarClick = { uid ->
+                                playerViewModel.fetchOtherUserProfile(uid, loginViewModel.cookie)
+                                navController.navigate("user/$uid")
+                            },
+                            sleepTimerRemaining = playerViewModel.sleepTimerRemaining,
+                            onSetSleepTimer = { playerViewModel.startSleepTimer(it) },
                             onLyricClick = {
                                 playerViewModel.currentSong?.let { song ->
                                     playerViewModel.fetchLyrics(song.id)
@@ -683,6 +713,21 @@ fun AppMainContent(
                     }
                     composable("logs") {
                         LogViewerScreen(onBackPressed = { navController.popBackStack() })
+                    }
+                    composable("events") {
+                        EventScreen(
+                            events = playerViewModel.events,
+                            isLoading = playerViewModel.isEventsLoading,
+                            onSongClick = { song ->
+                                playerViewModel.playSong(song, playerViewModel.events.mapNotNull { it.song }, loginViewModel.cookie)
+                                navController.navigate("player") { launchSingleTop = true }
+                            },
+                            onAvatarClick = { uid ->
+                                playerViewModel.fetchOtherUserProfile(uid, loginViewModel.cookie)
+                                navController.navigate("user/$uid")
+                            },
+                            onBackPressed = { navController.popBackStack() }
+                        )
                     }
                 }
             }

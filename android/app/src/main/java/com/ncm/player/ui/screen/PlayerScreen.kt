@@ -32,6 +32,8 @@ import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 import com.ncm.player.ui.component.QueueBottomSheet
+import com.ncm.player.ui.component.CommentBottomSheet
+import com.ncm.player.ui.component.SleepTimerBottomSheet
 import com.ncm.player.ui.component.LyricContent
 import com.ncm.player.viewmodel.PlayerViewModel
 
@@ -57,6 +59,7 @@ fun PlayerScreen(
     onLikeClick: () -> Unit = {},
     onArtistClick: (String) -> Unit = {},
     onDownloadClick: () -> Unit = {},
+    onCommentClick: () -> Unit = {},
     onLyricClick: () -> Unit = {},
     onAddToPlaylist: (String, Long) -> Unit = { _, _ -> },
     queue: List<Song> = emptyList(),
@@ -67,6 +70,18 @@ fun PlayerScreen(
     qualityCellular: String = "Unknown",
     sampleRate: Int = 0,
     bitrate: Int = 0,
+    hotComments: List<com.ncm.player.model.Comment> = emptyList(),
+    newestComments: List<com.ncm.player.model.Comment> = emptyList(),
+    commentTotal: Int = 0,
+    isCommentsLoading: Boolean = false,
+    hasMoreComments: Boolean = true,
+    onLoadMoreComments: () -> Unit = {},
+    onLikeComment: (com.ncm.player.model.Comment) -> Unit = {},
+    onReplyComment: (com.ncm.player.model.Comment) -> Unit = {},
+    onPostComment: (String) -> Unit = {},
+    onAvatarClick: (Long) -> Unit = {},
+    sleepTimerRemaining: Long = 0L,
+    onSetSleepTimer: (Int) -> Unit = {},
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -91,6 +106,8 @@ fun PlayerScreen(
 
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var showQueueBottomSheet by remember { mutableStateOf(false) }
+    var showCommentBottomSheet by remember { mutableStateOf(false) }
+    var showSleepTimerBottomSheet by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var showSongInfoDialog by remember { mutableStateOf(false) }
     var showQualityInfoDialog by remember { mutableStateOf(false) }
@@ -182,6 +199,30 @@ fun PlayerScreen(
         )
     }
 
+    if (showCommentBottomSheet) {
+        CommentBottomSheet(
+            hotComments = hotComments,
+            newestComments = newestComments,
+            totalCount = commentTotal,
+            isLoading = isCommentsLoading,
+            hasMore = hasMoreComments,
+            onLoadMore = onLoadMoreComments,
+            onLikeClick = onLikeComment,
+            onReplyClick = onReplyComment,
+            onPostComment = onPostComment,
+            onAvatarClick = onAvatarClick,
+            onDismiss = { showCommentBottomSheet = false }
+        )
+    }
+
+    if (showSleepTimerBottomSheet) {
+        SleepTimerBottomSheet(
+            remainingTime = sleepTimerRemaining,
+            onSetTimer = onSetSleepTimer,
+            onDismiss = { showSleepTimerBottomSheet = false }
+        )
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -226,9 +267,10 @@ fun PlayerScreen(
                     Column(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)
                     ) {
                         Surface(
                             modifier = Modifier
@@ -255,7 +297,7 @@ fun PlayerScreen(
                             }
                         }
 
-                        Column(modifier = Modifier.fillMaxWidth(0.85f)) {
+                        Column(modifier = Modifier.fillMaxWidth(0.9f)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -275,24 +317,34 @@ fun PlayerScreen(
                                         modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                                     )
                                 }
-                                IconButton(onClick = onLikeClick, modifier = Modifier.size(40.dp)) {
-                                    AnimatedContent(
-                                        targetState = isFavorite,
-                                        label = "LikeAnimation",
-                                        transitionSpec = {
-                                            scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
-                                            scaleOut()
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = {
+                                        onCommentClick()
+                                        showCommentBottomSheet = true
+                                    }, modifier = Modifier.size(44.dp)) {
+                                        Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", modifier = Modifier.size(28.dp))
+                                    }
+                                    IconButton(onClick = onLikeClick, modifier = Modifier.size(44.dp)) {
+                                        AnimatedContent(
+                                            targetState = isFavorite,
+                                            label = "LikeAnimation",
+                                            transitionSpec = {
+                                                scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
+                                                scaleOut()
+                                            }
+                                        ) { targetFavorite ->
+                                            Icon(
+                                                if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                contentDescription = "Like",
+                                                modifier = Modifier.size(32.dp),
+                                                tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                            )
                                         }
-                                    ) { targetFavorite ->
-                                        Icon(
-                                            if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                            contentDescription = "Like",
-                                            modifier = Modifier.size(32.dp),
-                                            tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                                        )
                                     }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             Slider(
                                 value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
@@ -313,24 +365,27 @@ fun PlayerScreen(
                                 Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
                             }
 
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = onShuffleClick, modifier = Modifier.size(40.dp)) {
+                                IconButton(onClick = onShuffleClick, modifier = Modifier.requiredSize(48.dp)) {
                                     Icon(
                                         Icons.Default.Shuffle,
                                         contentDescription = "Shuffle",
+                                        modifier = Modifier.size(26.dp),
                                         tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
                                     )
                                 }
-                                IconButton(onClick = onSkipPrevious, modifier = Modifier.size(48.dp)) {
-                                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(32.dp))
+                                IconButton(onClick = onSkipPrevious, modifier = Modifier.requiredSize(56.dp)) {
+                                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(36.dp))
                                 }
                                 FloatingActionButton(
                                     onClick = onPlayPause,
-                                    modifier = Modifier.size(56.dp),
+                                    modifier = Modifier.requiredSize(64.dp),
                                     shape = androidx.compose.foundation.shape.CircleShape,
                                     containerColor = Color.White,
                                     contentColor = Color.Black
@@ -338,13 +393,13 @@ fun PlayerScreen(
                                     Icon(
                                         if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                         contentDescription = "Play/Pause",
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(36.dp)
                                     )
                                 }
-                                IconButton(onClick = onSkipNext, modifier = Modifier.size(48.dp)) {
-                                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(32.dp))
+                                IconButton(onClick = onSkipNext, modifier = Modifier.requiredSize(56.dp)) {
+                                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(36.dp))
                                 }
-                                IconButton(onClick = onRepeatClick, modifier = Modifier.size(40.dp)) {
+                                IconButton(onClick = onRepeatClick, modifier = Modifier.requiredSize(48.dp)) {
                                     val icon = when (repeatMode) {
                                         Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
                                         else -> Icons.Default.Repeat
@@ -352,24 +407,24 @@ fun PlayerScreen(
                                     Icon(
                                         icon,
                                         contentDescription = "Repeat",
+                                        modifier = Modifier.size(26.dp),
                                         tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
                                     )
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                IconButton(onClick = onDownloadClick, modifier = Modifier.size(40.dp)) {
-                                    Icon(if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download, contentDescription = "Download")
-                                }
-                                IconButton(onClick = { showQueueBottomSheet = true }, modifier = Modifier.size(40.dp)) {
-                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
+                                IconButton(onClick = { showQueueBottomSheet = true }, modifier = Modifier.size(44.dp)) {
+                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue", modifier = Modifier.size(28.dp))
                                 }
                                 Box {
-                                    IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(40.dp)) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                    IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(44.dp)) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(28.dp))
                                     }
                                     DropdownMenu(
                                         expanded = showMoreMenu,
@@ -380,6 +435,22 @@ fun PlayerScreen(
                                             leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
                                             onClick = {
                                                 showAddToPlaylistDialog = true
+                                                showMoreMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(if (isDownloaded) "Downloaded" else "Download") },
+                                            leadingIcon = { Icon(if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download, null) },
+                                            onClick = {
+                                                onDownloadClick()
+                                                showMoreMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Sleep Timer") },
+                                            leadingIcon = { Icon(Icons.Default.Timer, null) },
+                                            onClick = {
+                                                showSleepTimerBottomSheet = true
                                                 showMoreMenu = false
                                             }
                                         )
@@ -406,11 +477,11 @@ fun PlayerScreen(
                     }
 
                     // Right Side: Lyrics
-                    Box(modifier = Modifier.weight(1.2f)) {
+                    Box(modifier = Modifier.weight(1.3f)) {
                         LyricContent(
                             lyrics = lyrics,
                             currentPosition = currentPosition,
-                            contentPadding = PaddingValues(vertical = 100.dp, horizontal = 0.dp)
+                            contentPadding = PaddingValues(vertical = 120.dp, horizontal = 0.dp)
                         )
                     }
                 }
@@ -468,21 +539,29 @@ fun PlayerScreen(
                                     modifier = Modifier.clickable { song.artistId?.let { onArtistClick(it) } }
                                 )
                             }
-                            IconButton(onClick = onLikeClick) {
-                                AnimatedContent(
-                                    targetState = isFavorite,
-                                    label = "LikeAnimationMobile",
-                                    transitionSpec = {
-                                        scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
-                                        scaleOut()
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = {
+                                    onCommentClick()
+                                    showCommentBottomSheet = true
+                                }) {
+                                    Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comments", modifier = Modifier.size(28.dp))
+                                }
+                                IconButton(onClick = onLikeClick) {
+                                    AnimatedContent(
+                                        targetState = isFavorite,
+                                        label = "LikeAnimationMobile",
+                                        transitionSpec = {
+                                            scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith
+                                            scaleOut()
+                                        }
+                                    ) { targetFavorite ->
+                                        Icon(
+                                            if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Like",
+                                            modifier = Modifier.size(32.dp),
+                                            tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                        )
                                     }
-                                ) { targetFavorite ->
-                                    Icon(
-                                        if (targetFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                        contentDescription = "Like",
-                                        modifier = Modifier.size(32.dp),
-                                        tint = if (targetFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                                    )
                                 }
                             }
                         }
@@ -578,13 +657,6 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = onDownloadClick) {
-                            Icon(
-                                if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
-                                contentDescription = "Download",
-                                tint = if (isDownloaded) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                            )
-                        }
                         IconButton(onClick = onLyricClick) {
                             Icon(Icons.Default.Lyrics, contentDescription = "Lyrics")
                         }
@@ -612,6 +684,22 @@ fun PlayerScreen(
                                     leadingIcon = { Icon(Icons.Default.Info, null) },
                                     onClick = {
                                         showSongInfoDialog = true
+                                        showMoreMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (isDownloaded) "Downloaded" else "Download") },
+                                    leadingIcon = { Icon(if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download, null) },
+                                    onClick = {
+                                        onDownloadClick()
+                                        showMoreMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Sleep Timer") },
+                                    leadingIcon = { Icon(Icons.Default.Timer, null) },
+                                    onClick = {
+                                        showSleepTimerBottomSheet = true
                                         showMoreMenu = false
                                     }
                                 )

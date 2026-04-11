@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ncm.player.util.LogManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,11 +36,14 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
 
     LaunchedEffect(showSystemLogs) {
         if (showSystemLogs) {
-            systemLogs = try {
-                val process = Runtime.getRuntime().exec("logcat -d -v time")
-                process.inputStream.bufferedReader().use { it.readText() }
-            } catch (e: Exception) {
-                "Failed to fetch system logs: ${e.message}"
+            systemLogs = "Loading system logs..."
+            withContext(Dispatchers.IO) {
+                systemLogs = try {
+                    val process = Runtime.getRuntime().exec("logcat -d -v time")
+                    process.inputStream.bufferedReader().use { it.readText() }
+                } catch (e: Exception) {
+                    "Failed to fetch system logs: ${e.message}"
+                }
             }
         }
     }

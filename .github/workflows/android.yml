@@ -36,7 +36,9 @@ jobs:
           # Build only for arm64-v8a (aarch64-linux-android)
           # Build JNI library
           cargo ndk -t arm64-v8a --platform 24 build --release --features jni
-          cp target/aarch64-linux-android/release/libncm_api.so android/app/src/main/jniLibs/arm64-v8a/libncm_api.so
+          # The binary name should match the package name from Cargo.toml (with hyphens replaced by underscores)
+          # We use a wildcard to be robust against package name changes
+          find target/aarch64-linux-android/release -name "lib*.so" -exec cp {} android/app/src/main/jniLibs/arm64-v8a/libncm_api.so \;
 
       - name: Upload Rust Binaries
         uses: actions/upload-artifact@v4

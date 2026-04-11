@@ -34,11 +34,18 @@ fun LyricContent(
         if (index == -1) 0 else index
     }
 
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+
     LaunchedEffect(activeIndex) {
-        if (lyrics.isNotEmpty()) {
+        if (lyrics.isNotEmpty() && activeIndex >= 0) {
+            // MD3 Expressive: Precise centering of active lyric
+            // The goal is to align the item's top to (screenHeight/2 - itemHeight/2)
+            // Since we don't know itemHeight easily, we approximate with a 1/3 offset
             listState.animateScrollToItem(
-                index = (activeIndex - 2).coerceAtLeast(0),
-                scrollOffset = -100
+                index = activeIndex,
+                scrollOffset = -(screenHeightPx / 2.2).toInt()
             )
         }
     }
@@ -61,8 +68,11 @@ fun LyricContent(
                     animationSpec = tween(500)
                 )
                 val scale by animateFloatAsState(
-                    targetValue = if (isActive) 1.1f else 1.0f,
-                    animationSpec = spring(stiffness = Spring.StiffnessLow)
+                    targetValue = if (isActive) 1.05f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
                 )
 
                 Column(

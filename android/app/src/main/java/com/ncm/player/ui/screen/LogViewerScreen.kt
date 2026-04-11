@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Terminal
@@ -64,7 +65,16 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
                         Icon(if (showSystemLogs) Icons.Default.ViewList else Icons.Default.Terminal, contentDescription = "Toggle System Logs")
                     }
                     IconButton(onClick = {
-                        val text = if (showSystemLogs) systemLogs else logs.joinToString("\n") { "${it.time} [${it.level}] ${it.message}" }
+                        val text = if (showSystemLogs) systemLogs else LogManager.getAllLogsString()
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("App Logs", text)
+                        clipboard.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(context, "Logs copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                    }
+                    IconButton(onClick = {
+                        val text = if (showSystemLogs) systemLogs else LogManager.getAllLogsString()
                         val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(android.content.Intent.EXTRA_TEXT, text)

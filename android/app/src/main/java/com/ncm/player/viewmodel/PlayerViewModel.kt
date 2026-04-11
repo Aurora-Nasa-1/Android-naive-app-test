@@ -1119,6 +1119,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         return MediaItem.Builder()
             .setMediaId(song.id)
             .setUri(mediaUri)
+            .setCustomCacheKey(song.id)
             .setMediaMetadata(metadata)
             .build()
     }

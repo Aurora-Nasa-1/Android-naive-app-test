@@ -4,12 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ncm.player.model.Song
 import com.ncm.player.util.RustServerManager
-import kotlinx.coroutines.Dispatchers
+import com.ncm.player.util.DebugLog
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -50,8 +51,16 @@ class LiveSortViewModel : ViewModel() {
     private val _sortState = MutableStateFlow<LiveSortState>(LiveSortState.Idle)
     val sortState: StateFlow<LiveSortState> = _sortState.asStateFlow()
 
+    private var analysisJob: Job? = null
+
+    fun cancelAnalysis() {
+        analysisJob?.cancel()
+        _sortState.value = LiveSortState.Idle
+    }
+
     fun processPlaylist(songsWithPaths: List<Pair<Song, String>>) {
-        viewModelScope.launch(Dispatchers.Default) {
+        analysisJob?.cancel()
+        analysisJob = viewModelScope.launch(Dispatchers.Default) {
             try {
                 val total = songsWithPaths.size
                 if (total == 0) {
@@ -60,34 +69,48 @@ class LiveSortViewModel : ViewModel() {
                 }
 
                 val analyzedSongs = mutableListOf<SongWithEmotion>()
+                val completedCount = AtomicInteger(0)
 
-                // 1. Parse JSON response from RustServerManager.analyzeAudio(path)
-                for ((index, item) in songsWithPaths.withIndex()) {
-                    val (song, path) = item
-                    _sortState.value = LiveSortState.Analyzing(index + 1, total, song.name)
+                // Parallel analysis with limited concurrency to avoid overwhelming the system
+                val chunkedSongs = songsWithPaths.chunked(max(1, total / 4))
 
-                    val jsonResult = RustServerManager.analyzeAudio(path)
-                    val features = parseAudioFeatures(jsonResult)
-                    
-                    val jsonObject = JSONObject(jsonResult)
-                    val startBpm = jsonObject.optDouble("start_bpm", features.bpm)
-                    val endBpm = jsonObject.optDouble("end_bpm", features.bpm)
-                    val startEnergy = jsonObject.optDouble("start_energy", features.energy)
-                    val endEnergy = jsonObject.optDouble("end_energy", features.energy)
+                coroutineScope {
+                    val deferreds = songsWithPaths.map { item ->
+                        async(Dispatchers.Default) {
+                            val (song, path) = item
+                            try {
+                                val jsonResult = RustServerManager.analyzeAudio(path)
+                                val features = parseAudioFeatures(jsonResult)
 
-                    analyzedSongs.add(
-                        SongWithEmotion(
-                            song = song,
-                            path = path,
-                            bpm = features.bpm,
-                            energy = features.energy,
-                            brightness = features.brightness,
-                            startBpm = startBpm,
-                            endBpm = endBpm,
-                            startEnergy = startEnergy,
-                            endEnergy = endEnergy
-                        )
-                    )
+                                val jsonObject = JSONObject(jsonResult)
+                                val startBpm = jsonObject.optDouble("start_bpm", features.bpm)
+                                val endBpm = jsonObject.optDouble("end_bpm", features.bpm)
+                                val startEnergy = jsonObject.optDouble("start_energy", features.energy)
+                                val endEnergy = jsonObject.optDouble("end_energy", features.energy)
+
+                                val count = completedCount.incrementAndGet()
+                                _sortState.value = LiveSortState.Analyzing(count, total, song.name)
+
+                                SongWithEmotion(
+                                    song = song,
+                                    path = path,
+                                    bpm = features.bpm,
+                                    energy = features.energy,
+                                    brightness = features.brightness,
+                                    startBpm = startBpm,
+                                    endBpm = endBpm,
+                                    startEnergy = startEnergy,
+                                    endEnergy = endEnergy
+                                )
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                DebugLog.e("LiveSort: Failed to analyze ${song.name}: ${e.message}")
+                                // Return a default features song so we don't fail the whole process
+                                SongWithEmotion(song, path, 120.0, 0.5, 0.5)
+                            }
+                        }
+                    }
+                    analyzedSongs.addAll(deferreds.awaitAll())
                 }
 
                 _sortState.value = LiveSortState.Sorting
@@ -104,7 +127,9 @@ class LiveSortViewModel : ViewModel() {
                 _sortState.value = LiveSortState.Completed(sortedSongs, actualCurve, idealCurve)
 
             } catch (e: Exception) {
-                _sortState.value = LiveSortState.Error(e.message ?: "Unknown error")
+                if (e !is CancellationException) {
+                    _sortState.value = LiveSortState.Error(e.message ?: "Unknown error")
+                }
             }
         }
     }

@@ -71,7 +71,8 @@ fun LiveSortScreen(
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
                         onClick = onLiveSortConfirmed,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = currentQueue.isNotEmpty()
                     ) {
                         Text("Reorder Current Queue")
                     }
@@ -93,12 +94,20 @@ fun LiveSortScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Analyzing: ${state.currentSong}")
                     Text("${state.progress} / ${state.total}")
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(onClick = { liveSortViewModel.cancelAnalysis() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                        Text("Cancel")
+                    }
                 }
 
                 is LiveSortState.Sorting -> {
                     CircularProgressIndicator(modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Optimizing playlist flow...")
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(onClick = { liveSortViewModel.cancelAnalysis() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                        Text("Cancel")
+                    }
                 }
 
                 is LiveSortState.Error -> {

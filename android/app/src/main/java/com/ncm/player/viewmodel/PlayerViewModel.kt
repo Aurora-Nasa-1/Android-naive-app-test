@@ -223,8 +223,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         // 1. Add songs from our DownloadRegistry first (these are the "official" downloads)
         val registrySongs = com.ncm.player.manager.DownloadRegistry.getAllDownloadedSongs()
         registrySongs.forEach { metadata ->
-            val uri = android.net.Uri.parse(metadata.filePath)
-            // Ensure we use the proper scheme for comparison later
+            val uri = if (metadata.filePath.startsWith("/")) {
+                android.net.Uri.fromFile(java.io.File(metadata.filePath))
+            } else {
+                android.net.Uri.parse(metadata.filePath)
+            }
             files.add(metadata.song to uri)
         }
 
@@ -393,6 +396,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         "ACTION_PLAYER_ERROR" -> {
                             val errorMsg = args.getString("error") ?: "Unknown player error"
+                        if (error.cause is java.io.InterruptedIOException) return
                             com.ncm.player.util.DebugLog.toast(getApplication(), errorMsg)
                         }
                     }
@@ -475,6 +479,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         val errorMsg = "${error.errorCodeName} (${error.errorCode}): ${error.message}"
+                        if (error.cause is java.io.InterruptedIOException) return
                         android.util.Log.e("PlayerVM", "Player Error: $errorMsg", error)
                         DebugLog.toast(getApplication(), "Playback Error: $errorMsg")
 
@@ -1123,7 +1128,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
         return MediaItem.Builder()
             .setMediaId(song.id)
-            .setUri(mediaUri)
+            .setUri(mediaUri).setCustomCacheKey(song.id)
             .setMediaMetadata(metadata)
             .build()
     }
@@ -1215,6 +1220,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (body.get("code")?.asInt != 200 && !body.has("data")) {
                     val errorMsg = "API Error: ${body.get("msg")?.asString ?: "Unknown"}"
+                        if (error.cause is java.io.InterruptedIOException) return
                     DebugLog.e(errorMsg)
                     DebugLog.toast(getApplication(), errorMsg)
                     return@launch
@@ -1366,15 +1372,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     withContext(Dispatchers.Main) {
                         runWithController { controller ->
                             try {
-                                val currentItem = controller.currentMediaItem
-                                val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
+                                if (controller.isCommandAvailable(Player.COMMAND_SET_MEDIA_ITEMS)) {
+                                    val currentMediaId = controller.currentMediaItem?.mediaId
+                                    val currentPos = if (controller.mediaItemCount > 0) controller.currentPosition else 0L
 
-                                val newIndex = sortedSongs.indexOfFirst { it.id == currentItem?.mediaId }.coerceAtLeast(0)
-                                val currentPos = controller.currentPosition
-                                controller.setMediaItems(mediaItems, newIndex, currentPos)
-                                controller.prepare()
-                                if (!controller.isPlaying) controller.play()
-                                updateQueue()
+                                    val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
+                                    val newIndex = sortedSongs.indexOfFirst { it.id == currentMediaId }.coerceAtLeast(0)
+
+                                    DebugLog.i("PlayerVM: Applying sorted queue. New index: $newIndex, pos: $currentPos")
+                                    controller.setMediaItems(mediaItems, newIndex, currentPos)
+                                    controller.prepare()
+                                    if (!controller.isPlaying) controller.play()
+                                    updateQueue()
+                                }
                             } catch (e: Exception) {
                                 DebugLog.e("PlayerVM: Failed to apply sorted queue", e)
                             }

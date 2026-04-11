@@ -3,11 +3,11 @@ package com.ncm.player.service
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.C
-import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.ContentDataSource
+import androidx.media3.datasource.TransferListener
 import com.ncm.player.manager.DownloadRegistry
 import com.ncm.player.util.RustServerManager
 import com.ncm.player.util.JsonUtils
@@ -18,15 +18,21 @@ import java.io.IOException
 class NcmDataSource(
     private val context: Context,
     private val httpDataSource: DataSource
-) : BaseDataSource(true) {
+) : DataSource {
 
     private val fileDataSource = FileDataSource()
     private val contentDataSource = ContentDataSource(context)
     private var activeDataSource: DataSource? = null
 
+    override fun addTransferListener(transferListener: TransferListener) {
+        httpDataSource.addTransferListener(transferListener)
+        fileDataSource.addTransferListener(transferListener)
+        contentDataSource.addTransferListener(transferListener)
+    }
+
     override fun open(dataSpec: DataSpec): Long {
-        transferInitializing(dataSpec)
         val uri = dataSpec.uri
+        DebugLog.d("NcmDS: Opening URI: $uri")
 
         if (uri.scheme != "ncm") {
             val ds = when (uri.scheme) {
@@ -34,14 +40,7 @@ class NcmDataSource(
                 else -> fileDataSource
             }
             activeDataSource = ds
-            return try {
-                val bytesRead = ds.open(dataSpec)
-                transferStarted(dataSpec)
-                bytesRead
-            } catch (e: Exception) {
-                DebugLog.e("NcmDS: Non-NCM open failed for $uri", e)
-                throw e
-            }
+            return ds.open(dataSpec)
         }
 
         val songId = uri.host ?: throw IOException("Invalid song ID in URI: $uri")
@@ -63,14 +62,7 @@ class NcmDataSource(
             }
 
             activeDataSource = ds
-            return try {
-                val bytesRead = ds.open(localDataSpec)
-                transferStarted(dataSpec)
-                bytesRead
-            } catch (e: Exception) {
-                DebugLog.e("NcmDS: Local open failed for $songId path ${metadata.filePath}", e)
-                throw e
-            }
+            return ds.open(localDataSpec)
         }
 
         // 2. Resolve via JNI
@@ -115,22 +107,11 @@ class NcmDataSource(
             .build()
 
         activeDataSource = httpDataSource
-        return try {
-            val bytesRead = httpDataSource.open(resolvedDataSpec)
-            transferStarted(dataSpec)
-            bytesRead
-        } catch (e: IOException) {
-            DebugLog.e("NcmDS: HTTP open failed for $songId: ${e.message}")
-            throw e
-        }
+        return httpDataSource.open(resolvedDataSpec)
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        val bytesRead = activeDataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
-        if (bytesRead != C.RESULT_END_OF_INPUT) {
-            bytesTransferred(bytesRead)
-        }
-        return bytesRead
+        return activeDataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
     }
 
     override fun getUri(): Uri? {
@@ -138,7 +119,6 @@ class NcmDataSource(
     }
 
     override fun close() {
-        transferEnded()
         try {
             activeDataSource?.close()
         } finally {

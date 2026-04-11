@@ -15,7 +15,7 @@ impl ApiClient {
         let id = query.get_or("id", "0");
         let requested_level = query.get_or("level", "standard");
 
-        let levels = ["hires", "lossless", "exhigh", "higher", "standard"];
+        let levels = ["sky", "hires", "lossless", "exhigh", "higher", "standard"];
 
         // 找到请求等级在序列中的位置，只尝试当前及更低的等级
         let start_index = levels.iter().position(|&l| l == requested_level).unwrap_or(levels.len() - 1);

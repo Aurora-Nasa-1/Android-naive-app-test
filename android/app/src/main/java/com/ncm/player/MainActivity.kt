@@ -425,7 +425,10 @@ fun AppMainContent(
                         LiveSortScreen(
                             liveSortViewModel = liveSortViewModel,
                             playerViewModel = playerViewModel,
-                            onBackPressed = { navController.popBackStack() }
+                            onBackPressed = { navController.popBackStack() },
+                            onLiveSortConfirmed = {
+                                playerViewModel.reorderQueueByLiveSort(liveSortViewModel, loginViewModel.cookie)
+                            }
                         )
                     }
                     composable("playlist/{playlistId}") { backStackEntry ->

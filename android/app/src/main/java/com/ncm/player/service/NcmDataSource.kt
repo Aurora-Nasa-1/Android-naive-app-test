@@ -30,7 +30,11 @@ class NcmDataSource(
         val uri = dataSpec.uri
 
         if (uri.scheme != "ncm") {
-            throw IOException("Unsupported scheme: ${uri.scheme}")
+            val ds = if (uri.scheme == "content") contentDataSource else fileDataSource
+            activeDataSource = ds
+            val bytesRead = ds.open(dataSpec)
+            transferStarted(dataSpec)
+            return bytesRead
         }
 
         val songId = uri.host ?: throw IOException("Invalid song ID in URI: $uri")

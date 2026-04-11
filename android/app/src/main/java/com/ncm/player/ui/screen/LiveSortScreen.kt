@@ -22,7 +22,8 @@ import com.ncm.player.viewmodel.PlayerViewModel
 fun LiveSortScreen(
     liveSortViewModel: LiveSortViewModel,
     playerViewModel: PlayerViewModel,
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    onLiveSortConfirmed: () -> Unit
 ) {
     val sortState by liveSortViewModel.sortState.collectAsState()
     val currentQueue = playerViewModel.currentQueue
@@ -69,18 +70,7 @@ fun LiveSortScreen(
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
-                        onClick = {
-                            val processableSongs = currentQueue.mapNotNull { song ->
-                                val uri = localSongs.find { it.first.id == song.id }?.second
-                                if (uri != null) {
-                                    val path = uri.path ?: uri.toString()
-                                    song to path
-                                } else {
-                                    null
-                                }
-                            }
-                            liveSortViewModel.processPlaylist(processableSongs)
-                        },
+                        onClick = onLiveSortConfirmed,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Reorder Current Queue")

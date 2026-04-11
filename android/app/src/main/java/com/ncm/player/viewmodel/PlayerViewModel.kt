@@ -223,7 +223,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         // 1. Add songs from our DownloadRegistry first (these are the "official" downloads)
         val registrySongs = com.ncm.player.manager.DownloadRegistry.getAllDownloadedSongs()
         registrySongs.forEach { metadata ->
-            files.add(metadata.song to android.net.Uri.parse(metadata.filePath))
+            val uri = android.net.Uri.parse(metadata.filePath)
+            // Ensure we use the proper scheme for comparison later
+            files.add(metadata.song to uri)
         }
 
         // 2. Scan common directories for other local music that might not be in our registry
@@ -464,6 +466,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                     override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
                         updateQueue()
+                    }
+
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        val errorMsg = "${error.errorCodeName} (${error.errorCode}): ${error.message}"
+                        android.util.Log.e("PlayerVM", "Player Error: $errorMsg", error)
+                        DebugLog.toast(getApplication(), "Playback Error: $errorMsg")
+
+                        if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                            error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                            error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
+                            // Basic retry
+                            controller.prepare()
+                            controller.play()
+                        }
                     }
                 })
 
@@ -1082,22 +1098,17 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             .setExtras(extras)
             .build()
 
-        val localUri = localSongs.find { it.first.id == song.id }?.second
-        val mediaUri = if (localUri != null) {
-            DebugLog.d("PlayerVM: createMediaItem: Using direct local URI for ${song.id}")
-            localUri
-        } else {
-            val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
-            val uriBuilder = android.net.Uri.Builder()
-                .scheme("ncm")
-                .authority(song.id)
-                .appendQueryParameter("quality", quality)
-
-            if (!cookie.isNullOrEmpty()) {
-                uriBuilder.appendQueryParameter("cookie", cookie)
+        val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
+        val mediaUri = android.net.Uri.Builder()
+            .scheme("ncm")
+            .authority(song.id)
+            .appendQueryParameter("quality", quality)
+            .apply {
+                if (!cookie.isNullOrEmpty()) {
+                    appendQueryParameter("cookie", cookie)
+                }
             }
-            uriBuilder.build()
-        }
+            .build()
 
         return MediaItem.Builder()
             .setMediaId(song.id)
@@ -1306,11 +1317,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     songsWithPaths.add(Pair(song, tempFile.absolutePath))
                 } else {
-                    val result = callApi("song/url/v1", mapOf("id" to song.id, "level" to "standard", "cookie" to (cookie ?: "")))
-                    val dataArray = result.get("data")?.asJsonArray
+                    val resultStr = callApi("song/url/v1", mapOf("id" to song.id, "level" to "standard", "cookie" to (cookie ?: "")))
+                    val body = JsonParser.parseString(resultStr).asJsonObject
+                    val dataArray = body.get("data")?.asJsonArray
                     val url = dataArray?.firstOrNull()?.asJsonObject?.get("url")?.asString
-                    
-                    if (!url.isNullOrEmpty()) {
+
+                    if (!url.isNullOrEmpty() && url != "null") {
                         val tempFile = java.io.File(cacheDir, "${song.id}.mp3")
                         if (!tempFile.exists()) {
                             try {
@@ -1357,6 +1369,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 withContext(Dispatchers.Main) {
                     android.widget.Toast.makeText(context, "Live Sort failed: ${finalState.message}", android.widget.Toast.LENGTH_SHORT).show()
                 }
+            }
+            // Cleanup cache
+            try {
+                cacheDir.listFiles()?.forEach { it.delete() }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

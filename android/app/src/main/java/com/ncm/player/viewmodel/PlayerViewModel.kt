@@ -1098,17 +1098,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             .setExtras(extras)
             .build()
 
-        val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
-        val mediaUri = android.net.Uri.Builder()
-            .scheme("ncm")
-            .authority(song.id)
-            .appendQueryParameter("quality", quality)
-            .apply {
-                if (!cookie.isNullOrEmpty()) {
-                    appendQueryParameter("cookie", cookie)
+        val localUri = localSongs.find { it.first.id == song.id }?.second
+        val mediaUri = if (localUri != null) {
+            DebugLog.d("PlayerVM: Using direct local URI for ${song.id}: $localUri")
+            localUri
+        } else {
+            val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
+            android.net.Uri.Builder()
+                .scheme("ncm")
+                .authority(song.id)
+                .appendQueryParameter("quality", quality)
+                .apply {
+                    if (!cookie.isNullOrEmpty()) {
+                        appendQueryParameter("cookie", cookie)
+                    }
                 }
-            }
-            .build()
+                .build()
+        }
 
         return MediaItem.Builder()
             .setMediaId(song.id)

@@ -3,12 +3,11 @@ package com.ncm.player.service
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.C
-import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.ContentDataSource
+import androidx.media3.datasource.TransferListener
 import com.ncm.player.manager.DownloadRegistry
 import com.ncm.player.util.RustServerManager
 import com.ncm.player.util.JsonUtils
@@ -19,22 +18,25 @@ import java.io.IOException
 class NcmDataSource(
     private val context: Context,
     private val httpDataSource: DataSource
-) : BaseDataSource(true) {
+) : DataSource {
 
     private val fileDataSource = FileDataSource()
     private val contentDataSource = ContentDataSource(context)
     private var activeDataSource: DataSource? = null
 
+    override fun addTransferListener(transferListener: TransferListener) {
+        httpDataSource.addTransferListener(transferListener)
+        fileDataSource.addTransferListener(transferListener)
+        contentDataSource.addTransferListener(transferListener)
+    }
+
     override fun open(dataSpec: DataSpec): Long {
-        transferInitializing(dataSpec)
         val uri = dataSpec.uri
 
         if (uri.scheme != "ncm") {
             val ds = if (uri.scheme == "content") contentDataSource else fileDataSource
             activeDataSource = ds
-            val bytesRead = ds.open(dataSpec)
-            transferStarted(dataSpec)
-            return bytesRead
+            return ds.open(dataSpec)
         }
 
         val songId = uri.host ?: throw IOException("Invalid song ID in URI: $uri")
@@ -55,21 +57,18 @@ class NcmDataSource(
             }
 
             activeDataSource = ds
-            val bytesRead = ds.open(localDataSpec)
-            transferStarted(dataSpec)
-            return bytesRead
+            return ds.open(localDataSpec)
         }
 
         // 2. Resolve via JNI
         val params = mutableMapOf("id" to songId, "level" to quality)
         cookie?.let { params["cookie"] = it }
-        // Retry logic for unstable network or API errors (2000/1004)
+
         var lastError = ""
         var cdnUrl: String? = null
 
         for (attempt in 1..3) {
             try {
-                // Try song/url/v1 first for direct metadata (sometimes 302 wrapper fails)
                 val method = if (attempt == 1) "song/url/v1/302" else "song/url/v1"
                 val result = RustServerManager.callApi(method, params)
                 val body = JsonParser.parseString(result).asJsonObject
@@ -83,11 +82,11 @@ class NcmDataSource(
             } catch (e: Exception) {
                 lastError = e.message ?: "Unknown error"
             }
-            if (attempt < 3) Thread.sleep(500L * attempt)
+            if (attempt < 3) Thread.sleep(300L * attempt)
         }
 
         if (cdnUrl == null || !cdnUrl.startsWith("http")) {
-            throw IOException("Failed to resolve NCM URL for ID $songId after 3 attempts: $lastError")
+            throw IOException("Failed to resolve NCM URL for ID $songId: $lastError")
         }
 
         DebugLog.d("NcmDS: Resolved URL for $songId: $cdnUrl")
@@ -95,14 +94,7 @@ class NcmDataSource(
         val resolvedDataSpec = dataSpec.withUri(resolvedUri)
 
         activeDataSource = httpDataSource
-        return try {
-            val bytesRead = httpDataSource.open(resolvedDataSpec)
-            transferStarted(dataSpec)
-            bytesRead
-        } catch (e: IOException) {
-            DebugLog.e("NcmDS: HTTP open failed for $songId: ${e.message}", e)
-            throw e
-        }
+        return httpDataSource.open(resolvedDataSpec)
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
@@ -114,7 +106,6 @@ class NcmDataSource(
     }
 
     override fun close() {
-        transferEnded()
         activeDataSource?.close()
         activeDataSource = null
     }

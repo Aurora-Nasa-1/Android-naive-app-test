@@ -108,7 +108,9 @@ class NcmDataSource(
 
         DebugLog.d("NcmDS: Resolved URL for $songId: $cdnUrl")
         val resolvedUri = Uri.parse(cdnUrl)
-        val resolvedDataSpec = dataSpec.withUri(resolvedUri)
+        val resolvedDataSpec = dataSpec.withUri(resolvedUri).buildUpon()
+            .setCustomCacheKey(songId) // Force consistent cache key
+            .build()
 
         activeDataSource = httpDataSource
         val bytesRead = httpDataSource.open(resolvedDataSpec)

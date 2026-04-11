@@ -361,8 +361,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun clearCache() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val cacheDir = File(getApplication<Application>().cacheDir, "media")
-                cacheDir.deleteRecursively()
+                runWithController { controller ->
+                    controller.sendCustomCommand(androidx.media3.session.SessionCommand("ACTION_CLEAR_CACHE", android.os.Bundle.EMPTY), android.os.Bundle.EMPTY)
+                }
+                val mediaCacheDir = File(getApplication<Application>().cacheDir, "media")
+                mediaCacheDir.deleteRecursively()
+                val livesortCacheDir = File(getApplication<Application>().cacheDir, "livesort_cache")
+                livesortCacheDir.deleteRecursively()
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -1358,17 +1363,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             if (finalState is com.ncm.player.viewmodel.LiveSortState.Completed) {
                 val sortedSongs = finalState.sortedSongs.map { it.song }
-                withContext(Dispatchers.Main) {
-                    runWithController { controller ->
-                        val currentItem = controller.currentMediaItem
-                        val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
-                        
-                        controller.setMediaItems(mediaItems)
-                        val newIndex = sortedSongs.indexOfFirst { it.id == currentItem?.mediaId }.coerceAtLeast(0)
-                        controller.seekTo(newIndex, controller.currentPosition)
-                        controller.prepare()
-                        if (!controller.isPlaying) controller.play()
-                        updateQueue()
+                if (sortedSongs.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        runWithController { controller ->
+                            try {
+                                val currentItem = controller.currentMediaItem
+                                val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
+
+                                val newIndex = sortedSongs.indexOfFirst { it.id == currentItem?.mediaId }.coerceAtLeast(0)
+                                val currentPos = controller.currentPosition
+                                controller.setMediaItems(mediaItems, newIndex, currentPos)
+                                controller.prepare()
+                                if (!controller.isPlaying) controller.play()
+                                updateQueue()
+                            } catch (e: Exception) {
+                                DebugLog.e("PlayerVM: Failed to apply sorted queue", e)
+                            }
+                        }
                     }
                 }
             } else if (finalState is com.ncm.player.viewmodel.LiveSortState.Error) {

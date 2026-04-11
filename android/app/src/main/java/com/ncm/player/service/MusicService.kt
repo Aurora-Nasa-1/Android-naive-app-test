@@ -98,6 +98,7 @@ class MusicService : MediaSessionService() {
 
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
+            .setDefaultRequestProperties(mapOf("Referer" to "https://music.163.com"))
             .setUserAgent("NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
 
         val ncmDataSourceFactory = NcmDataSource.Factory(this, httpDataSourceFactory)
@@ -188,6 +189,7 @@ class MusicService : MediaSessionService() {
                         .add(SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY))
                         .add(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY))
                         .add(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY))
+                        .add(SessionCommand("ACTION_CLEAR_CACHE", android.os.Bundle.EMPTY))
                         .build()
                     return MediaSession.ConnectionResult.accept(
                         availableSessionCommands,
@@ -220,6 +222,16 @@ class MusicService : MediaSessionService() {
                     customCommand: SessionCommand,
                     args: android.os.Bundle
                 ): ListenableFuture<SessionResult> {
+                    if (customCommand.customAction == "ACTION_CLEAR_CACHE") {
+                        try {
+                            getCache(this@MusicService).release()
+                            cache = null
+                            com.ncm.player.util.DebugLog.toast(this@MusicService, "Media cache cleared")
+                        } catch (e: Exception) {
+                            com.ncm.player.util.DebugLog.e("MusicService: Failed to clear cache", e)
+                        }
+                        return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                    }
                     if (customCommand.customAction == "ACTION_LIKE") {
                         val currentMediaItem = session.player.currentMediaItem
                         val mediaId = currentMediaItem?.mediaId

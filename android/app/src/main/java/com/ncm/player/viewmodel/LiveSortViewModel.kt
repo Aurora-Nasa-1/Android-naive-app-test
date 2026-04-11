@@ -60,6 +60,7 @@ class LiveSortViewModel : ViewModel() {
 
     fun processPlaylist(songsWithPaths: List<Pair<Song, String>>) {
         analysisJob?.cancel()
+        _sortState.value = LiveSortState.Idle
         analysisJob = viewModelScope.launch(Dispatchers.Default) {
             try {
                 val total = songsWithPaths.size

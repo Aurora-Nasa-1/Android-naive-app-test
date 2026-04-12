@@ -1,5 +1,9 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.util.LogManager
+import android.content.ClipData
+import android.content.ClipboardManager
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -186,6 +190,22 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
                 ) {
                     Text("Clear Playback Cache")
+                }
+            }
+
+
+            SettingsCategory("Debug") {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Button(
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("NCM Player Logs", LogManager.getLogs())
+                        clipboard.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(context, "Logs copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text("Copy Debug Logs")
                 }
             }
 

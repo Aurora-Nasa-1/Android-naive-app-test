@@ -51,7 +51,7 @@ class NcmDataSource(
             val metadata = DownloadRegistry.getMetadata(songId)
             if (metadata != null) {
                 val localUri = Uri.parse(metadata.filePath)
-                val localDataSpec = dataSpec.buildUpon().setUri(localUri).setCustomCacheKey(songId).build()
+                val localDataSpec = dataSpec.buildUpon().setUri(localUri).setKey(songId).build()
                 activeDataSource = if (localUri.scheme == "content") contentDataSource else fileDataSource
                 val length = activeDataSource!!.open(localDataSpec)
                 transferStarted(dataSpec)
@@ -75,7 +75,7 @@ class NcmDataSource(
 
             if (cdnUrl == null) throw IOException("Failed to resolve ${songId}")
 
-            val resolvedDataSpec = dataSpec.buildUpon().setUri(Uri.parse(cdnUrl)).setCustomCacheKey(songId).build()
+            val resolvedDataSpec = dataSpec.buildUpon().setUri(Uri.parse(cdnUrl)).setKey(songId).build()
             activeDataSource = httpDataSource
             val length = httpDataSource.open(resolvedDataSpec)
             transferStarted(dataSpec)

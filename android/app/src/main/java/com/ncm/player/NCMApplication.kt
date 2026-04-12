@@ -14,6 +14,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 class NCMApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
+        com.ncm.player.util.LogManager.init(this)
         com.ncm.player.util.DebugLog.i("Application onCreate")
         com.ncm.player.manager.DownloadRegistry.init(this)
         // Start native server via JNI

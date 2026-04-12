@@ -1,7 +1,6 @@
 package com.ncm.player.ui.screen
 
 import com.ncm.player.model.LyricLine
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons

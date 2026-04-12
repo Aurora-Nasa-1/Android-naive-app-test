@@ -1,5 +1,7 @@
 package com.ncm.player.service
 
+import com.ncm.player.model.LyricLine
+
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C

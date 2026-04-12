@@ -199,7 +199,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val clip = android.content.ClipData.newPlainText("NCM Player Logs", LogManager.getLogs())
+                        val clip = android.content.ClipData.newPlainText("NCM Player Logs", LogManager.getAllLogsString())
                         clipboard.setPrimaryClip(clip)
                         android.widget.Toast.makeText(context, "Logs copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
                     },

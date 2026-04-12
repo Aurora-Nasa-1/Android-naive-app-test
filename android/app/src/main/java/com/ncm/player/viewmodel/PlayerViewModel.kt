@@ -1,7 +1,6 @@
 package com.ncm.player.viewmodel
 
 import com.ncm.player.model.LyricLine
-
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
@@ -1353,7 +1352,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                                 val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
                                 val newIndex = sortedSongs.indexOfFirst { it.id == currentMediaId }.coerceAtLeast(0)
 
-                                DebugLog.i("PlayerVM: Applying sorted queue. New index: $newIndex, pos: $currentPos")
+                                DebugLog.i("PlayerVM: Applying sorted queue. New index: ${newIndex}, pos: ${currentPos}")
                                 controller.setMediaItems(mediaItems, newIndex, currentPos)
                                 controller.prepare()
                                 if (!controller.isPlaying) controller.play()

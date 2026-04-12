@@ -1,5 +1,7 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.model.LyricLine
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -15,7 +17,7 @@ import com.ncm.player.ui.component.LyricContent
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsScreen(
-    lyrics: List<PlayerViewModel.LyricLine>,
+    lyrics: List<LyricLine>,
     songName: String,
     currentPosition: Long,
     onBackPressed: () -> Unit

@@ -1,5 +1,7 @@
 package com.ncm.player
 
+import com.ncm.player.viewmodel.LiveSortViewModel
+
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -45,8 +47,6 @@ import com.ncm.player.ui.screen.*
 import com.ncm.player.ui.theme.NCMPlayerTheme
 import com.ncm.player.viewmodel.LoginViewModel
 import com.ncm.player.viewmodel.PlayerViewModel
-import com.ncm.player.viewmodel.LiveSortViewModel
-import LiveSortViewModel
 
 class MainActivity : ComponentActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
@@ -427,10 +427,7 @@ fun AppMainContent(
                         LiveSortScreen(
                             liveSortViewModel = liveSortViewModel,
                             playerViewModel = playerViewModel,
-                            onBackPressed = { navController.popBackStack() },
-                            onLiveSortConfirmed = {
-                                playerViewModel.reorderQueueByLiveSort(liveSortViewModel, loginViewModel.cookie)
-                            }
+                            onBackPressed = { navController.popBackStack() }
                         )
                     }
                     composable("playlist/{playlistId}") { backStackEntry ->

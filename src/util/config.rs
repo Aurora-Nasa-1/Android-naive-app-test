@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-pub const API_DOMAIN: &str = "https://interface.music.163.com";
+pub const API_DOMAIN: &str = "https://interface3.music.163.com";
 pub const DOMAIN: &str = "https://music.163.com";
 pub const ENCRYPT: bool = true;
 pub const ENCRYPT_RESPONSE: bool = false;

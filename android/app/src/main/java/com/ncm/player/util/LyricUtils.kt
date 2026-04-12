@@ -1,6 +1,6 @@
 package com.ncm.player.util
 
-import com.ncm.player.viewmodel.PlayerViewModel.LyricLine
+import com.ncm.player.model.LyricLine
 import io.github.proify.lyricon.lyric.model.LyricWord
 import io.github.proify.lyricon.lyric.model.RichLyricLine
 import java.util.regex.Pattern

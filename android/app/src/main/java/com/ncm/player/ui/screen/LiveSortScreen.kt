@@ -22,8 +22,7 @@ import com.ncm.player.viewmodel.PlayerViewModel
 fun LiveSortScreen(
     liveSortViewModel: LiveSortViewModel,
     playerViewModel: PlayerViewModel,
-    onBackPressed: () -> Unit,
-    onLiveSortConfirmed: () -> Unit
+    onBackPressed: () -> Unit
 ) {
     val sortState by liveSortViewModel.sortState.collectAsState()
     val currentQueue = playerViewModel.currentQueue
@@ -70,9 +69,19 @@ fun LiveSortScreen(
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
-                        onClick = onLiveSortConfirmed,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = currentQueue.isNotEmpty()
+                        onClick = {
+                            val processableSongs = currentQueue.mapNotNull { song ->
+                                val uri = localSongs.find { it.first.id == song.id }?.second
+                                if (uri != null) {
+                                    val path = uri.path ?: uri.toString()
+                                    song to path
+                                } else {
+                                    null
+                                }
+                            }
+                            liveSortViewModel.processPlaylist(processableSongs)
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Reorder Current Queue")
                     }
@@ -94,20 +103,12 @@ fun LiveSortScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Analyzing: ${state.currentSong}")
                     Text("${state.progress} / ${state.total}")
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Button(onClick = { liveSortViewModel.cancelAnalysis() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                        Text("Cancel")
-                    }
                 }
 
                 is LiveSortState.Sorting -> {
                     CircularProgressIndicator(modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Optimizing playlist flow...")
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Button(onClick = { liveSortViewModel.cancelAnalysis() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                        Text("Cancel")
-                    }
                 }
 
                 is LiveSortState.Error -> {

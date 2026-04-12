@@ -3,7 +3,6 @@ package com.ncm.player.util
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import com.ncm.player.BuildConfig
 
 object DebugLog {
     private const val TAG = "NCMPlayerDebug"

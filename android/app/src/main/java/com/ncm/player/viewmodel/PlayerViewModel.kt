@@ -1,5 +1,6 @@
 package com.ncm.player.viewmodel
 
+import com.ncm.player.model.LyricLine
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
@@ -223,7 +224,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         // 1. Add songs from our DownloadRegistry first (these are the "official" downloads)
         val registrySongs = com.ncm.player.manager.DownloadRegistry.getAllDownloadedSongs()
         registrySongs.forEach { metadata ->
-            files.add(metadata.song to android.net.Uri.parse(metadata.filePath))
+            val uri = if (metadata.filePath.startsWith("/")) {
+                android.net.Uri.fromFile(java.io.File(metadata.filePath))
+            } else {
+                android.net.Uri.parse(metadata.filePath)
+            }
+            files.add(metadata.song to uri)
         }
 
         // 2. Scan common directories for other local music that might not be in our registry
@@ -464,6 +470,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                     override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
                         updateQueue()
+                    }
+
+                    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                        val message = error.message ?: "Unknown"
+                        if (message.contains("InterruptedIOException")) return
+                        DebugLog.e("PlayerVM: Player Error", error)
+                        DebugLog.toast(getApplication(), "Playback Error: ${error.errorCodeName}")
                     }
                 })
 
@@ -962,17 +975,6 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    data class LyricLine(
-        val time: Long,
-        val text: String,
-        val translation: String? = null,
-        val romanization: String? = null,
-        val secondary: String? = null,
-        val endTime: Long? = null,
-        val words: List<Word>? = null
-    ) {
-        data class Word(val text: String, val beginTime: Long, val endTime: Long)
-    }
 
     fun downloadSong(song: Song, cookie: String?, ignoreNetwork: Boolean = false) {
         if (!ignoreNetwork && currentNetworkType == com.ncm.player.util.NetworkType.CELLULAR && !allowCellularDownload && !skipCellularPromptForSession) {
@@ -1084,19 +1086,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
         val localUri = localSongs.find { it.first.id == song.id }?.second
         val mediaUri = if (localUri != null) {
-            DebugLog.d("PlayerVM: createMediaItem: Using direct local URI for ${song.id}")
             localUri
         } else {
             val quality = if (currentNetworkType == com.ncm.player.util.NetworkType.WIFI) currentQualityWifi else currentQualityCellular
-            val uriBuilder = android.net.Uri.Builder()
+            android.net.Uri.Builder()
                 .scheme("ncm")
                 .authority(song.id)
                 .appendQueryParameter("quality", quality)
-
-            if (!cookie.isNullOrEmpty()) {
-                uriBuilder.appendQueryParameter("cookie", cookie)
-            }
-            uriBuilder.build()
+                .apply {
+                    if (!cookie.isNullOrEmpty()) {
+                        appendQueryParameter("cookie", cookie)
+                    }
+                }
+                .build()
         }
 
         return MediaItem.Builder()
@@ -1309,7 +1311,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     val result = callApi("song/url/v1", mapOf("id" to song.id, "level" to "standard", "cookie" to (cookie ?: "")))
                     val dataArray = result.get("data")?.asJsonArray
                     val url = dataArray?.firstOrNull()?.asJsonObject?.get("url")?.asString
-                    
+
                     if (!url.isNullOrEmpty()) {
                         val tempFile = java.io.File(cacheDir, "${song.id}.mp3")
                         if (!tempFile.exists()) {
@@ -1340,17 +1342,25 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
             if (finalState is com.ncm.player.viewmodel.LiveSortState.Completed) {
                 val sortedSongs = finalState.sortedSongs.map { it.song }
-                withContext(Dispatchers.Main) {
-                    runWithController { controller ->
-                        val currentItem = controller.currentMediaItem
-                        val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
-                        
-                        controller.setMediaItems(mediaItems)
-                        val newIndex = sortedSongs.indexOfFirst { it.id == currentItem?.mediaId }.coerceAtLeast(0)
-                        controller.seekTo(newIndex, controller.currentPosition)
-                        controller.prepare()
-                        if (!controller.isPlaying) controller.play()
-                        updateQueue()
+                if (sortedSongs.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        runWithController { controller ->
+                            try {
+                                val currentMediaId = controller.currentMediaItem?.mediaId
+                                val currentPos = if (controller.mediaItemCount > 0) controller.currentPosition else 0L
+
+                                val mediaItems = sortedSongs.map { createMediaItem(it, cookie) }
+                                val newIndex = sortedSongs.indexOfFirst { it.id == currentMediaId }.coerceAtLeast(0)
+
+                                DebugLog.i("PlayerVM: Applying sorted queue. New index: ${newIndex}, pos: ${currentPos}")
+                                controller.setMediaItems(mediaItems, newIndex, currentPos)
+                                controller.prepare()
+                                if (!controller.isPlaying) controller.play()
+                                updateQueue()
+                            } catch (e: Exception) {
+                                DebugLog.e("PlayerVM: Failed to apply sorted queue", e)
+                            }
+                        }
                     }
                 }
             } else if (finalState is com.ncm.player.viewmodel.LiveSortState.Error) {

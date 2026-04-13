@@ -1,5 +1,7 @@
 package com.ncm.player
 
+import com.ncm.player.viewmodel.LiveSortViewModel
+
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -49,7 +51,7 @@ import com.ncm.player.viewmodel.PlayerViewModel
 class MainActivity : ComponentActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
     private val playerViewModel: PlayerViewModel by viewModels()
-    private val liveSortViewModel: com.ncm.player.viewmodel.LiveSortViewModel by viewModels()
+    private val liveSortViewModel: LiveSortViewModel by viewModels()
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,7 +93,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     loginViewModel: LoginViewModel,
     playerViewModel: PlayerViewModel,
-    liveSortViewModel: com.ncm.player.viewmodel.LiveSortViewModel,
+    liveSortViewModel: LiveSortViewModel,
     useSideNav: Boolean,
     intent: Intent? = null
 ) {
@@ -240,7 +242,7 @@ fun AppMainContent(
     navController: androidx.navigation.NavHostController,
     loginViewModel: LoginViewModel,
     playerViewModel: PlayerViewModel,
-    liveSortViewModel: com.ncm.player.viewmodel.LiveSortViewModel,
+    liveSortViewModel: LiveSortViewModel,
     useSideNav: Boolean,
     hasBottomBar: Boolean,
     bottomBarHeight: androidx.compose.ui.unit.Dp,

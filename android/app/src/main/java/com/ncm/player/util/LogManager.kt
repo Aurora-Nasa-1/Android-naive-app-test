@@ -3,6 +3,7 @@ package com.ncm.player.util
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -17,7 +18,12 @@ object LogManager {
         val level: String,
         val message: String,
         val throwable: String? = null
-    )
+    ) {
+        override fun toString(): String {
+            val base = "[$time] $level: $message"
+            return if (throwable != null) "$base\n$throwable" else base
+        }
+    }
 
     fun log(level: String, message: String, throwable: Throwable? = null) {
         val entry = LogEntry(
@@ -26,15 +32,21 @@ object LogManager {
             message = message,
             throwable = throwable?.let { android.util.Log.getStackTraceString(it) }
         )
-        val currentList = _logs.value.toMutableList()
-        currentList.add(entry)
-        if (currentList.size > 500) {
-            currentList.removeAt(0)
+        _logs.update { current ->
+            val next = current.toMutableList()
+            next.add(entry)
+            if (next.size > 1000) {
+                next.removeAt(0)
+            }
+            next
         }
-        _logs.value = currentList
     }
 
     fun clear() {
         _logs.value = emptyList()
+    }
+
+    fun getAllLogsString(): String {
+        return _logs.value.joinToString("\n") { it.toString() }
     }
 }

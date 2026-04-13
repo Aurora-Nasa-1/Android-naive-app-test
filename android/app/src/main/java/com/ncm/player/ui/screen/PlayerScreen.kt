@@ -1,5 +1,6 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.model.LyricLine
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -41,7 +42,7 @@ import com.ncm.player.viewmodel.PlayerViewModel
 @Composable
 fun PlayerScreen(
     song: Song?,
-    lyrics: List<PlayerViewModel.LyricLine> = emptyList(),
+    lyrics: List<LyricLine> = emptyList(),
     isPlaying: Boolean,
     currentPosition: Long = 0L,
     duration: Long = 0L,

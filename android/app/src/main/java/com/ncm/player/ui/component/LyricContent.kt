@@ -1,5 +1,6 @@
 package com.ncm.player.ui.component
 
+import com.ncm.player.model.LyricLine
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
@@ -21,7 +22,7 @@ import com.ncm.player.viewmodel.PlayerViewModel
 
 @Composable
 fun LyricContent(
-    lyrics: List<PlayerViewModel.LyricLine>,
+    lyrics: List<LyricLine>,
     currentPosition: Long,
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,

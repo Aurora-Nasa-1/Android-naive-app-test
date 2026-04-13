@@ -6,9 +6,9 @@ import androidx.media3.common.C
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.ContentDataSource
+import androidx.media3.datasource.TransferListener
 import com.ncm.player.manager.DownloadRegistry
 import com.ncm.player.util.RustServerManager
 import com.ncm.player.util.JsonUtils
@@ -25,89 +25,78 @@ class NcmDataSource(
     private val contentDataSource = ContentDataSource(context)
     private var activeDataSource: DataSource? = null
 
+    init {
+        // Internal data sources should not trigger transfer listener twice,
+        // we manually trigger them in our read/open methods for the aggregate source.
+    }
+
     override fun open(dataSpec: DataSpec): Long {
         transferInitializing(dataSpec)
         val uri = dataSpec.uri
+        DebugLog.d("NcmDS: opening ${uri}")
 
-        if (uri.scheme != "ncm") {
-            throw IOException("Unsupported scheme: ${uri.scheme}")
-        }
-
-        val songId = uri.host ?: throw IOException("Invalid song ID in URI: $uri")
-        val quality = uri.getQueryParameter("quality") ?: "standard"
-        val cookie = uri.getQueryParameter("cookie")
-
-        // 1. Check local registry
-        val metadata = DownloadRegistry.getMetadata(songId)
-        if (metadata != null) {
-            DebugLog.d("NcmDS: Found local file for $songId: ${metadata.filePath}")
-            val localUri = Uri.parse(metadata.filePath)
-            val localDataSpec = dataSpec.withUri(localUri)
-
-            val ds = if (localUri.scheme == "content") {
-                contentDataSource
-            } else {
-                fileDataSource
+        try {
+            if (uri.scheme != "ncm") {
+                val ds = if (uri.scheme == "content") contentDataSource else fileDataSource
+                activeDataSource = ds
+                val length = ds.open(dataSpec)
+                transferStarted(dataSpec)
+                return length
             }
 
-            activeDataSource = ds
-            val bytesRead = ds.open(localDataSpec)
-            transferStarted(dataSpec)
-            return bytesRead
-        }
+            val songId = uri.host ?: throw IOException("Invalid song ID")
+            val quality = uri.getQueryParameter("quality") ?: "standard"
+            val cookie = uri.getQueryParameter("cookie")
 
-        // 2. Resolve via JNI
-        val params = mutableMapOf("id" to songId, "level" to quality)
-        cookie?.let { params["cookie"] = it }
-        // Retry logic for unstable network or API errors (2000/1004)
-        var lastError = ""
-        var cdnUrl: String? = null
-
-        for (attempt in 1..3) {
-            try {
-                // Try song/url/v1 first for direct metadata (sometimes 302 wrapper fails)
-                val method = if (attempt == 1) "song/url/v1/302" else "song/url/v1"
-                val result = RustServerManager.callApi(method, params)
-                val body = JsonParser.parseString(result).asJsonObject
-
-                cdnUrl = body.get("redirectUrl")?.asString ?: JsonUtils.findUrl(body)
-
-                if (cdnUrl != null && cdnUrl.startsWith("http")) {
-                    break
-                }
-                lastError = result
-            } catch (e: Exception) {
-                lastError = e.message ?: "Unknown error"
+            val metadata = DownloadRegistry.getMetadata(songId)
+            if (metadata != null) {
+                val localUri = Uri.parse(metadata.filePath)
+                val localDataSpec = dataSpec.buildUpon().setUri(localUri).setKey(songId).build()
+                activeDataSource = if (localUri.scheme == "content") contentDataSource else fileDataSource
+                val length = activeDataSource!!.open(localDataSpec)
+                transferStarted(dataSpec)
+                return length
             }
-            if (attempt < 3) Thread.sleep(500L * attempt)
-        }
 
-        if (cdnUrl == null || !cdnUrl.startsWith("http")) {
-            throw IOException("Failed to resolve NCM URL for ID $songId after 3 attempts: $lastError")
-        }
+            val params = mutableMapOf("id" to songId, "level" to quality)
+            cookie?.let { params["cookie"] = it }
 
-        DebugLog.d("NcmDS: Resolved URL for $songId: $cdnUrl")
-        val resolvedUri = Uri.parse(cdnUrl)
-        val resolvedDataSpec = dataSpec.withUri(resolvedUri)
+            var cdnUrl: String? = null
+            for (attempt in 1..3) {
+                try {
+                    val method = if (attempt == 1) "song/url/v1/302" else "song/url/v1"
+                    val result = RustServerManager.callApi(method, params)
+                    val body = JsonParser.parseString(result).asJsonObject
+                    cdnUrl = body.get("redirectUrl")?.asString ?: JsonUtils.findUrl(body)
+                    if (cdnUrl != null && cdnUrl.startsWith("http")) break
+                } catch (e: Exception) { }
+                if (attempt < 3) Thread.sleep(200L)
+            }
 
-        activeDataSource = httpDataSource
-        return try {
-            val bytesRead = httpDataSource.open(resolvedDataSpec)
+            if (cdnUrl == null) throw IOException("Failed to resolve ${songId}")
+
+            val resolvedDataSpec = dataSpec.buildUpon().setUri(Uri.parse(cdnUrl)).setKey(songId).build()
+            activeDataSource = httpDataSource
+            val length = httpDataSource.open(resolvedDataSpec)
             transferStarted(dataSpec)
-            bytesRead
-        } catch (e: IOException) {
-            DebugLog.e("NcmDS: HTTP open failed for $songId: ${e.message}", e)
+            return length
+        } catch (e: Exception) {
+            DebugLog.e("NcmDS: open failed", e)
             throw e
         }
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        return activeDataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        if (length == 0) return 0
+        val read = activeDataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        if (read > 0) {
+            bytesTransferred(read)
+        }
+        return read
     }
 
-    override fun getUri(): Uri? {
-        return activeDataSource?.uri
-    }
+    override fun getUri(): Uri? = activeDataSource?.getUri()
+    override fun getResponseHeaders(): Map<String, List<String>> = activeDataSource?.getResponseHeaders() ?: emptyMap()
 
     override fun close() {
         transferEnded()

@@ -1,5 +1,7 @@
 package com.ncm.player.service
 
+import com.ncm.player.model.LyricLine
+
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -97,7 +99,8 @@ class MusicService : MediaSessionService() {
         }
 
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
+            .setDefaultRequestProperties(mapOf("Referer" to "https://music.163.com"))
+.setAllowCrossProtocolRedirects(true)
             .setUserAgent("NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
 
         val ncmDataSourceFactory = NcmDataSource.Factory(this, httpDataSourceFactory)

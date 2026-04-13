@@ -68,7 +68,7 @@ class LiveSortViewModel : ViewModel() {
 
                     val jsonResult = RustServerManager.analyzeAudio(path)
                     val features = parseAudioFeatures(jsonResult)
-                    
+
                     val jsonObject = JSONObject(jsonResult)
                     val startBpm = jsonObject.optDouble("start_bpm", features.bpm)
                     val endBpm = jsonObject.optDouble("end_bpm", features.bpm)

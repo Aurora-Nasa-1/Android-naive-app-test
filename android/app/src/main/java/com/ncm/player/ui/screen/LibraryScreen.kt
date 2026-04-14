@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
+import com.ncm.player.ui.component.PlaylistItem
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -101,7 +102,7 @@ fun LibraryScreen(
                 key = { it.id },
                 contentType = { "playlist" }
             ) { playlist ->
-                PlaylistItem(playlist, onClick = { onPlaylistClick(playlist) })
+                PlaylistItem(playlist, { onPlaylistClick(playlist) })
             }
         }
     }

@@ -31,7 +31,8 @@ class NcmDataSource(
     }
 
     override fun open(dataSpec: DataSpec): Long {
-        transferInitializing(dataSpec)
+        activeDataSource?.close()
+        if (dataSpec.position == 0L) transferInitializing(dataSpec)
         val uri = dataSpec.uri
         DebugLog.d("NcmDS: opening ${uri}")
 
@@ -40,7 +41,7 @@ class NcmDataSource(
                 val ds = if (uri.scheme == "content") contentDataSource else fileDataSource
                 activeDataSource = ds
                 val length = ds.open(dataSpec)
-                transferStarted(dataSpec)
+                if (dataSpec.position == 0L) transferStarted(dataSpec)
                 return length
             }
 
@@ -54,7 +55,7 @@ class NcmDataSource(
                 val localDataSpec = dataSpec.buildUpon().setUri(localUri).setKey(songId).build()
                 activeDataSource = if (localUri.scheme == "content") contentDataSource else fileDataSource
                 val length = activeDataSource!!.open(localDataSpec)
-                transferStarted(dataSpec)
+                if (dataSpec.position == 0L) transferStarted(dataSpec)
                 return length
             }
 
@@ -78,7 +79,7 @@ class NcmDataSource(
             val resolvedDataSpec = dataSpec.buildUpon().setUri(Uri.parse(cdnUrl)).setKey(songId).build()
             activeDataSource = httpDataSource
             val length = httpDataSource.open(resolvedDataSpec)
-            transferStarted(dataSpec)
+            if (dataSpec.position == 0L) transferStarted(dataSpec)
             return length
         } catch (e: Exception) {
             DebugLog.e("NcmDS: open failed", e)

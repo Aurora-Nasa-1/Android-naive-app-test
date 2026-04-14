@@ -1,0 +1,272 @@
+package com.ncm.player.viewmodel
+
+import android.app.Application
+import android.content.ComponentName
+import android.content.Context
+import android.os.Bundle
+import androidx.compose.runtime.*
+import androidx.lifecycle.viewModelScope
+import androidx.media3.common.*
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
+import com.ncm.player.model.LyricLine
+import com.ncm.player.model.Song
+import com.ncm.player.service.MusicService
+import com.ncm.player.util.DebugLog
+import com.ncm.player.util.JsonUtils
+import com.ncm.player.util.LyricUtils
+import com.ncm.player.util.UserPreferences
+import kotlinx.coroutines.*
+
+class PlaybackViewModel(application: Application) : BaseViewModel(application) {
+    var currentSong by mutableStateOf<Song?>(null)
+    var isPlaying by mutableStateOf(false)
+    var currentQueue by mutableStateOf<List<Song>>(emptyList())
+    var currentPosition by mutableLongStateOf(0L)
+    var duration by mutableLongStateOf(0L)
+    var repeatMode by mutableIntStateOf(Player.REPEAT_MODE_OFF)
+    var shuffleMode by mutableStateOf(false)
+    var currentLyrics by mutableStateOf<List<LyricLine>>(emptyList())
+    var currentSampleRate by mutableIntStateOf(0)
+    var currentBitrate by mutableIntStateOf(0)
+    var isFmMode by mutableStateOf(false)
+    var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
+    var sleepTimerRemaining by mutableLongStateOf(0L)
+    private var sleepTimerJob: Job? = null
+    private var isFetchingMoreFm = false
+
+    private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+    val mediaController: MediaController?
+        get() = if (mediaControllerFuture?.isDone == true) mediaControllerFuture?.get() else null
+
+    init {
+        initController(application)
+    }
+
+    fun initController(context: Context) {
+        val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
+        mediaControllerFuture = MediaController.Builder(context, sessionToken)
+            .setListener(object : MediaController.Listener {
+                override fun onCustomCommand(controller: MediaController, command: SessionCommand, args: Bundle): ListenableFuture<androidx.media3.session.SessionResult> {
+                    when (command.customAction) {
+                        "UPDATE_PLAYBACK_INFO" -> {
+                            currentSampleRate = args.getInt("sampleRate")
+                            currentBitrate = args.getInt("bitrate")
+                        }
+                        "ACTION_PLAYER_ERROR" -> {
+                            DebugLog.toast(getApplication(), args.getString("error") ?: "Unknown error")
+                        }
+                    }
+                    return com.google.common.util.concurrent.Futures.immediateFuture(androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS))
+                }
+            })
+            .buildAsync()
+
+        mediaControllerFuture?.addListener({
+            mediaController?.let { controller ->
+                syncState(controller)
+                controller.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        updateSongFromMediaItem(mediaItem)
+                        if (isFmMode && controller.currentMediaItemIndex >= controller.mediaItemCount - 2) {
+                            fetchMoreFmSongs()
+                        }
+                        updateQueue()
+                    }
+                    override fun onPlaybackStateChanged(state: Int) {
+                        if (state == Player.STATE_READY) duration = controller.duration.coerceAtLeast(0L)
+                    }
+                    override fun onRepeatModeChanged(mode: Int) { repeatMode = mode }
+                    override fun onShuffleModeEnabledChanged(enabled: Boolean) { shuffleMode = enabled }
+                })
+
+                viewModelScope.launch {
+                    while (isActive) {
+                        currentPosition = controller.currentPosition
+                        delay(1000L)
+                    }
+                }
+            }
+        }, MoreExecutors.directExecutor())
+    }
+
+    private fun syncState(controller: MediaController) {
+        isPlaying = controller.isPlaying
+        currentPosition = controller.currentPosition
+        duration = controller.duration.coerceAtLeast(0L)
+        repeatMode = controller.repeatMode
+        shuffleMode = controller.shuffleModeEnabled
+        updateSongFromMediaItem(controller.currentMediaItem)
+        updateQueue()
+    }
+
+    private fun updateSongFromMediaItem(mediaItem: MediaItem?) {
+        mediaItem?.let {
+            currentSong = Song(
+                id = it.mediaId,
+                name = it.mediaMetadata.title?.toString() ?: "Unknown",
+                artist = it.mediaMetadata.artist?.toString() ?: "Unknown",
+                album = it.mediaMetadata.albumTitle?.toString() ?: "Unknown",
+                albumArtUrl = it.mediaMetadata.artworkUri?.toString(),
+                artistId = it.mediaMetadata.extras?.getString("artistId")
+            )
+            fetchLyrics(it.mediaId)
+        }
+    }
+
+    fun updateQueue() {
+        mediaController?.let { controller ->
+            val list = mutableListOf<Song>()
+            for (i in 0 until controller.mediaItemCount) {
+                val item = controller.getMediaItemAt(i)
+                list.add(Song(
+                    id = item.mediaId,
+                    name = item.mediaMetadata.title?.toString() ?: "Unknown",
+                    artist = item.mediaMetadata.artist?.toString() ?: "Unknown",
+                    album = item.mediaMetadata.albumTitle?.toString() ?: "Unknown",
+                    albumArtUrl = item.mediaMetadata.artworkUri?.toString(),
+                    artistId = item.mediaMetadata.extras?.getString("artistId")
+                ))
+            }
+            currentQueue = list
+        }
+    }
+
+    fun playSong(song: Song, playlist: List<Song> = emptyList()) {
+        isFmMode = false
+        val target = if (playlist.isNotEmpty()) playlist else listOf(song)
+        val startIndex = target.indexOf(song).coerceAtLeast(0)
+
+        runWithController { controller ->
+            controller.stop()
+            controller.clearMediaItems()
+            controller.setMediaItems(target.map { createMediaItem(it) }, startIndex, 0L)
+            controller.prepare()
+            controller.play()
+        }
+    }
+
+    private fun createMediaItem(song: Song): MediaItem {
+        val metadata = MediaMetadata.Builder()
+            .setTitle(song.name)
+            .setArtist(song.artist)
+            .setAlbumTitle(song.album)
+            .setArtworkUri(song.albumArtUrl?.let { android.net.Uri.parse(it) })
+            .setExtras(Bundle().apply { putString("artistId", song.artistId) })
+            .build()
+
+        val quality = UserPreferences.getQualityWifi(getApplication())
+        val uri = android.net.Uri.Builder()
+            .scheme("ncm")
+            .authority(song.id)
+            .appendQueryParameter("quality", quality)
+            .apply { cookie?.let { appendQueryParameter("cookie", it) } }
+            .build()
+
+        return MediaItem.Builder().setMediaId(song.id).setUri(uri).setMediaMetadata(metadata).build()
+    }
+
+    fun togglePlayPause() = runWithController { if (it.isPlaying) it.pause() else it.play() }
+    fun skipNext() = runWithController { it.seekToNext() }
+    fun skipPrevious() = runWithController { it.seekToPrevious() }
+    fun seekTo(pos: Long) = runWithController { it.seekTo(pos); currentPosition = pos }
+
+    fun toggleRepeatMode() = runWithController {
+        val next = when (it.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        it.repeatMode = next
+    }
+
+    fun toggleShuffleMode() = runWithController { it.shuffleModeEnabled = !it.shuffleModeEnabled }
+
+    fun addToQueue(song: Song) = runWithController { it.addMediaItem(createMediaItem(song)) }
+    fun moveQueueItem(f: Int, t: Int) = runWithController { it.moveMediaItem(f, t); updateQueue() }
+    fun removeQueueItem(i: Int) = runWithController { it.removeMediaItem(i); updateQueue() }
+    fun clearQueue() = runWithController { it.clearMediaItems(); updateQueue() }
+
+    private fun runWithController(action: (MediaController) -> Unit) {
+        mediaController?.let(action) ?: mediaControllerFuture?.addListener({ mediaController?.let(action) }, MoreExecutors.directExecutor())
+    }
+
+    fun fetchLyrics(songId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val body = callApi("lyric/new", mapOf("id" to songId))
+                val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                val yrc = body.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                var lines = if (yrc.isNotEmpty()) LyricUtils.parseYrc(yrc) else LyricUtils.parseLrc(lrc, duration)
+                withContext(Dispatchers.Main) { currentLyrics = lines }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { currentLyrics = emptyList() }
+            }
+        }
+    }
+
+    fun playPersonalFm() {
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                val body = withContext(Dispatchers.IO) { callApi("personal_fm") }
+                val songs = (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
+                    ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                if (songs.isNotEmpty()) { isFmMode = true; playSong(songs[0], songs) }
+            } finally { isLoading = false }
+        }
+    }
+
+    private fun fetchMoreFmSongs() {
+        if (isFetchingMoreFm) return
+        isFetchingMoreFm = true
+        viewModelScope.launch {
+            try {
+                val body = withContext(Dispatchers.IO) { callApi("personal_fm") }
+                val songs = (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
+                    ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                runWithController { controller -> songs.forEach { controller.addMediaItem(createMediaItem(it)) } }
+            } finally { isFetchingMoreFm = false }
+        }
+    }
+
+    fun playHeartbeat(songId: String, playlistId: Long) {
+        viewModelScope.launch {
+            try {
+                isLoading = true
+                val body = withContext(Dispatchers.IO) { callApi("playmode/intelligence/list", mapOf("id" to songId, "pid" to playlistId.toString(), "sid" to songId, "count" to "20")) }
+                val songsJson = when {
+                    body.get("data")?.isJsonArray == true -> body.get("data").asJsonArray
+                    body.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data") -> body.get("data").asJsonObject.get("data").asJsonArray
+                    body.has("list") && body.get("list").isJsonArray -> body.get("list").asJsonArray
+                    else -> null
+                }
+                val songs = songsJson?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                if (songs.isNotEmpty()) playSong(songs[0], songs)
+            } catch (e: Exception) {
+            } finally { isLoading = false }
+        }
+    }
+
+    fun startSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        if (minutes <= 0) { sleepTimerRemaining = 0L; return }
+        sleepTimerRemaining = minutes * 60 * 1000L
+        sleepTimerJob = viewModelScope.launch {
+            while (sleepTimerRemaining > 0) { delay(1000); sleepTimerRemaining -= 1000 }
+            runWithController { it.pause() }
+            sleepTimerRemaining = 0L
+        }
+    }
+
+    fun deleteLocalSong(uri: android.net.Uri) { /* Implementation */ }
+
+    override fun onCleared() {
+        super.onCleared()
+        mediaControllerFuture?.let { MediaController.releaseFuture(it) }
+    }
+}

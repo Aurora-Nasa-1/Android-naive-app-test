@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.ncm.player.model.Song
+import com.ncm.player.ui.component.SongItem
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)

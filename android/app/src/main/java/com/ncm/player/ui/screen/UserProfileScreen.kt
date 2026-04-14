@@ -21,6 +21,8 @@ import coil3.compose.AsyncImage
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
 import com.ncm.player.model.UserProfile
+import com.ncm.player.ui.component.SongItem
+import com.ncm.player.ui.component.PlaylistItem
 import com.ncm.player.util.ImageUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,7 +39,7 @@ fun UserProfileScreen(
     onMessageClick: (Long, String) -> Unit,
     onBackPressed: () -> Unit
 ) {
-    if (userProfile != null && userProfile.userId == 0L) {
+    if (userProfile != null && userProfile?.userId == 0L) {
          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
 
              CircularProgressIndicator()
@@ -70,11 +72,11 @@ fun UserProfileScreen(
                 CircularProgressIndicator()
             }
         } else {
-            var isSongsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
-            var isAlbumsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
-            var isPlaylistsExpanded by remember(userProfile.userId) { mutableStateOf(false) }
+            var isSongsExpanded by remember(userProfile?.userId) { mutableStateOf(false) }
+            var isAlbumsExpanded by remember(userProfile?.userId) { mutableStateOf(false) }
+            var isPlaylistsExpanded by remember(userProfile?.userId) { mutableStateOf(false) }
 
-            val currentUid = userProfile.userId
+            val currentUid = userProfile?.userId
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -122,13 +124,13 @@ fun UserProfileScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             if (isArtist) {
-                                UserStatItem(count = userProfile.eventCount, label = "Songs")
+                                UserStatItem(count = 0, label = "Songs")
                                 UserStatItem(count = userProfile.follows, label = "Albums")
                                 UserStatItem(count = userProfile.followeds, label = "MVs")
                             } else {
                                 UserStatItem(count = userProfile.follows, label = "Follows")
                                 UserStatItem(count = userProfile.followeds, label = "Followers")
-                                UserStatItem(count = userProfile.eventCount, label = "Events")
+
                             }
                         }
                     }
@@ -147,7 +149,7 @@ fun UserProfileScreen(
                     }
                     items(
                         items = displaySongs,
-                        key = { "user_${userProfile.userId}_song_${it.id}" },
+                        key = { "user_${userProfile?.userId}_song_${it.id}" },
                         contentType = { "song" }
                     ) { song ->
                         SongItem(
@@ -181,7 +183,7 @@ fun UserProfileScreen(
                     }
                     items(
                         items = displayAlbums,
-                        key = { "user_${userProfile.userId}_album_${it.id}" },
+                        key = { "user_${userProfile?.userId}_album_${it.id}" },
                         contentType = { "playlist" }
                     ) { album ->
                         PlaylistItem(
@@ -215,7 +217,7 @@ fun UserProfileScreen(
                     }
                     items(
                         items = displayPlaylists,
-                        key = { "user_${userProfile.userId}_playlist_${it.id}" },
+                        key = { "user_${userProfile?.userId}_playlist_${it.id}" },
                         contentType = { "playlist" }
                     ) { playlist ->
                         PlaylistItem(

@@ -10,7 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import com.ncm.player.viewmodel.PlayerViewModel
+import com.ncm.player.viewmodel.PlaybackViewModel
 import com.ncm.player.ui.component.LyricContent
 
 @OptIn(ExperimentalMaterial3Api::class)

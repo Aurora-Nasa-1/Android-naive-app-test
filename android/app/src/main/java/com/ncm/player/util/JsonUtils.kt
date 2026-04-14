@@ -8,7 +8,6 @@ import com.ncm.player.model.Song
 import com.ncm.player.model.Contact
 import com.ncm.player.model.Message
 import com.ncm.player.model.Comment
-import com.ncm.player.model.Event
 import com.ncm.player.model.Playlist
 
 object JsonUtils {
@@ -72,57 +71,9 @@ object JsonUtils {
         }
     }
 
-    fun parseEvent(it: JsonElement): Event? {
-        return try {
-            val obj = it.asJsonObject
-            val user = when {
-                obj.has("user") && obj.get("user").isJsonObject -> obj.get("user").asJsonObject
-                obj.has("author") && obj.get("author").isJsonObject -> obj.get("author").asJsonObject
-                else -> null
-            } ?: return null
-            val jsonStr = obj.get("json")?.asString ?: "{}"
-            val eventJson = try { JsonParser.parseString(jsonStr).asJsonObject } catch (e: Exception) { JsonObject() }
-
-            var song: Song? = null
-            var playlist: Playlist? = null
-
-            if (eventJson.has("song") && eventJson.get("song").isJsonObject) {
-                song = parseSong(eventJson.get("song"))
-            } else if (eventJson.has("playlist") && eventJson.get("playlist").isJsonObject) {
-                val plObj = eventJson.get("playlist").asJsonObject
-                playlist = Playlist(
-                    id = plObj.get("id").asLong,
-                    name = plObj.get("name").asString,
-                    coverImgUrl = plObj.get("coverImgUrl").asString,
-                    trackCount = plObj.get("trackCount")?.asInt ?: 0
-                )
-            }
-
-            val pics = obj.get("pics")?.asJsonArray?.map { it.asJsonObject.get("pcurl").asString } ?: emptyList()
-
-            Event(
-                id = obj.get("id").asLong,
-                userId = user.get("userId").asLong,
-                nickname = user.get("nickname").asString,
-                avatarUrl = user.get("avatarUrl").asString,
-                eventTime = obj.get("eventTime").asLong,
-                type = obj.get("type").asInt,
-                json = jsonStr,
-                msg = eventJson.get("msg")?.asString ?: "",
-                pics = pics,
-                song = song,
-                playlist = playlist
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-
     fun parseContact(it: JsonElement): Contact? {
         return try {
             val obj = it.asJsonObject
-
-            // 1. Identify the user object (NCM uses multiple keys depending on endpoint)
             val fromUser = when {
                 obj.has("fromUser") -> obj.get("fromUser").asJsonObject
                 obj.has("from") -> obj.get("from").asJsonObject
@@ -131,7 +82,6 @@ object JsonUtils {
                 else -> return null
             }
 
-            // 2. Identify message content
             val lastMsgStr = obj.get("lastMsg")?.asString ?: obj.get("msg")?.asString ?: ""
             val lastMsgObj = try {
                 if (lastMsgStr.startsWith("{")) JsonParser.parseString(lastMsgStr).asJsonObject else null
@@ -148,7 +98,6 @@ object JsonUtils {
                 unreadCount = obj.get("newMsgCount")?.asInt ?: 0
             )
         } catch (e: Exception) {
-            android.util.Log.e("JsonUtils", "parseContact error: ${e.message}")
             null
         }
     }
@@ -171,7 +120,6 @@ object JsonUtils {
                 isMe = userId == myUserId
             )
         } catch (e: Exception) {
-            android.util.Log.e("JsonUtils", "parseMessage error: ${e.message}")
             null
         }
     }
@@ -179,72 +127,38 @@ object JsonUtils {
     fun getString(element: JsonElement?, key: String, default: String? = null): String? {
         val obj = if (element != null && element.isJsonObject) element.asJsonObject else return default
         val field = obj.get(key)
-        return if (field != null && !field.isJsonNull && field.isJsonPrimitive) {
-            field.asString
-        } else {
-            default
-        }
-    }
-
-    fun getArray(element: JsonElement?, key: String): JsonArray? {
-        val obj = if (element != null && element.isJsonObject) element.asJsonObject else return null
-        val field = obj.get(key)
-        return if (field != null && field.isJsonArray) {
-            field.asJsonArray
-        } else {
-            null
-        }
-    }
-
-    fun getObject(element: JsonElement?, key: String): JsonObject? {
-        val obj = if (element != null && element.isJsonObject) element.asJsonObject else return null
-        val field = obj.get(key)
-        return if (field != null && field.isJsonObject) {
-            field.asJsonObject
-        } else {
-            null
-        }
+        return if (field != null && !field.isJsonNull && field.isJsonPrimitive) field.asString else default
     }
 
     fun findUrl(element: JsonElement?): String? {
         if (element == null || element.isJsonNull) return null
 
-        // If it's a primitive string, it might be the URL directly (unlikely but possible)
         if (element.isJsonPrimitive && element.asJsonPrimitive.isString) {
             val s = element.asString
-            if (s.startsWith("http") && s.length > 12 && !s.contains("null")) {
-                android.util.Log.d("JsonUtils", "Found URL in primitive: $s")
-                return s
-            }
+            if (s.startsWith("http") && s.length > 12 && !s.contains("null")) return s
         }
 
-        // If it's the data object itself
         if (element.isJsonObject) {
             val obj = element.asJsonObject
+            // Direct check
             val url = getString(obj, "url")
-            if (url != null && url.isNotBlank() && url.startsWith("http") && url.length > 12 && !url.contains("null")) {
-                android.util.Log.d("JsonUtils", "Found URL in object: $url")
-                return url
-            }
+            if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
-            // Search all keys recursively if not found immediately
-            for (entry in obj.entrySet()) {
-                if (entry.key == "data" || entry.key == "result" || entry.key == "songs") {
-                    val found = findUrl(entry.value)
+            // Priority keys
+            listOf("data", "result", "songs", "urlInfo").forEach { key ->
+                if (obj.has(key)) {
+                    val found = findUrl(obj.get(key))
                     if (found != null) return found
                 }
             }
 
-            // Exhaustive search as last resort
+            // Exhaustive search
             for (entry in obj.entrySet()) {
-                if (entry.key != "data" && entry.key != "result" && entry.key != "songs") {
-                    val found = findUrl(entry.value)
-                    if (found != null) return found
-                }
+                val found = findUrl(entry.value)
+                if (found != null) return found
             }
         }
 
-        // If it's an array
         if (element.isJsonArray) {
             val arr = element.asJsonArray
             for (i in 0 until arr.size()) {

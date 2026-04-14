@@ -86,6 +86,7 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_nativeC
 
     let rt = get_runtime();
     let result = rt.block_on(async move {
+        let start = std::time::Instant::now();
         let client = get_client();
         let mut query = Query::new();
 
@@ -110,7 +111,9 @@ pub unsafe extern "system" fn Java_com_ncm_player_util_RustServerManager_nativeC
                         map.insert("cookie".to_string(), serde_json::Value::String(cookie_str));
                     }
                 }
-                serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string())
+                let s = serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string());
+                tracing::info!("JNI {} took {:?}", method_str, start.elapsed());
+                s
             }
             Err(e) => format!("{{\"code\": 500, \"msg\": \"{}\"}}", e),
         }

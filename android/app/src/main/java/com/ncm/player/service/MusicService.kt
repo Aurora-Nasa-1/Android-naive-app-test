@@ -1,7 +1,5 @@
 package com.ncm.player.service
 
-import com.ncm.player.model.LyricLine
-
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -34,6 +32,7 @@ import android.content.Context
 import java.io.File
 import com.ncm.player.util.UserPreferences
 import com.ncm.player.util.RustServerManager
+import com.ncm.player.util.DebugLog
 import io.github.proify.lyricon.provider.LyriconFactory
 import io.github.proify.lyricon.provider.LyriconProvider
 import io.github.proify.lyricon.lyric.model.LyricWord
@@ -74,7 +73,7 @@ class MusicService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        com.ncm.player.util.DebugLog.i("MusicService: Service onCreate")
+        DebugLog.i("MusicService: Service onCreate")
 
         val fadeDuration = UserPreferences.getFadeDuration(this)
         fadeAudioProcessor.setFadeDuration((fadeDuration * 1000).toLong())
@@ -82,7 +81,6 @@ class MusicService : MediaSessionService() {
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .setAllowedCapturePolicy(C.ALLOW_CAPTURE_BY_NONE)
             .build()
 
         val renderersFactory = object : DefaultRenderersFactory(this) {
@@ -100,7 +98,7 @@ class MusicService : MediaSessionService() {
 
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(mapOf("Referer" to "https://music.163.com"))
-.setAllowCrossProtocolRedirects(true)
+            .setAllowCrossProtocolRedirects(true)
             .setUserAgent("NeteaseMusic/9.1.20 (iPhone; iOS 16.5; Scale/3.00)")
 
         val ncmDataSourceFactory = NcmDataSource.Factory(this, httpDataSourceFactory)
@@ -113,8 +111,6 @@ class MusicService : MediaSessionService() {
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)
 
-        // Preload next item
-
         player = ExoPlayer.Builder(this, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
@@ -123,12 +119,10 @@ class MusicService : MediaSessionService() {
 
         player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                com.ncm.player.util.DebugLog.d("MusicService: onIsPlayingChanged: $isPlaying")
                 updateMediaSessionLayout()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                com.ncm.player.util.DebugLog.d("MusicService: MediaItem transition to: ${mediaItem?.mediaId}, reason: $reason")
                 updateMediaSessionLayout()
             }
 
@@ -138,7 +132,6 @@ class MusicService : MediaSessionService() {
                 }
                 if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
                     val state = player.playbackState
-                    com.ncm.player.util.DebugLog.d("MusicService: Playback State changed: $state, isPlaying: ${player.isPlaying}")
                     updateMediaSessionLayout()
                     if (state == Player.STATE_READY) {
                         startPlaybackInfoLoop()
@@ -147,8 +140,8 @@ class MusicService : MediaSessionService() {
             }
 
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                val errorMsg = "${error.errorCodeName} (${error.errorCode}): ${error.message}"
-                android.util.Log.e("MusicService", "Player Error: $errorMsg", error)
+                val errorMsg = "Error ${error.errorCode}: ${error.errorCodeName}\n${error.message}"
+                DebugLog.e("MusicService: Player Error", error)
 
                 val args = android.os.Bundle().apply {
                     putString("error", errorMsg)
@@ -158,7 +151,6 @@ class MusicService : MediaSessionService() {
                 if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
                     error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
                     error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
-                    // Retry once on network/IO error
                     player?.let {
                         val currentItem = it.currentMediaItem
                         if (currentItem != null) {
@@ -233,7 +225,6 @@ class MusicService : MediaSessionService() {
 
                             val cookie = UserPreferences.getCookie(this@MusicService)
                             serviceScope.launch(Dispatchers.IO) {
-                                // Toggle like logic
                                 RustServerManager.callApi("like", mapOf("id" to mediaId, "like" to nextLikeState.toString(), "cookie" to (cookie ?: "")))
                                 withContext(Dispatchers.Main) { updateMediaSessionLayout() }
                             }
@@ -284,7 +275,6 @@ class MusicService : MediaSessionService() {
             }
         })
 
-        // Regular position sync for Lyricon and Fade checking
         serviceScope.launch {
             while (true) {
                 player?.let {
@@ -320,7 +310,6 @@ class MusicService : MediaSessionService() {
                 player?.let { p ->
                     if (p.playbackState != Player.STATE_READY) return@let
 
-                    // Try to get format from current tracks if direct access fails
                     var activeFormat = p.audioFormat
                     if (activeFormat == null || activeFormat.sampleRate == -1) {
                         val currentTracks = p.currentTracks
@@ -341,8 +330,6 @@ class MusicService : MediaSessionService() {
                         val sampleRate = if (activeFormat.sampleRate != -1) activeFormat.sampleRate else 0
                         val bitrate = if (activeFormat.bitrate != -1) activeFormat.bitrate else 0
 
-                        android.util.Log.d("MusicService", "Playback Info: sampleRate=$sampleRate, bitrate=$bitrate")
-
                         if (sampleRate > 0 || bitrate > 0) {
                             val extras = android.os.Bundle().apply {
                                 putInt("sampleRate", sampleRate)
@@ -352,8 +339,6 @@ class MusicService : MediaSessionService() {
                             mediaSession?.setSessionExtras(extras)
                             mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), extras)
                         }
-                    } else {
-                        android.util.Log.d("MusicService", "Playback Info: activeFormat is null")
                     }
                 }
                 delay(1500)
@@ -367,7 +352,6 @@ class MusicService : MediaSessionService() {
         val title = metadata.title?.toString() ?: "Unknown"
         val artist = metadata.artist?.toString() ?: "Unknown"
 
-        // Reset state
         lyriconProvider?.player?.setPlaybackState(player?.isPlaying ?: false)
         lyriconProvider?.player?.setSong(Song(id = songId, name = title, artist = artist))
 
@@ -428,8 +412,6 @@ class MusicService : MediaSessionService() {
         val mediaId = currentMediaItem?.mediaId
         val isLiked = (mediaId != null && likedSongIds.contains(mediaId)) || (currentMediaItem?.mediaMetadata?.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true)
 
-        android.util.Log.d("MusicService", "Updating layout. MediaId: $mediaId, isLiked: $isLiked")
-
         val likeCommand = SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY)
         val likeButton = CommandButton.Builder()
             .setSessionCommand(likeCommand)
@@ -444,8 +426,6 @@ class MusicService : MediaSessionService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = player ?: return
-        // If not playing or queue is empty, stop the service to clean up.
-        // Otherwise, keep it running for background playback.
         if ((!player.isPlaying && player.playbackState != Player.STATE_BUFFERING) || player.mediaItemCount == 0) {
             stopSelf()
         }

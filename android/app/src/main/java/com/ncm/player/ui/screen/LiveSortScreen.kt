@@ -15,18 +15,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ncm.player.viewmodel.LiveSortState
 import com.ncm.player.viewmodel.LiveSortViewModel
-import com.ncm.player.viewmodel.PlayerViewModel
+import com.ncm.player.viewmodel.PlaybackViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveSortScreen(
     liveSortViewModel: LiveSortViewModel,
-    playerViewModel: PlayerViewModel,
+    playbackViewModel: PlaybackViewModel,
     onBackPressed: () -> Unit
 ) {
     val sortState by liveSortViewModel.sortState.collectAsState()
-    val currentQueue = playerViewModel.currentQueue
-    val localSongs = playerViewModel.localSongs
+    val currentQueue = playbackViewModel.currentQueue
+    val localSongs = playbackViewModel.localSongs
 
     Scaffold(
         topBar = {
@@ -135,7 +135,7 @@ fun LiveSortScreen(
                         Button(
                             onClick = {
                                 val songs = state.sortedSongs.map { it.song }
-                                playerViewModel.playSong(songs.first(), songs)
+                                playbackViewModel.playSong(songs.first(), songs)
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {

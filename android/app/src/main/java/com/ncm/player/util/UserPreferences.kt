@@ -17,6 +17,7 @@ object UserPreferences {
     private const val KEY_ALLOW_CELLULAR_DOWNLOAD = "allow_cellular_download"
     private const val KEY_PURE_BLACK_MODE = "pure_black_mode"
     private const val KEY_USER_PROFILE_CACHE = "user_profile_cache"
+    private const val KEY_AUDIO_FEATURES_CACHE = "audio_features_cache"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -59,7 +60,7 @@ object UserPreferences {
     }
 
     fun getCacheSize(context: Context): Int {
-        return getPrefs(context).getInt(KEY_CACHE_SIZE, 512) // Default 512MB
+        return getPrefs(context).getInt(KEY_CACHE_SIZE, 512)
     }
 
     fun saveUseCellularCache(context: Context, use: Boolean) {
@@ -157,7 +158,6 @@ object UserPreferences {
                 emptyList()
             }
         } else {
-            // Migration from v1
             val set = getPrefs(context).getStringSet("search_history", emptySet()) ?: emptySet()
             set.toList()
         }
@@ -177,5 +177,13 @@ object UserPreferences {
 
     fun getLocalSongsCache(context: Context): String? {
         return getPrefs(context).getString("cache_local_songs", null)
+    }
+
+    fun saveAudioFeatures(context: Context, json: String) {
+        getPrefs(context).edit().putString(KEY_AUDIO_FEATURES_CACHE, json).apply()
+    }
+
+    fun getAudioFeatures(context: Context): String? {
+        return getPrefs(context).getString(KEY_AUDIO_FEATURES_CACHE, null)
     }
 }

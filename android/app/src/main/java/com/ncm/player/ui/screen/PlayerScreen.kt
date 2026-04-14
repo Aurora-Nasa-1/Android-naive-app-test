@@ -36,7 +36,7 @@ import com.ncm.player.ui.component.QueueBottomSheet
 import com.ncm.player.ui.component.CommentBottomSheet
 import com.ncm.player.ui.component.SleepTimerBottomSheet
 import com.ncm.player.ui.component.LyricContent
-import com.ncm.player.viewmodel.PlayerViewModel
+import com.ncm.player.viewmodel.PlaybackViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable

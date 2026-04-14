@@ -44,6 +44,24 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     init {
         initController(application)
+        refreshLocalSongs()
+    }
+
+    fun refreshLocalSongs() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Simplified scan for now, we can add SAF/Registry later if needed
+            val songs = mutableListOf<Pair<Song, android.net.Uri>>()
+            val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
+            val ncmMusicDir = java.io.File(musicDir, "NCMPlayer")
+            if (ncmMusicDir.exists()) {
+                ncmMusicDir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
+                    val uri = android.net.Uri.fromFile(file)
+                    val name = file.nameWithoutExtension
+                    songs.add(Song(id = "local_${file.name}", name = name, artist = "Local", album = "Storage") to uri)
+                }
+            }
+            withContext(Dispatchers.Main) { localSongs = songs }
+        }
     }
 
     fun initController(context: Context) {
@@ -159,15 +177,20 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             .setExtras(Bundle().apply { putString("artistId", song.artistId) })
             .build()
 
-        val quality = UserPreferences.getQualityWifi(getApplication())
-        val uri = android.net.Uri.Builder()
-            .scheme("ncm")
-            .authority(song.id)
-            .appendQueryParameter("quality", quality)
-            .apply { cookie?.let { appendQueryParameter("cookie", it) } }
-            .build()
+        val localUri = localSongs.find { it.first.id == song.id }?.second
+        val mediaUri = if (localUri != null) {
+            localUri
+        } else {
+            val quality = UserPreferences.getQualityWifi(getApplication())
+            android.net.Uri.Builder()
+                .scheme("ncm")
+                .authority(song.id)
+                .appendQueryParameter("quality", quality)
+                .apply { cookie?.let { appendQueryParameter("cookie", it) } }
+                .build()
+        }
 
-        return MediaItem.Builder().setMediaId(song.id).setUri(uri).setMediaMetadata(metadata).build()
+        return MediaItem.Builder().setMediaId(song.id).setUri(mediaUri).setMediaMetadata(metadata).build()
     }
 
     fun togglePlayPause() = runWithController { if (it.isPlaying) it.pause() else it.play() }

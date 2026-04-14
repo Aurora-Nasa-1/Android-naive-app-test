@@ -12,10 +12,10 @@ import com.ncm.player.util.UserPreferences
 
 open class BaseViewModel(application: Application) : AndroidViewModel(application) {
     var isLoading by mutableStateOf(false)
-    val cookie: String? get() = UserPreferences.getCookie(getApplication())
+    val cookie: String? get() = deduplicateCookie(UserPreferences.getCookie(getApplication()))
 
     protected fun callApi(method: String, params: Map<String, String> = emptyMap()): JsonObject {
-        val finalParams = if (cookie != null && !params.containsKey("cookie")) {
+        val finalParams = if (!cookie.isNullOrEmpty() && !params.containsKey("cookie")) {
             params + ("cookie" to cookie!!)
         } else {
             params
@@ -26,5 +26,18 @@ open class BaseViewModel(application: Application) : AndroidViewModel(applicatio
         } catch (e: Exception) {
             JsonObject().apply { addProperty("code", 500); addProperty("msg", "Parse error") }
         }
+    }
+
+    private fun deduplicateCookie(cookie: String?): String? {
+        if (cookie.isNullOrBlank()) return null
+        val items = cookie.split(";").map { it.trim() }.filter { it.contains("=") }
+        val cookieMap = mutableMapOf<String, String>()
+        items.forEach { item ->
+            val parts = item.split("=", limit = 2)
+            if (parts.size == 2) {
+                cookieMap[parts[0]] = parts[1]
+            }
+        }
+        return cookieMap.map { "${it.key}=${it.value}" }.joinToString("; ")
     }
 }

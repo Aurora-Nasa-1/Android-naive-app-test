@@ -1,13 +1,9 @@
 use super::Query;
 use crate::error::Result;
-/// 歌曲播放链接 v1
-/// 对应 Node.js module/song_url_v1.js
 use crate::request::{ApiClient, ApiResponse, CryptoType};
 use serde_json::json;
 
 impl ApiClient {
-    /// 歌曲播放链接
-    /// 对应 /song/url/v1
     pub async fn song_url_v1(&self, query: &Query) -> Result<ApiResponse> {
         let id = query.get_or("id", "0");
         let requested_level = query.get_or("level", "standard");

@@ -74,8 +74,6 @@ object JsonUtils {
     fun parseContact(it: JsonElement): Contact? {
         return try {
             val obj = it.asJsonObject
-
-            // 1. Identify the user object (NCM uses multiple keys depending on endpoint)
             val fromUser = when {
                 obj.has("fromUser") -> obj.get("fromUser").asJsonObject
                 obj.has("from") -> obj.get("from").asJsonObject
@@ -84,7 +82,6 @@ object JsonUtils {
                 else -> return null
             }
 
-            // 2. Identify message content
             val lastMsgStr = obj.get("lastMsg")?.asString ?: obj.get("msg")?.asString ?: ""
             val lastMsgObj = try {
                 if (lastMsgStr.startsWith("{")) JsonParser.parseString(lastMsgStr).asJsonObject else null
@@ -101,7 +98,6 @@ object JsonUtils {
                 unreadCount = obj.get("newMsgCount")?.asInt ?: 0
             )
         } catch (e: Exception) {
-            android.util.Log.e("JsonUtils", "parseContact error: ${e.message}")
             null
         }
     }
@@ -124,7 +120,6 @@ object JsonUtils {
                 isMe = userId == myUserId
             )
         } catch (e: Exception) {
-            android.util.Log.e("JsonUtils", "parseMessage error: ${e.message}")
             null
         }
     }
@@ -132,72 +127,38 @@ object JsonUtils {
     fun getString(element: JsonElement?, key: String, default: String? = null): String? {
         val obj = if (element != null && element.isJsonObject) element.asJsonObject else return default
         val field = obj.get(key)
-        return if (field != null && !field.isJsonNull && field.isJsonPrimitive) {
-            field.asString
-        } else {
-            default
-        }
-    }
-
-    fun getArray(element: JsonElement?, key: String): JsonArray? {
-        val obj = if (element != null && element.isJsonObject) element.asJsonObject else return null
-        val field = obj.get(key)
-        return if (field != null && field.isJsonArray) {
-            field.asJsonArray
-        } else {
-            null
-        }
-    }
-
-    fun getObject(element: JsonElement?, key: String): JsonObject? {
-        val obj = if (element != null && element.isJsonObject) element.asJsonObject else return null
-        val field = obj.get(key)
-        return if (field != null && field.isJsonObject) {
-            field.asJsonObject
-        } else {
-            null
-        }
+        return if (field != null && !field.isJsonNull && field.isJsonPrimitive) field.asString else default
     }
 
     fun findUrl(element: JsonElement?): String? {
         if (element == null || element.isJsonNull) return null
 
-        // If it's a primitive string, it might be the URL directly (unlikely but possible)
         if (element.isJsonPrimitive && element.asJsonPrimitive.isString) {
             val s = element.asString
-            if (s.startsWith("http") && s.length > 12 && !s.contains("null")) {
-                android.util.Log.d("JsonUtils", "Found URL in primitive: $s")
-                return s
-            }
+            if (s.startsWith("http") && s.length > 12 && !s.contains("null")) return s
         }
 
-        // If it's the data object itself
         if (element.isJsonObject) {
             val obj = element.asJsonObject
+            // Direct check
             val url = getString(obj, "url")
-            if (url != null && url.isNotBlank() && url.startsWith("http") && url.length > 12 && !url.contains("null")) {
-                android.util.Log.d("JsonUtils", "Found URL in object: $url")
-                return url
-            }
+            if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
-            // Search all keys recursively if not found immediately
-            for (entry in obj.entrySet()) {
-                if (entry.key == "data" || entry.key == "result" || entry.key == "songs") {
-                    val found = findUrl(entry.value)
+            // Priority keys
+            listOf("data", "result", "songs", "urlInfo").forEach { key ->
+                if (obj.has(key)) {
+                    val found = findUrl(obj.get(key))
                     if (found != null) return found
                 }
             }
 
-            // Exhaustive search as last resort
+            // Exhaustive search
             for (entry in obj.entrySet()) {
-                if (entry.key != "data" && entry.key != "result" && entry.key != "songs") {
-                    val found = findUrl(entry.value)
-                    if (found != null) return found
-                }
+                val found = findUrl(entry.value)
+                if (found != null) return found
             }
         }
 
-        // If it's an array
         if (element.isJsonArray) {
             val arr = element.asJsonArray
             for (i in 0 until arr.size()) {

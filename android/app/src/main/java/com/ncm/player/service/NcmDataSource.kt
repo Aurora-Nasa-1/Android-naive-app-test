@@ -38,10 +38,13 @@ class NcmDataSource(
         try {
             activeDataSource?.close()
             val uri = dataSpec.uri
-            DebugLog.d("NcmDS: opening URI: $uri at position ${dataSpec.position}")
+            DebugLog.d("NcmDS: Opening URI: $uri at position ${dataSpec.position}")
 
-            // 1. Handle non-ncm schemes immediately
-            if (uri.scheme != "ncm") {
+            val songId = if (uri.scheme == "ncm") {
+                if (uri.host == "song") uri.pathSegments.firstOrNull() else uri.host ?: uri.authority
+            } else null
+
+            if (songId == null) {
                 val ds = when (uri.scheme) {
                     "content" -> contentDataSource
                     "http", "https" -> httpDataSource
@@ -53,18 +56,12 @@ class NcmDataSource(
                 return length
             }
 
-            // 2. Extract Song ID and Quality
-            val songId = if (uri.host == "song") uri.pathSegments.firstOrNull() else uri.host ?: uri.authority
-            if (songId == null) throw IOException("Invalid NCM URI: $uri")
-
             val quality = uri.getQueryParameter("quality") ?: "standard"
-            val cookie = uri.getQueryParameter("cookie")
 
-            // 3. Check Local Registry (Downloads)
+            // 1. Check Local Registry
             val metadata = DownloadRegistry.getMetadata(songId)
             if (metadata != null) {
                 val localUri = Uri.parse(metadata.filePath)
-                DebugLog.d("NcmDS: Found in local registry: $localUri")
                 val localDataSpec = dataSpec.buildUpon()
                     .setUri(localUri)
                     .setKey(songId)
@@ -75,19 +72,18 @@ class NcmDataSource(
                 return length
             }
 
-            // 4. Resolve URL with Retries and URL Caching
-            var lastException: Exception? = null
+            // 2. URL Cache
             val cacheKey = "${songId}_$quality"
+            var cdnUrl = urlCache[cacheKey]?.takeIf { (cacheExpiry[cacheKey] ?: 0L) > System.currentTimeMillis() }
 
-            for (attempt in 1..3) {
-                try {
-                    // Check cache first in each attempt (in case it was updated by another thread)
-                    var cdnUrl = urlCache[cacheKey]?.takeIf { (cacheExpiry[cacheKey] ?: 0L) > System.currentTimeMillis() }
+            // 3. Resolve URL
+            if (cdnUrl == null) {
+                val cookie = UserPreferences.getCookie(context)
+                val params = mutableMapOf("id" to songId, "level" to quality)
+                if (!cookie.isNullOrEmpty()) params["cookie"] = cookie
 
-                    if (cdnUrl == null) {
-                        val params = mutableMapOf("id" to songId, "level" to quality)
-                        if (!cookie.isNullOrEmpty()) params["cookie"] = cookie
-
+                for (attempt in 1..3) {
+                    try {
                         val method = if (attempt == 1) "song/url/v1/302" else "song/url/v1"
                         val result = RustServerManager.callApi(method, params)
                         val body = JsonParser.parseString(result).asJsonObject
@@ -97,32 +93,28 @@ class NcmDataSource(
                         if (!cdnUrl.isNullOrEmpty() && cdnUrl.startsWith("http")) {
                             urlCache[cacheKey] = cdnUrl
                             cacheExpiry[cacheKey] = System.currentTimeMillis() + CACHE_DURATION
+                            break
                         }
+                    } catch (e: Exception) {
+                        DebugLog.e("NcmDS: API Call attempt $attempt failed", e)
                     }
-
-                    if (cdnUrl != null) {
-                        DebugLog.d("NcmDS: Resolved to $cdnUrl (attempt $attempt)")
-                        val resolvedDataSpec = dataSpec.buildUpon()
-                            .setUri(Uri.parse(cdnUrl))
-                            .setKey(songId)
-                            .build()
-
-                        activeDataSource = httpDataSource
-                        val length = httpDataSource.open(resolvedDataSpec)
-                        transferStarted(dataSpec)
-                        return length
-                    } else {
-                        throw IOException("API failed to provide a URL for song $songId")
-                    }
-                } catch (e: Exception) {
-                    DebugLog.e("NcmDS: Open attempt $attempt failed", e)
-                    lastException = e
-                    urlCache.remove(cacheKey) // Clear cache on failure to force re-resolve next time
-                    if (attempt < 3) Thread.sleep(200L * attempt)
+                    if (attempt < 3) Thread.sleep(200L)
                 }
             }
 
-            throw lastException ?: IOException("Unknown error during resolution")
+            if (cdnUrl == null) throw IOException("Failed to resolve audio URL for song $songId")
+
+            DebugLog.i("NcmDS: Resolved $songId to $cdnUrl")
+
+            val resolvedDataSpec = dataSpec.buildUpon()
+                .setUri(Uri.parse(cdnUrl))
+                .setKey(songId)
+                .build()
+
+            activeDataSource = httpDataSource
+            val length = httpDataSource.open(resolvedDataSpec)
+            transferStarted(dataSpec)
+            return length
         } catch (e: Exception) {
             DebugLog.e("NcmDS: Final open failure for ${dataSpec.uri}", e)
             throw if (e is IOException) e else IOException(e)

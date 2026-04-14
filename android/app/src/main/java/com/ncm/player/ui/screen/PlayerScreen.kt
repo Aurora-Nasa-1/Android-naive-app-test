@@ -85,6 +85,7 @@ fun PlayerScreen(
     onReplyComment: (com.ncm.player.model.Comment) -> Unit = {},
     onPostComment: (String) -> Unit = {},
     onAvatarClick: (Long) -> Unit = {},
+    onDislikeClick: () -> Unit = {},
     onCommentSortChange: (Int) -> Unit = {},
     onViewFloorClick: (com.ncm.player.model.Comment) -> Unit = {},
     floorComments: List<com.ncm.player.model.Comment> = emptyList(),
@@ -502,6 +503,14 @@ fun PlayerScreen(
                                                 showMoreMenu = false
                                             }
                                         )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.not_interested)) },
+                                            leadingIcon = { Icon(Icons.Default.Block, null) },
+                                            onClick = {
+                                                onDislikeClick()
+                                                showMoreMenu = false
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -740,6 +749,14 @@ fun PlayerScreen(
                                     leadingIcon = { Icon(Icons.Default.HighQuality, null) },
                                     onClick = {
                                         showQualityInfoDialog = true
+                                        showMoreMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.not_interested)) },
+                                    leadingIcon = { Icon(Icons.Default.Block, null) },
+                                    onClick = {
+                                        onDislikeClick()
                                         showMoreMenu = false
                                     }
                                 )

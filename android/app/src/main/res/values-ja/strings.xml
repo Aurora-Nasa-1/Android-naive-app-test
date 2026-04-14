@@ -60,6 +60,7 @@
     <string name="downloaded">ダウンロード済み</string>
     <string name="type_message">メッセージを入力...</string>
     <string name="back">戻る</string>
+    <string name="your_library">ライブラリ</string>
     <string name="settings">設定</string>
     <string name="appearance">外観</string>
     <string name="pure_black_mode">ピュアブラックモード</string>
@@ -86,4 +87,7 @@
     <string name="sort_recommend">おすすめ</string>
     <string name="sort_hot">人気</string>
     <string name="sort_time">最新</string>
+    <string name="cloud_music">クラウド音楽</string>
+    <string name="no_cloud_songs">クラウドは空です</string>
+    <string name="not_interested">興味なし</string>
 </resources>

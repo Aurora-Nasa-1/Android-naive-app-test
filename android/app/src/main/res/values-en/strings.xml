@@ -60,6 +60,7 @@
     <string name="downloaded">Downloaded</string>
     <string name="type_message">Type a message...</string>
     <string name="back">Back</string>
+    <string name="your_library">Your Library</string>
     <string name="settings">Settings</string>
     <string name="appearance">Appearance</string>
     <string name="pure_black_mode">Pure Black Mode</string>
@@ -86,4 +87,7 @@
     <string name="sort_recommend">Recommend</string>
     <string name="sort_hot">Hot</string>
     <string name="sort_time">Newest</string>
+    <string name="cloud_music">Cloud Music</string>
+    <string name="no_cloud_songs">Cloud library is empty</string>
+    <string name="not_interested">Not Interested</string>
 </resources>

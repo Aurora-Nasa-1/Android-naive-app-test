@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ncm.player.R
 import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
@@ -79,7 +81,7 @@ fun PlaylistDetailScreen(
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
-                    title = { Text("${selectedSongs.size} selected") },
+                    title = { Text(stringResource(R.string.selected_count, selectedSongs.size)) },
                     navigationIcon = {
                         IconButton(onClick = {
                             isSelectionMode = false
@@ -111,10 +113,16 @@ fun PlaylistDetailScreen(
                 )
             } else {
                 LargeTopAppBar(
-                    title = { Text(playlist.name, style = MaterialTheme.typography.headlineLarge) },
+                    title = {
+                        if (isLoading && playlist.name == "Loading...") {
+                            Text(stringResource(R.string.connecting), style = MaterialTheme.typography.headlineLarge)
+                        } else {
+                            Text(playlist.name, style = MaterialTheme.typography.headlineLarge)
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBackPressed) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     },
                     windowInsets = WindowInsets.statusBars,
@@ -123,8 +131,8 @@ fun PlaylistDetailScreen(
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
                         }
                         DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                            DropdownMenuItem(text = { Text("Sort by Name") }, onClick = { onSortChange("name"); showSortMenu = false })
-                            DropdownMenuItem(text = { Text("Sort by Artist") }, onClick = { onSortChange("artist"); showSortMenu = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_name)) }, onClick = { onSortChange("name"); showSortMenu = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_artist)) }, onClick = { onSortChange("artist"); showSortMenu = false })
                         }
                     },
                     scrollBehavior = scrollBehavior
@@ -132,7 +140,7 @@ fun PlaylistDetailScreen(
             }
         }
     ) { innerPadding ->
-        if (isLoading) {
+        if (isLoading && songs.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) { WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
         } else {
             LazyColumn(
@@ -205,7 +213,7 @@ fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "${playlist.trackCount} songs", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = stringResource(R.string.songs_count, playlist.trackCount), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = {}) { Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", modifier = Modifier.size(32.dp)) }
             FloatingActionButton(onClick = onPlayAllClick, shape = androidx.compose.foundation.shape.CircleShape, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) {

@@ -60,6 +60,7 @@
     <string name="downloaded">已下载</string>
     <string name="type_message">输入消息...</string>
     <string name="back">返回</string>
+    <string name="your_library">音乐库</string>
     <string name="settings">设置</string>
     <string name="appearance">外观</string>
     <string name="pure_black_mode">纯黑模式</string>
@@ -86,4 +87,7 @@
     <string name="sort_recommend">推荐</string>
     <string name="sort_hot">最热</string>
     <string name="sort_time">最新</string>
+    <string name="cloud_music">音乐云盘</string>
+    <string name="no_cloud_songs">云盘空空如也</string>
+    <string name="not_interested">不感兴趣</string>
 </resources>

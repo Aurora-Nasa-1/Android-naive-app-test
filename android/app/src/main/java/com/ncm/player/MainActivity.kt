@@ -166,7 +166,19 @@ fun AppMainContent(
                     MainScreen(recommendedSongs = userViewModel.recommendedSongs, userPlaylists = userViewModel.userPlaylists, userProfile = userViewModel.userProfile, versionName = "1.0.0", onSongClick = { s -> playbackViewModel.playSong(s, userViewModel.recommendedSongs); navController.navigate("player") { launchSingleTop = true } }, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onPersonalFmClick = { playbackViewModel.playPersonalFm(); navController.navigate("player") { launchSingleTop = true } }, onHeartbeatClick = { if (userViewModel.favoriteSongs.isNotEmpty()) { playbackViewModel.playHeartbeat(userViewModel.favoriteSongs[0], userViewModel.likedSongsPlaylistId); navController.navigate("player") { launchSingleTop = true } } }, onLiveSortClick = { navController.navigate("livesort") }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, favoriteSongs = userViewModel.favoriteSongs, completedSongs = completedSongs, unreadMessagesCount = socialViewModel.unreadCount, onNavigateToMessages = { navController.navigate("messages") }, onNavigateToSettings = { navController.navigate("settings") }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp), actions = { DownloadIndicator(tasks = tasks) { navController.navigate("downloads") } })
                 }
                 composable("search") { SearchScreen(searchResults = searchViewModel.searchResults, searchPlaylists = searchViewModel.searchPlaylists, favoriteSongs = userViewModel.favoriteSongs, hotSearches = searchViewModel.hotSearches, searchHistory = searchViewModel.searchHistory, suggestions = searchViewModel.searchSuggestions, searchType = searchViewModel.searchType, isLoading = searchViewModel.isLoading, onSearch = { kw, t -> searchViewModel.search(kw, t) }, onSuggestionFetch = { searchViewModel.fetchSuggestions(it) }, onClearHistory = { searchViewModel.clearHistory() }, onSongClick = { s -> playbackViewModel.playSong(s, searchViewModel.searchResults); navController.navigate("player") { launchSingleTop = true } }, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
-                composable("library") { LibraryScreen(userPlaylists = userViewModel.userPlaylists, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onNavigateToLiveSort = { navController.navigate("livesort") }, onNavigateToDownloads = { navController.navigate("downloads") }, onNavigateToSettings = { navController.navigate("settings") }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
+                composable("library") { LibraryScreen(userPlaylists = userViewModel.userPlaylists, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onNavigateToLiveSort = { navController.navigate("livesort") }, onNavigateToDownloads = { navController.navigate("downloads") }, onNavigateToCloud = { navController.navigate("cloud") }, onNavigateToSettings = { navController.navigate("settings") }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
+                composable("cloud") {
+                    LaunchedEffect(Unit) { userViewModel.fetchCloudSongs() }
+                    CloudMusicScreen(
+                        songs = userViewModel.cloudSongs,
+                        favoriteSongs = userViewModel.favoriteSongs,
+                        isLoading = userViewModel.isLoading,
+                        onSongClick = { s -> playbackViewModel.playSong(s, userViewModel.cloudSongs); navController.navigate("player") { launchSingleTop = true } },
+                        onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) },
+                        onBackPressed = { navController.popBackStack() },
+                        bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
+                    )
+                }
                 composable("livesort") { LiveSortScreen(liveSortViewModel = liveSortViewModel, playbackViewModel = playbackViewModel, onBackPressed = { navController.popBackStack() }) }
                 composable("playlist/{playlistId}") { backStackEntry ->
                     val pid = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
@@ -239,6 +251,7 @@ fun AppMainContent(
                         onCommentClick = { s?.let { socialViewModel.fetchComments(it.id) } },
                         onCommentSortChange = { sort -> s?.let { socialViewModel.fetchComments(it.id, "music", sort, 1) } },
                         onAvatarClick = { u -> userViewModel.fetchOtherUserProfile(u); navController.navigate("user/$u") },
+                        onDislikeClick = { s?.let { userViewModel.dislikeSong(it.id); playbackViewModel.skipNext() } },
                         sleepTimerRemaining = playbackViewModel.sleepTimerRemaining,
                         onSetSleepTimer = { playbackViewModel.startSleepTimer(it) },
                         onLyricClick = { s?.let { playbackViewModel.fetchLyrics(it.id); navController.navigate("lyrics") } },

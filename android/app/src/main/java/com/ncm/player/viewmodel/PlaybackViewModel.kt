@@ -19,7 +19,9 @@ import com.ncm.player.util.DebugLog
 import com.ncm.player.util.JsonUtils
 import com.ncm.player.util.LyricUtils
 import com.ncm.player.util.UserPreferences
+import com.ncm.player.manager.DownloadRegistry
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collectLatest
 
 class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     var currentSong by mutableStateOf<Song?>(null)
@@ -44,23 +46,57 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     init {
         initController(application)
+
+        viewModelScope.launch {
+            DownloadRegistry.downloadedSongsFlow.collectLatest { list ->
+                localSongs = list.map { metadata ->
+                    val uri = if (metadata.filePath.startsWith("content://")) {
+                        android.net.Uri.parse(metadata.filePath)
+                    } else {
+                        android.net.Uri.fromFile(java.io.File(metadata.filePath))
+                    }
+                    metadata.song to uri
+                }
+            }
+        }
+
         refreshLocalSongs()
     }
 
     fun refreshLocalSongs() {
         viewModelScope.launch(Dispatchers.IO) {
-            // Simplified scan for now, we can add SAF/Registry later if needed
-            val songs = mutableListOf<Pair<Song, android.net.Uri>>()
+            val list = mutableListOf<Pair<Song, android.net.Uri>>()
+
+            // 1. Scan Directory and try to recover registry
             val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
             val ncmMusicDir = java.io.File(musicDir, "NCMPlayer")
+
+            val idRegex = Regex("\\[(\\d+)\\]\\.(mp3|flac)$")
+
             if (ncmMusicDir.exists()) {
                 ncmMusicDir.listFiles { _, name -> name.endsWith(".mp3") || name.endsWith(".flac") }?.forEach { file ->
                     val uri = android.net.Uri.fromFile(file)
-                    val name = file.nameWithoutExtension
-                    songs.add(Song(id = "local_${file.name}", name = name, artist = "Local", album = "Storage") to uri)
+                    val match = idRegex.find(file.name)
+                    val songId = match?.groupValues?.get(1)
+
+                    if (songId != null) {
+                        val baseName = file.nameWithoutExtension
+                        val nameArtist = baseName.substringBeforeLast(" [").split(" - ")
+                        val song = Song(
+                            id = songId,
+                            name = nameArtist.getOrNull(0) ?: baseName,
+                            artist = nameArtist.getOrNull(1) ?: "Unknown",
+                            album = "Local Storage"
+                        )
+                        // If not in registry, add it
+                        if (DownloadRegistry.getMetadata(songId) == null) {
+                            DownloadRegistry.register(getApplication(), song, file.absolutePath)
+                        }
+                    }
                 }
             }
-            withContext(Dispatchers.Main) { localSongs = songs }
+
+            // The flow will take care of updating localSongs once we call register()
         }
     }
 
@@ -286,7 +322,23 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    fun deleteLocalSong(uri: android.net.Uri) { /* Implementation */ }
+    fun deleteLocalSong(uri: android.net.Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = getApplication<Application>()
+                val songId = localSongs.find { it.second == uri }?.first?.id
+                val deleted = if (uri.scheme == "content") {
+                    try { context.contentResolver.delete(uri, null, null) > 0 }
+                    catch (e: Exception) { androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.delete() ?: false }
+                } else {
+                    java.io.File(uri.path ?: "").delete()
+                }
+                if (deleted && songId != null) {
+                    DownloadRegistry.unregister(context, songId)
+                }
+            } catch (e: Exception) {}
+        }
+    }
 
     override fun onCleared() {
         super.onCleared()

@@ -3,16 +3,22 @@ package com.ncm.player.viewmodel
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.ncm.player.manager.NcmDownloadManager
+import com.ncm.player.manager.DownloadRegistry
+import com.ncm.player.manager.DownloadedSongMetadata
 import androidx.compose.runtime.*
 import com.ncm.player.model.Song
 import com.ncm.player.model.DownloadTask
+import com.ncm.player.model.DownloadStatus
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class DownloadViewModel(application: Application) : BaseViewModel(application) {
-    val downloadManager = NcmDownloadManager(application)
+    private val downloadManager = NcmDownloadManager(application)
     val tasks: StateFlow<Map<String, DownloadTask>> = downloadManager.tasks
     val completedSongs: StateFlow<Set<String>> = downloadManager.completedSongs
+    val downloadedSongs = DownloadRegistry.downloadedSongsFlow
+
     var downloadQuality by mutableStateOf("standard")
     var isFirstDownload by mutableStateOf(true)
     var allowCellularDownload by mutableStateOf(false)

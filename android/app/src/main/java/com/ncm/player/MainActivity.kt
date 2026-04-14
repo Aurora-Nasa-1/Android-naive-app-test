@@ -176,7 +176,19 @@ fun AppMainContent(
                 }
                 composable("downloads") {
                     val tasks by downloadViewModel.tasks.collectAsState()
-                    DownloadsScreen(onBackPressed = { navController.popBackStack() }, onPlayLocalSong = { s, u -> playbackViewModel.playSong(s, playbackViewModel.localSongs.map { it.first }); navController.navigate("player") { launchSingleTop = true } }, localSongs = playbackViewModel.localSongs, tasks = tasks, onCancelDownload = { downloadViewModel.cancelDownload(it) }, onDeleteLocalSong = { playbackViewModel.deleteLocalSong(it) }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp))
+                    val downloadedSongs by downloadViewModel.downloadedSongs.collectAsState()
+                    DownloadsScreen(
+                        onBackPressed = { navController.popBackStack() },
+                        onPlayLocalSong = { s, u ->
+                            playbackViewModel.playSong(s, downloadedSongs.map { it.song })
+                            navController.navigate("player") { launchSingleTop = true }
+                        },
+                        downloadedSongs = downloadedSongs,
+                        tasks = tasks,
+                        onCancelDownload = { downloadViewModel.cancelDownload(it) },
+                        onDeleteLocalSong = { playbackViewModel.deleteLocalSong(it) },
+                        bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
+                    )
                 }
                 composable("messages") { LaunchedEffect(Unit) { socialViewModel.fetchContacts() }; ContactListScreen(contacts = socialViewModel.contacts, onContactClick = { c -> navController.navigate("chat/${c.userId}/${c.nickname}") }, onAvatarClick = { uid -> userViewModel.fetchOtherUserProfile(uid); navController.navigate("user/$uid") }, onBackPressed = { navController.popBackStack() }) }
                 composable("chat/{userId}/{nickname}") { backStackEntry ->

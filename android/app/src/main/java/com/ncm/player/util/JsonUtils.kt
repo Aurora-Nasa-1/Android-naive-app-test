@@ -74,15 +74,23 @@ object JsonUtils {
     fun parseContact(it: JsonElement): Contact? {
         return try {
             val obj = it.asJsonObject
+
+            // Handle different variations of where user info might be stored
             val fromUser = when {
-                obj.has("fromUser") -> obj.get("fromUser").asJsonObject
-                obj.has("from") -> obj.get("from").asJsonObject
-                obj.has("user") -> obj.get("user").asJsonObject
-                obj.has("author") -> obj.get("author").asJsonObject
-                else -> return null
+                obj.has("fromUser") && obj.get("fromUser").isJsonObject -> obj.get("fromUser").asJsonObject
+                obj.has("from") && obj.get("from").isJsonObject -> obj.get("from").asJsonObject
+                obj.has("user") && obj.get("user").isJsonObject -> obj.get("user").asJsonObject
+                obj.has("author") && obj.get("author").isJsonObject -> obj.get("author").asJsonObject
+                obj.has("profile") && obj.get("profile").isJsonObject -> obj.get("profile").asJsonObject
+                else -> null
             }
 
-            val lastMsgStr = obj.get("lastMsg")?.asString ?: obj.get("msg")?.asString ?: ""
+            val lastMsgStr = when {
+                obj.has("lastMsg") && obj.get("lastMsg").isJsonPrimitive -> obj.get("lastMsg").asString
+                obj.has("msg") && obj.get("msg").isJsonPrimitive -> obj.get("msg").asString
+                else -> ""
+            }
+
             val lastMsgObj = try {
                 if (lastMsgStr.startsWith("{")) JsonParser.parseString(lastMsgStr).asJsonObject else null
             } catch (e: Exception) { null }
@@ -90,9 +98,9 @@ object JsonUtils {
             val messageText = lastMsgObj?.get("msg")?.asString ?: lastMsgStr
 
             Contact(
-                userId = fromUser.get("userId")?.asLong ?: fromUser.get("id")?.asLong ?: 0L,
-                nickname = fromUser.get("nickname")?.asString ?: fromUser.get("userName")?.asString ?: "Unknown",
-                avatarUrl = fromUser.get("avatarUrl")?.asString ?: "",
+                userId = fromUser?.get("userId")?.asLong ?: fromUser?.get("id")?.asLong ?: 0L,
+                nickname = fromUser?.get("nickname")?.asString ?: fromUser?.get("userName")?.asString ?: "Unknown",
+                avatarUrl = fromUser?.get("avatarUrl")?.asString ?: "",
                 lastMessage = messageText,
                 lastMessageTime = obj.get("lastMsgTime")?.asLong ?: obj.get("time")?.asLong ?: 0L,
                 unreadCount = obj.get("newMsgCount")?.asInt ?: 0

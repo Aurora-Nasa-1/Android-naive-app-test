@@ -1,5 +1,6 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -8,8 +9,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.ncm.player.R
 import com.ncm.player.viewmodel.LoginViewModel
 
 @Composable
@@ -31,7 +34,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Scan QR Code to Login", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.scan_qr_login), style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
 
         when {
@@ -51,7 +54,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
             }
             else -> {
 
-                CircularProgressIndicator()
+                WavyCircularProgressIndicator()
             }
         }
 
@@ -60,7 +63,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
 
         Spacer(modifier = Modifier.height(32.dp))
         Button(onClick = { viewModel.fetchQrCode() }) {
-            Text("Refresh QR Code")
+            Text(stringResource(R.string.refresh_qr))
         }
     }
 }

@@ -32,6 +32,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     var repeatMode by mutableIntStateOf(Player.REPEAT_MODE_OFF)
     var shuffleMode by mutableStateOf(false)
     var currentLyrics by mutableStateOf<List<LyricLine>>(emptyList())
+    var currentCommentSortType by mutableIntStateOf(1)
     var currentSampleRate by mutableIntStateOf(0)
     var currentBitrate by mutableIntStateOf(0)
     var isFmMode by mutableStateOf(false)
@@ -132,7 +133,10 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                         updateQueue()
                     }
                     override fun onPlaybackStateChanged(state: Int) {
-                        if (state == Player.STATE_READY) duration = controller.duration.coerceAtLeast(0L)
+                        if (state == Player.STATE_READY || state == Player.STATE_BUFFERING) {
+                            val d = controller.duration
+                            if (d != C.TIME_UNSET) duration = d.coerceAtLeast(0L)
+                        }
                     }
                     override fun onRepeatModeChanged(mode: Int) { repeatMode = mode }
                     override fun onShuffleModeEnabledChanged(enabled: Boolean) { shuffleMode = enabled }
@@ -232,7 +236,11 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     fun togglePlayPause() = runWithController { if (it.isPlaying) it.pause() else it.play() }
     fun skipNext() = runWithController { it.seekToNext() }
     fun skipPrevious() = runWithController { it.seekToPrevious() }
-    fun seekTo(pos: Long) = runWithController { it.seekTo(pos); currentPosition = pos }
+    fun seekTo(pos: Long) = runWithController { controller ->
+        val safePos = pos.coerceIn(0L, duration.coerceAtLeast(0L))
+        controller.seekTo(safePos)
+        currentPosition = safePos
+    }
 
     fun toggleRepeatMode() = runWithController {
         val next = when (it.repeatMode) {
@@ -260,8 +268,21 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 val body = callApi("lyric/new", mapOf("id" to songId))
                 val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
                 val yrc = body.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                val tlyric = body.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
+                val klyric = body.get("klyric")?.asJsonObject?.get("lyric")?.asString ?: ""
+
                 var lines = if (yrc.isNotEmpty()) LyricUtils.parseYrc(yrc) else LyricUtils.parseLrc(lrc, duration)
-                withContext(Dispatchers.Main) { currentLyrics = lines }
+
+                val finalLines = if (tlyric.isNotEmpty()) {
+                    val tlines = LyricUtils.parseLrc(tlyric).associateBy { it.time }
+                    lines.map { line ->
+                        // Match translation within 500ms window
+                        val trans = tlines.entries.find { it.key >= line.time - 500 && it.key <= line.time + 500 }
+                        if (trans != null) line.copy(translation = trans.value.text) else line
+                    }
+                } else lines
+
+                withContext(Dispatchers.Main) { currentLyrics = finalLines }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { currentLyrics = emptyList() }
             }

@@ -16,27 +16,79 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
     var commentTotal by mutableIntStateOf(0)
     var hasMoreComments by mutableStateOf(true)
     var currentCommentPage by mutableIntStateOf(0)
+    var commentSortType by mutableIntStateOf(1) // 1: Recommend, 2: Hot, 3: Time
+    var commentCursor by mutableStateOf("")
+
+    var floorComments by mutableStateOf<List<Comment>>(emptyList())
+    var floorCommentTotal by mutableIntStateOf(0)
+    var floorHasMore by mutableStateOf(false)
+    var floorCursor by mutableStateOf(0L)
+    var activeParentComment by mutableStateOf<Comment?>(null)
 
     var contacts by mutableStateOf<List<Contact>>(emptyList())
     var chatMessages by mutableStateOf<List<Message>>(emptyList())
     var unreadCount by mutableIntStateOf(0)
 
-    fun fetchComments(id: String, type: String = "music", page: Int = 0) {
+    fun fetchComments(id: String, type: String = "music", sortType: Int = 1, page: Int = 1) {
         viewModelScope.launch {
             isLoading = true
             try {
-                val method = "comment/$type"
-                val body = withContext(Dispatchers.IO) {
-                    callApi(method, mapOf("id" to id, "limit" to "20", "offset" to (page * 20).toString()))
+                val t = when (type) { "music" -> "0"; "mv" -> "1"; "playlist" -> "2"; "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"; else -> "0" }
+                val params = mutableMapOf(
+                    "id" to id,
+                    "type" to t,
+                    "sortType" to sortType.toString(),
+                    "pageNo" to page.toString(),
+                    "pageSize" to "20"
+                )
+                if (sortType == 3 && page > 1 && commentCursor.isNotEmpty()) {
+                    params["cursor"] = commentCursor
                 }
-                val hot = body.get("hotComments")?.asJsonArray?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
-                val new = body.get("comments")?.asJsonArray?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
 
-                if (page == 0) hotComments = hot
-                newestComments = if (page == 0) new else newestComments + new
-                commentTotal = body.get("total")?.asInt ?: 0
-                hasMoreComments = body.get("more")?.asBoolean ?: false
+                val body = withContext(Dispatchers.IO) { callApi("comment/new", params) }
+                val data = body.get("data")?.asJsonObject
+                val commentsArr = data?.get("comments")?.asJsonArray
+                val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
+
+                if (page == 1) {
+                    newestComments = newComments
+                    // Also try to get hot comments if on first page of recommend/new
+                    if (sortType != 2) {
+                        val hotArr = data?.get("hotComments")?.asJsonArray
+                        hotComments = hotArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
+                    } else {
+                        hotComments = emptyList()
+                    }
+                } else {
+                    newestComments = newestComments + newComments
+                }
+
+                commentTotal = data?.get("totalCount")?.asInt ?: 0
+                hasMoreComments = data?.get("hasMore")?.asBoolean ?: false
+                commentCursor = data?.get("cursor")?.asString ?: ""
                 currentCommentPage = page
+                commentSortType = sortType
+            } finally { isLoading = false }
+        }
+    }
+
+    fun fetchFloorComments(id: String, parentCommentId: Long, type: String = "music", time: Long = 0L) {
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                val t = when (type) { "music" -> "0"; "mv" -> "1"; "playlist" -> "2"; "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"; else -> "0" }
+                val params = mutableMapOf("id" to id, "parentCommentId" to parentCommentId.toString(), "type" to t, "limit" to "20")
+                if (time > 0) params["time"] = time.toString()
+
+                val body = withContext(Dispatchers.IO) { callApi("comment/floor", params) }
+                val data = body.get("data")?.asJsonObject
+                val commentsArr = data?.get("comments")?.asJsonArray
+                val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
+
+                floorComments = if (time == 0L) newComments else floorComments + newComments
+                floorCommentTotal = data?.get("totalCount")?.asInt ?: 0
+                floorHasMore = data?.get("hasMore")?.asBoolean ?: false
+                floorCursor = data?.get("time")?.asLong ?: 0L
             } finally { isLoading = false }
         }
     }
@@ -58,7 +110,9 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
             isLoading = true
             try {
                 val body = withContext(Dispatchers.IO) { callApi("msg/recentcontact") }
-                contacts = body.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) } ?: emptyList()
+                val recent = body.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
+                val data = body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
+                contacts = recent ?: data ?: emptyList()
             } finally { isLoading = false }
         }
     }

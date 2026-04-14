@@ -20,10 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.ncm.player.R
 import com.ncm.player.model.Comment
 
 @Composable
@@ -31,7 +33,8 @@ fun CommentItem(
     comment: Comment,
     onLikeClick: () -> Unit,
     onReplyClick: () -> Unit,
-    onAvatarClick: () -> Unit = {}
+    onAvatarClick: () -> Unit = {},
+    onViewFloorClick: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
@@ -132,10 +135,10 @@ fun CommentItem(
 
             if (comment.replyCount > 0) {
                 Text(
-                    text = "View ${comment.replyCount} replies",
+                    text = stringResource(R.string.view_replies, comment.replyCount),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp).clickable { onViewFloorClick() }
                 )
             }
             }

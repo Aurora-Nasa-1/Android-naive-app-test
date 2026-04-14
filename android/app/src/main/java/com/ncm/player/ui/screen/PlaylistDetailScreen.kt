@@ -1,5 +1,6 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -132,7 +133,7 @@ fun PlaylistDetailScreen(
         }
     ) { innerPadding ->
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) { CircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) { WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),

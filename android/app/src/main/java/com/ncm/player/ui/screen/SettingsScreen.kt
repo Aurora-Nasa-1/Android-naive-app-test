@@ -25,7 +25,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ncm.player.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,13 +72,13 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Settings",
+                        stringResource(R.string.settings),
                         style = MaterialTheme.typography.headlineMedium
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 windowInsets = WindowInsets.statusBars
@@ -91,49 +93,49 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SettingsCategory("Appearance") {
+            SettingsCategory(stringResource(R.string.appearance)) {
                 SwitchSettingItem(
                     icon = Icons.Default.Brightness4,
-                    title = "Pure Black Mode",
-                    subtitle = "Use pitch black for OLED screens in dark mode",
+                    title = stringResource(R.string.pure_black_mode),
+                    subtitle = stringResource(R.string.pure_black_desc),
                     checked = pureBlackMode,
                     onCheckedChange = onPureBlackModeChange
                 )
             }
 
-            SettingsCategory("Playback Quality") {
+            SettingsCategory(stringResource(R.string.playback_quality_cat)) {
                 QualitySettingItem(
                     icon = Icons.Default.Wifi,
-                    label = "WiFi Quality",
+                    label = stringResource(R.string.wifi_quality_label),
                     selectedQuality = currentQualityWifi,
                     onQualityChange = onQualityWifiChange
                 )
                 QualitySettingItem(
                     icon = Icons.Default.CellTower,
-                    label = "Cellular Quality",
+                    label = stringResource(R.string.cellular_quality_label),
                     selectedQuality = currentQualityCellular,
                     onQualityChange = onQualityCellularChange
                 )
             }
 
-            SettingsCategory("Download Settings") {
+            SettingsCategory(stringResource(R.string.download_settings)) {
                 QualitySettingItem(
                     icon = Icons.Default.HighQuality,
-                    label = "Download Quality",
+                    label = stringResource(R.string.download_quality_label),
                     selectedQuality = downloadQuality,
                     onQualityChange = onDownloadQualityChange
                 )
 
                 SwitchSettingItem(
                     icon = Icons.Default.Download,
-                    title = "Allow Cellular Download",
-                    subtitle = "Allow downloading songs over mobile data",
+                    title = stringResource(R.string.allow_cellular_download),
+                    subtitle = stringResource(R.string.allow_cellular_download_desc),
                     checked = allowCellularDownload,
                     onCheckedChange = onAllowCellularDownloadChange
                 )
 
                 ListItem(
-                    headlineContent = { Text("Download Directory") },
+                    headlineContent = { Text(stringResource(R.string.download_dir)) },
                     supportingContent = { Text(downloadDir?.substringAfterLast("%2F") ?: "System Music folder") },
                     leadingContent = { Icon(Icons.Default.Folder, null) },
                     modifier = Modifier.clickable { dirPicker.launch(null) },
@@ -141,9 +143,9 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsCategory("Audio Effects") {
+            SettingsCategory(stringResource(R.string.audio_effects)) {
                 Text(
-                    "Crossfade Duration (${fadeDuration.toInt()}s)",
+                    stringResource(R.string.crossfade_duration, fadeDuration.toInt()),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(start = 56.dp)
                 )
@@ -159,17 +161,17 @@ fun SettingsScreen(
                 }
             }
 
-            SettingsCategory("Storage & Cache") {
+            SettingsCategory(stringResource(R.string.storage_cache)) {
                 SwitchSettingItem(
                     icon = Icons.Default.Cached,
-                    title = "Cellular Data Caching",
-                    subtitle = "Cache songs during cellular playback",
+                    title = stringResource(R.string.cellular_caching),
+                    subtitle = stringResource(R.string.cellular_caching_desc),
                     checked = useCellularCache,
                     onCheckedChange = onUseCellularCacheChange
                 )
 
                 Text(
-                    "Max Cache Size: ${cacheSize}MB",
+                    stringResource(R.string.max_cache_size, cacheSize),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(start = 56.dp)
                 )
@@ -189,23 +191,24 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
                 ) {
-                    Text("Clear Playback Cache")
+                    Text(stringResource(R.string.clear_cache))
                 }
             }
 
 
-            SettingsCategory("Debug") {
+            SettingsCategory(stringResource(R.string.debug)) {
                 val context = androidx.compose.ui.platform.LocalContext.current
+                val logsCopiedMsg = stringResource(R.string.logs_copied)
                 Button(
                     onClick = {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         val clip = android.content.ClipData.newPlainText("NCM Player Logs", LogManager.getAllLogsString())
                         clipboard.setPrimaryClip(clip)
-                        android.widget.Toast.makeText(context, "Logs copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, logsCopiedMsg, android.widget.Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Text("Copy Debug Logs")
+                    Text(stringResource(R.string.copy_debug_logs))
                 }
             }
 
@@ -281,7 +284,7 @@ fun QualitySettingItem(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

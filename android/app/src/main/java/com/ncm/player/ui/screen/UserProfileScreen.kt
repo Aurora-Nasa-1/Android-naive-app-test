@@ -1,5 +1,6 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,7 +43,7 @@ fun UserProfileScreen(
     if (userProfile != null && userProfile?.userId == 0L) {
          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
 
-             CircularProgressIndicator()
+             WavyCircularProgressIndicator()
          }
          return
     }
@@ -69,7 +70,7 @@ fun UserProfileScreen(
         if (isLoading || userProfile == null) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
 
-                CircularProgressIndicator()
+                WavyCircularProgressIndicator()
             }
         } else {
             var isSongsExpanded by remember(userProfile?.userId) { mutableStateOf(false) }

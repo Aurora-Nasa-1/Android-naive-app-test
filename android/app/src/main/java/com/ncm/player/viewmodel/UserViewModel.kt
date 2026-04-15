@@ -111,26 +111,19 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         viewModelScope.launch {
             isLoading = true
             try {
-                if (cookie == null) { isLoading = false; return@launch }
+                if (cookie == null) {
+                    isLoading = false
+                    return@launch
+                }
 
                 val body = withContext(Dispatchers.IO) { callApi("user/cloud", mapOf("limit" to "100")) }
-                cloudSongs = body.get("data")?.asJsonArray?.mapNotNull {
-                    val obj = it.asJsonObject
-                    // Cloud songs have a bit different structure
-                    val songName = obj.get("songName")?.asString ?: "Unknown"
-                    val artist = obj.get("artist")?.asString ?: "Unknown"
-                    val album = obj.get("album")?.asString ?: "Unknown"
-                    val songId = obj.get("songId")?.asString ?: obj.get("songId")?.asLong?.toString() ?: ""
-
-                    Song(
-                        id = songId,
-                        name = songName,
-                        artist = artist,
-                        album = album,
-                        albumArtUrl = null // Cloud songs usually don't have direct picUrl in /user/cloud
-                    )
-                } ?: emptyList()
-            } finally { isLoading = false }
+                val songs = body.get("data")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                cloudSongs = songs
+            } catch (e: Exception) {
+                // Ignore error but ensure isLoading is false
+            } finally {
+                isLoading = false
+            }
         }
     }
 

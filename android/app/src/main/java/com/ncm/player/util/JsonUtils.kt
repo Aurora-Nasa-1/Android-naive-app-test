@@ -14,6 +14,18 @@ object JsonUtils {
     fun parseSong(it: JsonElement): Song? {
         return try {
             val item = it.asJsonObject
+
+            // Check for cloud song format first
+            if (item.has("songId") && item.has("songName")) {
+                return Song(
+                    id = (item.get("songId") ?: item.get("id")).asString,
+                    name = item.get("songName").asString,
+                    artist = item.get("artist")?.asString ?: "Unknown",
+                    album = item.get("album")?.asString ?: "Cloud Storage",
+                    albumArtUrl = null
+                )
+            }
+
             val obj = if (item.has("songInfo")) item.get("songInfo").asJsonObject else item
 
             val artists = obj.get("ar")?.asJsonArray ?: obj.get("artists")?.asJsonArray
@@ -25,7 +37,7 @@ object JsonUtils {
             val picUrl = album?.get("picUrl")?.asString
 
             Song(
-                id = obj.get("id").asJsonPrimitive.asString,
+                id = (obj.get("id") ?: obj.get("songId")).asJsonPrimitive.asString,
                 name = obj.get("name").asString,
                 artist = artistName,
                 artistId = artistId,

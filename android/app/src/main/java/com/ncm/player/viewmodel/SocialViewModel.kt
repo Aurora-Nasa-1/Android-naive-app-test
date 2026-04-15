@@ -46,15 +46,24 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                 }
 
                 val body = withContext(Dispatchers.IO) { callApi("comment/new", params) }
-                val data = if (body.has("data")) body.get("data").asJsonObject else body
-                val commentsArr = data?.get("comments")?.asJsonArray
+                val data = when {
+                    body.has("data") && body.get("data").isJsonObject -> body.get("data").asJsonObject
+                    body.has("result") && body.get("result").isJsonObject -> body.get("result").asJsonObject
+                    else -> body
+                }
+
+                val commentsArr = when {
+                    data.has("comments") && data.get("comments").isJsonArray -> data.get("comments").asJsonArray
+                    data.has("list") && data.get("list").isJsonArray -> data.get("list").asJsonArray
+                    else -> null
+                }
                 val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
 
                 if (page == 1) {
                     newestComments = newComments
                     // Also try to get hot comments if on first page of recommend/new
                     if (sortType != 2) {
-                        val hotArr = data?.get("hotComments")?.asJsonArray
+                        val hotArr = data.get("hotComments")?.asJsonArray
                         hotComments = hotArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
                     } else {
                         hotComments = emptyList()
@@ -63,8 +72,8 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                     newestComments = newestComments + newComments
                 }
 
-                commentTotal = (data?.get("totalCount") ?: data?.get("total"))?.asInt ?: 0
-                hasMoreComments = data?.get("hasMore")?.asBoolean ?: data?.get("more")?.asBoolean ?: false
+                commentTotal = (data.get("totalCount") ?: data.get("total") ?: data.get("totalCount"))?.asInt ?: 0
+                hasMoreComments = (data.get("hasMore") ?: data.get("more"))?.asBoolean ?: false
                 commentCursor = data?.get("cursor")?.asString ?: ""
                 currentCommentPage = page
                 commentSortType = sortType

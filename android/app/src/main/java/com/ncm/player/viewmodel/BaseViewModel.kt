@@ -12,7 +12,7 @@ import com.ncm.player.util.UserPreferences
 
 open class BaseViewModel(application: Application) : AndroidViewModel(application) {
     var isLoading by mutableStateOf(false)
-    val cookie: String? get() = deduplicateCookie(UserPreferences.getCookie(getApplication()))
+    var cookie: String? = deduplicateCookie(UserPreferences.getCookie(getApplication()))
 
     protected fun callApi(method: String, params: Map<String, String> = emptyMap()): JsonObject {
         val finalParams = if (!cookie.isNullOrEmpty() && !params.containsKey("cookie")) {

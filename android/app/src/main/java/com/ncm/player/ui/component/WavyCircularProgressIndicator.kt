@@ -4,7 +4,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -21,9 +20,7 @@ fun WavyCircularProgressIndicator(
     modifier: Modifier = Modifier,
     progress: (() -> Float)? = null,
     color: Color = MaterialTheme.colorScheme.primary,
-    strokeWidth: Dp = ProgressIndicatorDefaults.CircularStrokeWidth,
-    wavelength: Float = 20f,
-    amplitude: Float = 4f
+    strokeWidth: Dp = 4.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "wavy_loading")
 
@@ -31,7 +28,7 @@ fun WavyCircularProgressIndicator(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
+            animation = tween(1500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "rotation"
@@ -41,23 +38,27 @@ fun WavyCircularProgressIndicator(
         initialValue = 0f,
         targetValue = 2 * PI.toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
+            animation = tween(800, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "phase"
     )
 
-    Canvas(modifier = modifier.size(40.dp)) {
+    Canvas(modifier = modifier.size(48.dp)) {
         val center = Offset(size.width / 2, size.height / 2)
-        val radius = (min(size.width, size.height) - strokeWidth.toPx()) / 2
+        val strokeWidthPx = strokeWidth.toPx()
+        val radius = (min(size.width, size.height) - strokeWidthPx * 2) / 2
 
         val path = Path()
-        val segments = 100
-        val strokeWidthPx = strokeWidth.toPx()
+        val segments = 120
+
+        // Amplitude and Wavelength adjusted for more refined "MD3 Expressive" look
+        val amplitude = radius * 0.15f
+        val wavelengthMultiplier = 8 // Number of waves around the circle
 
         for (i in 0..segments) {
             val angle = 2 * PI * i / segments
-            val wave = sin(angle * (2 * PI * radius / wavelength) + phase) * amplitude
+            val wave = sin(angle * wavelengthMultiplier + phase) * amplitude
             val r = radius + wave
 
             val x = (center.x + r * cos(angle + Math.toRadians(rotation.toDouble()))).toFloat()

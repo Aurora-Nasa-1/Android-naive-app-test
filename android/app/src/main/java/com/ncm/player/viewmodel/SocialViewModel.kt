@@ -46,7 +46,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                 }
 
                 val body = withContext(Dispatchers.IO) { callApi("comment/new", params) }
-                val data = body.get("data")?.asJsonObject
+                val data = if (body.has("data")) body.get("data").asJsonObject else body
                 val commentsArr = data?.get("comments")?.asJsonArray
                 val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
 
@@ -63,8 +63,8 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                     newestComments = newestComments + newComments
                 }
 
-                commentTotal = data?.get("totalCount")?.asInt ?: 0
-                hasMoreComments = data?.get("hasMore")?.asBoolean ?: false
+                commentTotal = (data?.get("totalCount") ?: data?.get("total"))?.asInt ?: 0
+                hasMoreComments = data?.get("hasMore")?.asBoolean ?: data?.get("more")?.asBoolean ?: false
                 commentCursor = data?.get("cursor")?.asString ?: ""
                 currentCommentPage = page
                 commentSortType = sortType
@@ -105,14 +105,22 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun fetchContacts() {
-        if (cookie == null) return
         viewModelScope.launch {
             isLoading = true
             try {
+                // Try both msg/recentcontact and msg/private for compatibility
                 val body = withContext(Dispatchers.IO) { callApi("msg/recentcontact") }
                 val recent = body.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
-                val data = body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
-                contacts = recent ?: data ?: emptyList()
+                    ?: body.get("data")?.asJsonObject?.get("recentcontacts")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
+
+                if (recent != null && recent.isNotEmpty()) {
+                    contacts = recent
+                } else {
+                    // Fallback to msg/private (notifications/private messages)
+                    val privateBody = withContext(Dispatchers.IO) { callApi("msg/private", mapOf("limit" to "50")) }
+                    val privateMsgs = privateBody.get("msgs")?.asJsonArray?.mapNotNull { JsonUtils.parseContact(it) }
+                    contacts = privateMsgs ?: emptyList()
+                }
             } finally { isLoading = false }
         }
     }

@@ -100,16 +100,20 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                 }
 
                 val body = withContext(Dispatchers.IO) { callApi("playlist/track/all", mapOf("id" to playlistId.toString())) }
-                playlistSongs = body.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                val songs = body.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                // Atomic update to prevent partial loading states
+                playlistSongs = songs
             } finally { isLoading = false }
         }
     }
 
     fun fetchCloudSongs() {
-        if (cookie == null) return
         viewModelScope.launch {
             isLoading = true
             try {
+                if (cookie == null) cookie = UserPreferences.getCookie(getApplication())
+                if (cookie == null) { isLoading = false; return@launch }
+
                 val body = withContext(Dispatchers.IO) { callApi("user/cloud", mapOf("limit" to "100")) }
                 cloudSongs = body.get("data")?.asJsonArray?.mapNotNull {
                     val obj = it.asJsonObject

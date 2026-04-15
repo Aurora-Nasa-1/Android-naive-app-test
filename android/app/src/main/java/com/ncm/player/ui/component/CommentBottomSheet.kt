@@ -104,8 +104,8 @@ fun CommentBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        modifier = Modifier.fillMaxHeight(0.9f),
-        containerColor = MaterialTheme.colorScheme.surface
+        modifier = Modifier.fillMaxHeight(0.9f).navigationBarsPadding(),
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -221,8 +221,8 @@ fun CommentBottomSheet(
                 Row(
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.ime)
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .padding(bottom = 8.dp), // Minimal padding as windowInsets handled by ModalBottomSheet
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(

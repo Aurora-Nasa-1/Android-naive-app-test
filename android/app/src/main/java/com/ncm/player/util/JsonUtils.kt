@@ -46,23 +46,23 @@ object JsonUtils {
                 val replyUser = replyObj.get("user")?.asJsonObject
                 if (replyUser != null) {
                     Comment.Reply(
-                        userId = replyUser.get("userId").asLong,
-                        nickname = replyUser.get("nickname").asString,
-                        content = replyObj.get("content").asString
+                        userId = replyUser.get("userId")?.asLong ?: 0L,
+                        nickname = replyUser.get("nickname")?.asString ?: "Unknown",
+                        content = replyObj.get("content")?.asString ?: ""
                     )
                 } else null
             }
 
             Comment(
-                id = obj.get("commentId").asLong,
+                id = (obj.get("commentId") ?: obj.get("id")).asLong,
                 userId = user.get("userId").asLong,
                 nickname = user.get("nickname").asString,
                 avatarUrl = user.get("avatarUrl").asString,
-                content = obj.get("content").asString,
+                content = obj.get("content")?.asString ?: "",
                 time = obj.get("time").asLong,
                 timeStr = obj.get("timeStr")?.asString ?: "",
-                likedCount = obj.get("likedCount").asInt,
-                liked = obj.get("liked").asBoolean,
+                likedCount = obj.get("likedCount")?.asInt ?: 0,
+                liked = obj.get("liked")?.asBoolean ?: false,
                 replyCount = obj.get("replyCount")?.asInt ?: 0,
                 beReplied = beReplied
             )

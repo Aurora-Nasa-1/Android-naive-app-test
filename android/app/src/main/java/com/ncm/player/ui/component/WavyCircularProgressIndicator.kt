@@ -28,7 +28,7 @@ fun WavyCircularProgressIndicator(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
+            animation = tween(2000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "rotation"
@@ -38,7 +38,7 @@ fun WavyCircularProgressIndicator(
         initialValue = 0f,
         targetValue = 2 * PI.toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
+            animation = tween(1000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "phase"
@@ -47,18 +47,19 @@ fun WavyCircularProgressIndicator(
     Canvas(modifier = modifier.size(48.dp)) {
         val center = Offset(size.width / 2, size.height / 2)
         val strokeWidthPx = strokeWidth.toPx()
-        val radius = (min(size.width, size.height) - strokeWidthPx * 2) / 2
+        val radius = (min(size.width, size.height) - strokeWidthPx * 3) / 2
 
         val path = Path()
         val segments = 120
 
-        // Amplitude and Wavelength adjusted for more refined "MD3 Expressive" look
-        val amplitude = radius * 0.15f
-        val wavelengthMultiplier = 8 // Number of waves around the circle
+        // MD3 Expressive: Wavy stroke that actively flows
+        val amplitude = radius * 0.2f
+        val wavelengthMultiplier = 6
 
         for (i in 0..segments) {
             val angle = 2 * PI * i / segments
-            val wave = sin(angle * wavelengthMultiplier + phase) * amplitude
+            // Combine rotation and phase for a "rolling" wave effect
+            val wave = sin(angle * wavelengthMultiplier - phase) * amplitude
             val r = radius + wave
 
             val x = (center.x + r * cos(angle + Math.toRadians(rotation.toDouble()))).toFloat()

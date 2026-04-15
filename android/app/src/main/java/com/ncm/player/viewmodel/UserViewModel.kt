@@ -111,7 +111,6 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         viewModelScope.launch {
             isLoading = true
             try {
-                if (cookie == null) cookie = UserPreferences.getCookie(getApplication())
                 if (cookie == null) { isLoading = false; return@launch }
 
                 val body = withContext(Dispatchers.IO) { callApi("user/cloud", mapOf("limit" to "100")) }

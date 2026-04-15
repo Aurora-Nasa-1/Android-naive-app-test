@@ -110,7 +110,8 @@ fun CommentBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f)
-                .padding(bottom = 32.dp)
+                .navigationBarsPadding() // Properly handle nav bar padding
+                .padding(bottom = 16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),

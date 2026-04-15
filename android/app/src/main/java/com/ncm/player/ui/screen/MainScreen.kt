@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,7 @@ import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
+import com.ncm.player.R
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 import com.ncm.player.model.Playlist
@@ -96,7 +98,7 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Good day", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.good_day), fontWeight = FontWeight.Bold) },
                 actions = {
                     actions()
                     IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
@@ -131,7 +133,7 @@ fun MainScreen(
                     val itemsToRender = mutableListOf<@Composable (Modifier) -> Unit>()
                     itemsToRender.add { m -> QuickAccessCard("Private FM", { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) }, onPersonalFmClick, m) }
                     itemsToRender.add { m -> QuickAccessCard("Heartbeat", { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) }, onHeartbeatClick, m) }
-                    itemsToRender.add { m -> QuickAccessCard("LiveSort", { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.tertiary) }, onLiveSortClick, m) }
+                    itemsToRender.add { m -> QuickAccessCard(stringResource(R.string.live_sort), { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.tertiary) }, onLiveSortClick, m) }
                     displayPlaylists.forEach { p -> itemsToRender.add { m -> PlaylistQuickCard(p, { onPlaylistClick(p) }, m) } }
 
                     for (i in itemsToRender.indices step gridColumns) {
@@ -145,7 +147,7 @@ fun MainScreen(
                 }
             }
 
-            item { Text("Made For You", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            item { Text(stringResource(R.string.made_for_you), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
 
             item {
                 if (widthClass != WindowWidthSizeClass.Compact) {
@@ -170,7 +172,7 @@ fun MainScreen(
                 }
             }
 
-            item { Text("Recently Played", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            item { Text(stringResource(R.string.recently_played), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
 
             item {
                 val columns = if (widthClass != WindowWidthSizeClass.Compact) 2 else 1

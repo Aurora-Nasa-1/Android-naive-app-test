@@ -1,5 +1,6 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -96,7 +97,7 @@ fun LiveSortScreen(
                 }
 
                 is LiveSortState.Analyzing -> {
-                    CircularProgressIndicator(
+                    WavyCircularProgressIndicator(
                         progress = { state.progress.toFloat() / state.total.toFloat() },
                         modifier = Modifier.size(64.dp)
                     )
@@ -106,7 +107,7 @@ fun LiveSortScreen(
                 }
 
                 is LiveSortState.Sorting -> {
-                    CircularProgressIndicator(modifier = Modifier.size(64.dp))
+                    WavyCircularProgressIndicator(modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Optimizing playlist flow...")
                 }

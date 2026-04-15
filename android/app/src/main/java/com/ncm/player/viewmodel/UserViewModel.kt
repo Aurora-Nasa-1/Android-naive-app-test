@@ -15,6 +15,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
     var userPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
+    var cloudSongs by mutableStateOf<List<Song>>(emptyList())
 
     var playlistSongs by mutableStateOf<List<Song>>(emptyList())
     var currentPlaylistMetadata by mutableStateOf<Playlist?>(null)
@@ -86,9 +87,43 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         viewModelScope.launch {
             isLoading = true
             try {
+                // Fetch details first to ensure large image/title are correct
+                val detailBody = withContext(Dispatchers.IO) { callApi("playlist/detail", mapOf("id" to playlistId.toString())) }
+                val plObj = detailBody.get("playlist")?.asJsonObject
+                if (plObj != null) {
+                    currentPlaylistMetadata = Playlist(
+                        plObj.get("id").asLong,
+                        plObj.get("name").asString,
+                        plObj.get("coverImgUrl").asString,
+                        plObj.get("trackCount").asInt
+                    )
+                }
+
                 val body = withContext(Dispatchers.IO) { callApi("playlist/track/all", mapOf("id" to playlistId.toString())) }
-                playlistSongs = body.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                val songs = body.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                // Atomic update to prevent partial loading states
+                playlistSongs = songs
             } finally { isLoading = false }
+        }
+    }
+
+    fun fetchCloudSongs() {
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                if (cookie == null) {
+                    isLoading = false
+                    return@launch
+                }
+
+                val body = withContext(Dispatchers.IO) { callApi("user/cloud", mapOf("limit" to "100")) }
+                val songs = body.get("data")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                cloudSongs = songs
+            } catch (e: Exception) {
+                // Ignore error but ensure isLoading is false
+            } finally {
+                isLoading = false
+            }
         }
     }
 
@@ -98,6 +133,17 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
             if (body.get("code")?.asInt == 200) {
                 withContext(Dispatchers.Main) {
                     favoriteSongs = if (like) favoriteSongs + songId else favoriteSongs - songId
+                }
+            }
+        }
+    }
+
+    fun dislikeSong(songId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val body = callApi("recommend/songs/dislike", mapOf("id" to songId))
+            if (body.get("code")?.asInt == 200) {
+                withContext(Dispatchers.Main) {
+                    recommendedSongs = recommendedSongs.filter { it.id != songId }
                 }
             }
         }
@@ -137,6 +183,8 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt)
                     } ?: emptyList()
                     withContext(Dispatchers.Main) { otherUserViewState = OtherUserViewState(uid = uid, profile = profile, playlists = playlists, isLoading = false) }
+                } else {
+                    withContext(Dispatchers.Main) { otherUserViewState = otherUserViewState.copy(isLoading = false) }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { otherUserViewState = otherUserViewState.copy(isLoading = false) }

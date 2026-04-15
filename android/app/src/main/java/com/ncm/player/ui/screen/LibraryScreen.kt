@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Settings
@@ -16,10 +17,12 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.ncm.player.R
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
 import com.ncm.player.ui.component.PlaylistItem
@@ -30,6 +33,7 @@ fun LibraryScreen(
     userPlaylists: List<Playlist>,
     onPlaylistClick: (Playlist) -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToCloud: () -> Unit,
     onNavigateToLiveSort: () -> Unit,
     onNavigateToSettings: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
@@ -43,14 +47,14 @@ fun LibraryScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Your Library",
+                        stringResource(R.string.your_library),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 },
                 windowInsets = WindowInsets.statusBars
@@ -67,8 +71,8 @@ fun LibraryScreen(
         ) {
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
                 ListItem(
-                    headlineContent = { Text("Downloads") },
-                    supportingContent = { Text("Offline music") },
+                    headlineContent = { Text(stringResource(R.string.downloads)) },
+                    supportingContent = { Text(stringResource(R.string.offline_music)) },
                     leadingContent = {
                         Surface(
                             modifier = Modifier.size(48.dp),
@@ -83,8 +87,24 @@ fun LibraryScreen(
             }
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
                 ListItem(
-                    headlineContent = { Text("LiveSort") },
-                    supportingContent = { Text("Smart playlist reordering") },
+                    headlineContent = { Text(stringResource(R.string.cloud_music)) },
+                    supportingContent = { Text(stringResource(R.string.cloud_music)) },
+                    leadingContent = {
+                        Surface(
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Icon(Icons.Default.CloudQueue, contentDescription = null, modifier = Modifier.padding(8.dp))
+                        }
+                    },
+                    modifier = Modifier.clickable { onNavigateToCloud() }
+                )
+            }
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.live_sort)) },
+                    supportingContent = { Text(stringResource(R.string.smart_reordering)) },
                     leadingContent = {
                         Surface(
                             modifier = Modifier.size(48.dp),

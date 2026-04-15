@@ -1,5 +1,6 @@
 package com.ncm.player.ui.screen
 
+import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import com.ncm.player.model.LyricLine
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -26,9 +27,11 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import com.ncm.player.R
 import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
@@ -76,11 +79,21 @@ fun PlayerScreen(
     commentTotal: Int = 0,
     isCommentsLoading: Boolean = false,
     hasMoreComments: Boolean = true,
+    commentSortType: Int = 1,
     onLoadMoreComments: () -> Unit = {},
     onLikeComment: (com.ncm.player.model.Comment) -> Unit = {},
     onReplyComment: (com.ncm.player.model.Comment) -> Unit = {},
     onPostComment: (String) -> Unit = {},
     onAvatarClick: (Long) -> Unit = {},
+    onDislikeClick: () -> Unit = {},
+    onCommentSortChange: (Int) -> Unit = {},
+    onViewFloorClick: (com.ncm.player.model.Comment) -> Unit = {},
+    floorComments: List<com.ncm.player.model.Comment> = emptyList(),
+    floorCommentTotal: Int = 0,
+    floorHasMore: Boolean = false,
+    onLoadMoreFloor: (com.ncm.player.model.Comment) -> Unit = {},
+    onDismissFloor: () -> Unit = {},
+    activeParentComment: com.ncm.player.model.Comment? = null,
     sleepTimerRemaining: Long = 0L,
     onSetSleepTimer: (Int) -> Unit = {},
     onBackPressed: () -> Unit
@@ -100,7 +113,7 @@ fun PlayerScreen(
     if (song == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
 
-            CircularProgressIndicator()
+            WavyCircularProgressIndicator()
         }
         return
     }
@@ -116,18 +129,18 @@ fun PlayerScreen(
     if (showSongInfoDialog) {
         AlertDialog(
             onDismissRequest = { showSongInfoDialog = false },
-            title = { Text("Song Info") },
+            title = { Text(stringResource(R.string.song_info)) },
             text = {
                 Column {
-                    Text("Title: ${song.name}")
-                    Text("Artist: ${song.artist}")
-                    Text("Album: ${song.album}")
-                    Text("Song ID: ${song.id}")
+                    Text(stringResource(R.string.title_label, song.name))
+                    Text(stringResource(R.string.artist_label, song.artist))
+                    Text(stringResource(R.string.album_label, song.album))
+                    Text(stringResource(R.string.song_id_label, song.id))
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showSongInfoDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             }
         )
@@ -136,29 +149,29 @@ fun PlayerScreen(
     if (showQualityInfoDialog) {
         AlertDialog(
             onDismissRequest = { showQualityInfoDialog = false },
-            title = { Text("Audio Quality Info") },
+            title = { Text(stringResource(R.string.quality_info)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Configured Wi-Fi Quality: $qualityWifi", style = MaterialTheme.typography.bodyMedium)
-                    Text("Configured Cellular Quality: $qualityCellular", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.wifi_quality, qualityWifi), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.cellular_quality, qualityCellular), style = MaterialTheme.typography.bodyMedium)
                     HorizontalDivider()
-                    Text("Playback Statistics:", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.playback_stats), style = MaterialTheme.typography.titleSmall)
                     if (sampleRate > 0) {
-                        Text("Sample Rate: ${sampleRate} Hz", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.sample_rate, sampleRate), style = MaterialTheme.typography.bodyMedium)
                     } else if (sampleRate == 0) {
-                        Text("Sample Rate: N/A", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                        Text(stringResource(R.string.sample_rate_na), style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                     }
 
                     if (bitrate > 0) {
-                        Text("Bitrate: ${bitrate / 1000} kbps", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.bitrate, bitrate / 1000), style = MaterialTheme.typography.bodyMedium)
                     } else if (bitrate == 0) {
-                        Text("Bitrate: N/A", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                        Text(stringResource(R.string.bitrate_na), style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showQualityInfoDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             }
         )
@@ -167,7 +180,7 @@ fun PlayerScreen(
     if (showAddToPlaylistDialog) {
         AlertDialog(
             onDismissRequest = { showAddToPlaylistDialog = false },
-            title = { Text("Add to Playlist") },
+            title = { Text(stringResource(R.string.add_to_playlist)) },
             text = {
                 androidx.compose.foundation.lazy.LazyColumn {
                     items(allPlaylists) { p ->
@@ -183,7 +196,7 @@ fun PlayerScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAddToPlaylistDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -207,12 +220,31 @@ fun PlayerScreen(
             totalCount = commentTotal,
             isLoading = isCommentsLoading,
             hasMore = hasMoreComments,
+            currentSort = commentSortType,
             onLoadMore = onLoadMoreComments,
             onLikeClick = onLikeComment,
             onReplyClick = onReplyComment,
             onPostComment = onPostComment,
             onAvatarClick = onAvatarClick,
+            onSortChange = onCommentSortChange,
+            onViewFloorClick = onViewFloorClick,
             onDismiss = { showCommentBottomSheet = false }
+        )
+    }
+
+    if (activeParentComment != null) {
+        com.ncm.player.ui.component.FloorCommentBottomSheet(
+            parentComment = activeParentComment,
+            replies = floorComments,
+            totalCount = floorCommentTotal,
+            isLoading = isCommentsLoading,
+            hasMore = floorHasMore,
+            onLoadMore = { onLoadMoreFloor(activeParentComment) },
+            onLikeClick = onLikeComment,
+            onReplyClick = onReplyComment,
+            onPostComment = { onPostComment(it) /* TODO: Support floor reply */ },
+            onAvatarClick = onAvatarClick,
+            onDismiss = onDismissFloor
         )
     }
 
@@ -234,10 +266,10 @@ fun PlayerScreen(
                     navigationIconContentColor = Color.White,
                     actionIconContentColor = Color.White
                 ),
-                title = { Text("Playing") },
+                title = { Text(stringResource(R.string.playing)) },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = Color.White)
                     }
                 }
             )
@@ -432,7 +464,7 @@ fun PlayerScreen(
                                         onDismissRequest = { showMoreMenu = false }
                                     ) {
                                         DropdownMenuItem(
-                                            text = { Text("Add to Playlist") },
+                                            text = { Text(stringResource(R.string.add_to_playlist)) },
                                             leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
                                             onClick = {
                                                 showAddToPlaylistDialog = true
@@ -440,7 +472,7 @@ fun PlayerScreen(
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text(if (isDownloaded) "Downloaded" else "Download") },
+                                            text = { Text(if (isDownloaded) stringResource(R.string.downloaded) else "Download") },
                                             leadingIcon = { Icon(if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download, null) },
                                             onClick = {
                                                 onDownloadClick()
@@ -448,7 +480,7 @@ fun PlayerScreen(
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("Sleep Timer") },
+                                            text = { Text(stringResource(R.string.sleep_timer)) },
                                             leadingIcon = { Icon(Icons.Default.Timer, null) },
                                             onClick = {
                                                 showSleepTimerBottomSheet = true
@@ -456,7 +488,7 @@ fun PlayerScreen(
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("Song Info") },
+                                            text = { Text(stringResource(R.string.song_info)) },
                                             leadingIcon = { Icon(Icons.Default.Info, null) },
                                             onClick = {
                                                 showSongInfoDialog = true
@@ -464,10 +496,18 @@ fun PlayerScreen(
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("Quality Info") },
+                                            text = { Text(stringResource(R.string.quality_info)) },
                                             leadingIcon = { Icon(Icons.Default.HighQuality, null) },
                                             onClick = {
                                                 showQualityInfoDialog = true
+                                                showMoreMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.not_interested)) },
+                                            leadingIcon = { Icon(Icons.Default.Block, null) },
+                                            onClick = {
+                                                onDislikeClick()
                                                 showMoreMenu = false
                                             }
                                         )
@@ -673,7 +713,7 @@ fun PlayerScreen(
                                 onDismissRequest = { showMoreMenu = false }
                             ) {
                                     DropdownMenuItem(
-                                        text = { Text("Add to Playlist") },
+                                        text = { Text(stringResource(R.string.add_to_playlist)) },
                                         leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
                                         onClick = {
                                             showAddToPlaylistDialog = true
@@ -681,7 +721,7 @@ fun PlayerScreen(
                                         }
                                     )
                                 DropdownMenuItem(
-                                    text = { Text("Song Info") },
+                                    text = { Text(stringResource(R.string.song_info)) },
                                     leadingIcon = { Icon(Icons.Default.Info, null) },
                                     onClick = {
                                         showSongInfoDialog = true
@@ -689,7 +729,7 @@ fun PlayerScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(if (isDownloaded) "Downloaded" else "Download") },
+                                    text = { Text(if (isDownloaded) stringResource(R.string.downloaded) else "Download") },
                                     leadingIcon = { Icon(if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download, null) },
                                     onClick = {
                                         onDownloadClick()
@@ -697,7 +737,7 @@ fun PlayerScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Sleep Timer") },
+                                    text = { Text(stringResource(R.string.sleep_timer)) },
                                     leadingIcon = { Icon(Icons.Default.Timer, null) },
                                     onClick = {
                                         showSleepTimerBottomSheet = true
@@ -705,10 +745,18 @@ fun PlayerScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Quality Info") },
+                                    text = { Text(stringResource(R.string.quality_info)) },
                                     leadingIcon = { Icon(Icons.Default.HighQuality, null) },
                                     onClick = {
                                         showQualityInfoDialog = true
+                                        showMoreMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.not_interested)) },
+                                    leadingIcon = { Icon(Icons.Default.Block, null) },
+                                    onClick = {
+                                        onDislikeClick()
                                         showMoreMenu = false
                                     }
                                 )

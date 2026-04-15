@@ -1,5 +1,6 @@
 package com.ncm.player.ui.component
 
+import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
@@ -15,8 +16,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ncm.player.R
 import com.ncm.player.model.Comment
 import kotlinx.coroutines.delay
 
@@ -27,6 +30,7 @@ fun CommentAnimatedItem(
     onLikeClick: (Comment) -> Unit,
     onReplyClick: (Comment) -> Unit,
     onAvatarClick: (Long) -> Unit,
+    onViewFloorClick: (Comment) -> Unit = {},
     shouldAnimate: Boolean = true,
     hasAnimatedBefore: Boolean = false,
     onAnimated: () -> Unit = {}
@@ -57,7 +61,8 @@ fun CommentAnimatedItem(
             comment = comment,
             onLikeClick = { onLikeClick(comment) },
             onReplyClick = { onReplyClick(comment) },
-            onAvatarClick = { onAvatarClick(comment.userId) }
+            onAvatarClick = { onAvatarClick(comment.userId) },
+            onViewFloorClick = { onViewFloorClick(comment) }
         )
     }
 }
@@ -70,11 +75,14 @@ fun CommentBottomSheet(
     totalCount: Int,
     isLoading: Boolean,
     hasMore: Boolean,
+    currentSort: Int = 1,
     onLoadMore: () -> Unit,
     onLikeClick: (Comment) -> Unit,
     onReplyClick: (Comment) -> Unit,
     onPostComment: (String) -> Unit,
     onAvatarClick: (Long) -> Unit,
+    onSortChange: (Int) -> Unit = {},
+    onViewFloorClick: (Comment) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var commentText by remember { mutableStateOf("") }
@@ -96,16 +104,44 @@ fun CommentBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        modifier = Modifier.fillMaxHeight(0.9f),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = "Comments ($totalCount)",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .navigationBarsPadding() // Properly handle nav bar padding
+                .padding(bottom = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.comments_count, totalCount),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val sorts = listOf(
+                        1 to R.string.sort_recommend,
+                        2 to R.string.sort_hot,
+                        3 to R.string.sort_time
+                    )
+                    sorts.forEach { (type, labelRes) ->
+                        TextButton(
+                            onClick = { onSortChange(type) },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = if (currentSort == type) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            )
+                        ) {
+                            Text(stringResource(labelRes), style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                }
+            }
 
             Box(modifier = Modifier.weight(1f)) {
                 LazyColumn(
@@ -116,7 +152,7 @@ fun CommentBottomSheet(
                     if (hotComments.isNotEmpty()) {
                         item {
                             Text(
-                                text = "Hot Comments",
+                                text = stringResource(R.string.hot_comments),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
@@ -140,7 +176,7 @@ fun CommentBottomSheet(
                     if (newestComments.isNotEmpty()) {
                         item {
                             Text(
-                                text = "Newest Comments",
+                                text = if (currentSort == 2) stringResource(R.string.sort_hot) else stringResource(R.string.newest_comments),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
@@ -164,13 +200,13 @@ fun CommentBottomSheet(
                     if (isLoading) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                WavyCircularProgressIndicator(modifier = Modifier.size(24.dp))
                             }
                         }
                     } else if (!hasMore && newestComments.isNotEmpty()) {
                         item {
                             Text(
-                                text = "No more comments",
+                                text = stringResource(R.string.no_more_comments),
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.fillMaxWidth().padding(32.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -190,14 +226,14 @@ fun CommentBottomSheet(
                 Row(
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.ime)
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .padding(bottom = 8.dp), // Minimal padding as windowInsets handled by ModalBottomSheet
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
                         value = commentText,
                         onValueChange = { commentText = it },
-                        placeholder = { Text("Add a comment...") },
+                        placeholder = { Text(stringResource(R.string.add_comment)) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(28.dp),
                         maxLines = 5,

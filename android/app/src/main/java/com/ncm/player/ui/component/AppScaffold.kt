@@ -1,4 +1,5 @@
 package com.ncm.player.ui.component
+import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.foundation.layout.*
@@ -38,7 +39,7 @@ fun AppScaffold(
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             content(PaddingValues(0.dp))
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
         }
     }

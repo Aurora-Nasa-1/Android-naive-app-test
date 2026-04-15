@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
+import com.ncm.player.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,7 +54,7 @@ fun LyricContent(
 
     if (lyrics.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No lyrics available", color = Color.Gray)
+            Text(stringResource(R.string.no_lyrics), color = Color.Gray)
         }
     } else {
         LazyColumn(

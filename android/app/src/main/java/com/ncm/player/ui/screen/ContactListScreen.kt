@@ -13,9 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.ncm.player.R
 import com.ncm.player.model.Contact
 import com.ncm.player.util.ImageUtils
 import java.text.SimpleDateFormat
@@ -32,10 +34,10 @@ fun ContactListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Messages") },
+                title = { Text(stringResource(R.string.messages)) },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -43,7 +45,7 @@ fun ContactListScreen(
     ) { innerPadding ->
         if (contacts.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Text("No recent contacts", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.no_recent_contacts), style = MaterialTheme.typography.bodyLarge)
             }
         } else {
             LazyColumn(

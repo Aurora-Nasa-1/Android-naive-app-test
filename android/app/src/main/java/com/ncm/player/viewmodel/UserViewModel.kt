@@ -84,6 +84,9 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun fetchPlaylistSongs(playlistId: Long) {
+        playlistSongs = emptyList()
+        currentPlaylistMetadata = null
+
         viewModelScope.launch {
             isLoading = true
             try {
@@ -177,6 +180,8 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun fetchOtherUserProfile(uid: Long) {
+        if (otherUserViewState.uid == uid && otherUserViewState.profile != null && !otherUserViewState.isLoading) return
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 withContext(Dispatchers.Main) {

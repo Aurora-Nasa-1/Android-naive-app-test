@@ -77,7 +77,7 @@ fun PlaylistDetailScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
@@ -141,11 +141,16 @@ fun PlaylistDetailScreen(
         }
     ) { innerPadding ->
         if (isLoading && songs.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) { WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+            Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
+                 WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding()
+                )
             ) {
                 if (!isSelectionMode) {
                     item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }

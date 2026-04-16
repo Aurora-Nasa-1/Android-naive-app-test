@@ -34,7 +34,7 @@ object JsonUtils {
             val artistId = artistObj?.get("id")?.asString
             val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
             val albumName = album?.get("name")?.asString ?: "Unknown"
-            val picUrl = album?.get("picUrl")?.asString
+            val picUrl = album?.get("picUrl")?.asString ?: findUrl(album)
 
             Song(
                 id = (obj.get("id") ?: obj.get("songId")).asJsonPrimitive.asString,
@@ -52,7 +52,7 @@ object JsonUtils {
     fun parseComment(it: JsonElement): Comment? {
         return try {
             val obj = it.asJsonObject
-            val user = obj.get("user")?.asJsonObject ?: return null
+            val user = obj.get("user")?.asJsonObject ?: obj.get("author")?.asJsonObject ?: return null
             val beReplied = obj.get("beReplied")?.asJsonArray?.mapNotNull {
                 val replyObj = it.asJsonObject
                 val replyUser = replyObj.get("user")?.asJsonObject

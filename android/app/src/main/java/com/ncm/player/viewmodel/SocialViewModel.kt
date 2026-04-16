@@ -46,11 +46,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                 }
 
                 val body = withContext(Dispatchers.IO) { callApi("comment/new", params) }
-                val data = when {
-                    body.has("data") && body.get("data").isJsonObject -> body.get("data").asJsonObject
-                    body.has("result") && body.get("result").isJsonObject -> body.get("result").asJsonObject
-                    else -> body
-                }
+                val data = body.get("data")?.asJsonObject ?: body
 
                 // The new API might return comments inside another object
                 val innerData = if (data.has("data") && data.get("data").isJsonObject) data.get("data").asJsonObject else data
@@ -58,6 +54,7 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                 val commentsArr = when {
                     innerData.has("comments") && innerData.get("comments").isJsonArray -> innerData.get("comments").asJsonArray
                     innerData.has("list") && innerData.get("list").isJsonArray -> innerData.get("list").asJsonArray
+                    data.has("comments") && data.get("comments").isJsonArray -> data.get("comments").asJsonArray
                     else -> null
                 }
                 val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()

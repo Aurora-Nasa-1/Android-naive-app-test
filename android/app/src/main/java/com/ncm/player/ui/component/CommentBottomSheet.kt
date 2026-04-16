@@ -1,20 +1,23 @@
 package com.ncm.player.ui.component
 
-import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -92,7 +95,7 @@ fun CommentBottomSheet(
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
-                if (index != null && index >= hotComments.size + newestComments.size - 5) {
+                if (index != null && index >= (hotComments.size + newestComments.size) - 5) {
                     if (hasMore && !isLoading) {
                         onLoadMore()
                     }
@@ -105,59 +108,89 @@ fun CommentBottomSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 8.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
-                .navigationBarsPadding() // Properly handle nav bar padding
-                .padding(bottom = 16.dp)
+                .fillMaxHeight(0.9f)
+                .navigationBarsPadding()
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Header with total count and sort
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.comments_count, totalCount),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val sorts = listOf(
-                        1 to R.string.sort_recommend,
-                        2 to R.string.sort_hot,
-                        3 to R.string.sort_time
+                Column {
+                    Text(
+                        text = stringResource(R.string.comments_count, totalCount),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    sorts.forEach { (type, labelRes) ->
-                        TextButton(
-                            onClick = { onSortChange(type) },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (currentSort == type) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Sort, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(when(currentSort) {
+                                    1 -> R.string.sort_recommend
+                                    2 -> R.string.sort_hot
+                                    else -> R.string.sort_time
+                                }),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
-                        ) {
-                            Text(stringResource(labelRes), style = MaterialTheme.typography.labelLarge)
+                        }
+
+                        Row {
+                            val sorts = listOf(
+                                1 to R.string.sort_recommend,
+                                2 to R.string.sort_hot,
+                                3 to R.string.sort_time
+                            )
+                            sorts.forEach { (type, labelRes) ->
+                                FilterChip(
+                                    selected = currentSort == type,
+                                    onClick = { onSortChange(type) },
+                                    label = { Text(stringResource(labelRes)) },
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
 
+            // Comment List
             Box(modifier = Modifier.weight(1f)) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
                 ) {
                     if (hotComments.isNotEmpty()) {
                         item {
-                            Text(
-                                text = stringResource(R.string.hot_comments),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Surface(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.hot_comments),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                         itemsIndexed(hotComments, key = { _, c -> "hot_${c.id}" }) { index, comment ->
                             CommentAnimatedItem(
@@ -168,6 +201,7 @@ fun CommentBottomSheet(
                                 onAvatarClick = onAvatarClick,
                                 shouldAnimate = index < 15,
                                 hasAnimatedBefore = animatedIds.contains(comment.id),
+                                onViewFloorClick = onViewFloorClick,
                                 onAnimated = { animatedIds.add(comment.id) }
                             )
                         }
@@ -175,13 +209,19 @@ fun CommentBottomSheet(
 
                     if (newestComments.isNotEmpty()) {
                         item {
-                            Text(
-                                text = if (currentSort == 2) stringResource(R.string.sort_hot) else stringResource(R.string.newest_comments),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Surface(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = if (currentSort == 2) stringResource(R.string.sort_hot) else stringResource(R.string.newest_comments),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
                         }
                         itemsIndexed(newestComments, key = { _, c -> "new_${c.id}" }) { index, comment ->
                             CommentAnimatedItem(
@@ -192,6 +232,7 @@ fun CommentBottomSheet(
                                 onAvatarClick = onAvatarClick,
                                 shouldAnimate = index < 15,
                                 hasAnimatedBefore = animatedIds.contains(comment.id),
+                                onViewFloorClick = onViewFloorClick,
                                 onAnimated = { animatedIds.add(comment.id) }
                             )
                         }
@@ -200,10 +241,10 @@ fun CommentBottomSheet(
                     if (isLoading) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                WavyCircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                WavyCircularProgressIndicator(modifier = Modifier.size(32.dp))
                             }
                         }
-                    } else if (!hasMore && newestComments.isNotEmpty()) {
+                    } else if (!hasMore && (newestComments.isNotEmpty() || hotComments.isNotEmpty())) {
                         item {
                             Text(
                                 text = stringResource(R.string.no_more_comments),
@@ -215,47 +256,64 @@ fun CommentBottomSheet(
                         }
                     }
                 }
+
+                // Bottom fade for the list
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, MaterialTheme.colorScheme.surface)
+                            )
+                        )
+                )
             }
 
+            // Input field
             Surface(
                 tonalElevation = 12.dp,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Row(
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.ime)
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
-                        .padding(bottom = 8.dp), // Minimal padding as windowInsets handled by ModalBottomSheet
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    TextField(
                         value = commentText,
                         onValueChange = { commentText = it },
                         placeholder = { Text(stringResource(R.string.add_comment)) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(28.dp),
-                        maxLines = 5,
-                        colors = OutlinedTextFieldDefaults.colors(
+                        maxLines = 4,
+                        colors = TextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
                         )
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    FilledIconButton(
+                    FloatingActionButton(
                         onClick = {
                             if (commentText.isNotBlank()) {
                                 onPostComment(commentText)
                                 commentText = ""
                             }
                         },
-                        enabled = commentText.isNotBlank(),
-                        modifier = Modifier.size(52.dp)
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(52.dp),
+                        shape = CircleShape,
+                        elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", modifier = Modifier.size(24.dp))
                     }
                 }
             }

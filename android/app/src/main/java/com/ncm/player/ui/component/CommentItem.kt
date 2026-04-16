@@ -1,17 +1,15 @@
 package com.ncm.player.ui.component
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -36,111 +34,152 @@ fun CommentItem(
     onAvatarClick: () -> Unit = {},
     onViewFloorClick: () -> Unit = {}
 ) {
-    Surface(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.Transparent,
-        onClick = onReplyClick
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+        )
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .padding(8.dp)
+                .padding(16.dp)
                 .fillMaxWidth()
         ) {
-        AsyncImage(
-            model = comment.avatarUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .clickable { onAvatarClick() },
-            contentScale = ContentScale.Crop
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                AsyncImage(
+                    model = comment.avatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .clickable { onAvatarClick() },
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = comment.nickname,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = comment.timeStr,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.outline
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onLikeClick() }
+                Surface(
+                    onClick = onLikeClick,
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (comment.liked) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
                 ) {
-                    AnimatedContent(
-                        targetState = comment.likedCount,
-                        transitionSpec = {
-                            scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith scaleOut()
-                        },
-                        label = "LikeCountAnimation"
-                    ) { count ->
-                        Text(
-                            text = if (count > 0) count.toString() else "",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        AnimatedContent(
+                            targetState = comment.likedCount,
+                            transitionSpec = {
+                                (scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith (scaleOut() + fadeOut())
+                            },
+                            label = "LikeCountAnimation"
+                        ) { count ->
+                            Text(
+                                text = if (count > 0) count.toString() else "",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (comment.likedCount > 0) Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = if (comment.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                            contentDescription = "Like",
+                            modifier = Modifier.size(18.dp),
+                            tint = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = if (comment.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                        contentDescription = "Like",
-                        modifier = Modifier.size(16.dp),
-                        tint = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = comment.content,
-                style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 20.sp
+                style = MaterialTheme.typography.bodyLarge,
+                lineHeight = 24.sp,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
-            comment.beReplied?.forEach { reply ->
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = MaterialTheme.shapes.small
-                ) {
-                    Text(
-                        text = "${reply.nickname}: ${reply.content}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            comment.beReplied?.let { replies ->
+                if (replies.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .fillMaxWidth()
+                    ) {
+                        replies.forEach { reply ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = reply.nickname,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = reply.content,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
                 }
             }
 
-            if (comment.replyCount > 0) {
-                Text(
-                    text = stringResource(R.string.view_replies, comment.replyCount),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp).clickable { onViewFloorClick() }
-                )
-            }
+            Row(
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
+            ) {
+                if (comment.replyCount > 0) {
+                    FilledTonalButton(
+                        onClick = onViewFloorClick,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(Icons.Outlined.ChatBubbleOutline, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.view_replies, comment.replyCount),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                } else {
+                    TextButton(onClick = onReplyClick) {
+                        Text(stringResource(R.string.reply))
+                    }
+                }
             }
         }
     }

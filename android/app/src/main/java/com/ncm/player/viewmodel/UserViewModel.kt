@@ -87,22 +87,29 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         viewModelScope.launch {
             isLoading = true
             try {
-                // Fetch details first to ensure large image/title are correct
-                val detailBody = withContext(Dispatchers.IO) { callApi("playlist/detail", mapOf("id" to playlistId.toString())) }
-                val plObj = detailBody.get("playlist")?.asJsonObject
-                if (plObj != null) {
-                    currentPlaylistMetadata = Playlist(
-                        plObj.get("id").asLong,
-                        plObj.get("name").asString,
-                        plObj.get("coverImgUrl").asString,
-                        plObj.get("trackCount").asInt
-                    )
-                }
+                coroutineScope {
+                    val detailDef = async(Dispatchers.IO) { callApi("playlist/detail", mapOf("id" to playlistId.toString())) }
+                    val tracksDef = async(Dispatchers.IO) { callApi("playlist/track/all", mapOf("id" to playlistId.toString())) }
 
-                val body = withContext(Dispatchers.IO) { callApi("playlist/track/all", mapOf("id" to playlistId.toString())) }
-                val songs = body.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
-                // Atomic update to prevent partial loading states
-                playlistSongs = songs
+                    val detailBody = detailDef.await()
+                    val plObj = detailBody.get("playlist")?.asJsonObject
+                    if (plObj != null) {
+                        currentPlaylistMetadata = Playlist(
+                            plObj.get("id").asLong,
+                            plObj.get("name").asString,
+                            plObj.get("coverImgUrl").asString,
+                            plObj.get("trackCount").asInt
+                        )
+                    }
+
+                    val tracksBody = tracksDef.await()
+                    val songs = tracksBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+
+                    // Update songs after both have finished for atomicity
+                    playlistSongs = songs
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("UserViewModel", "Error fetching playlist songs", e)
             } finally { isLoading = false }
         }
     }
@@ -172,22 +179,88 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
     fun fetchOtherUserProfile(uid: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                withContext(Dispatchers.Main) { otherUserViewState = OtherUserViewState(uid = uid, isLoading = true) }
-                val body = callApi("user/detail", mapOf("uid" to uid.toString()))
-                val profileJson = body.get("profile")?.asJsonObject
-                if (profileJson != null) {
-                    val profile = UserProfile(userId = uid, nickname = profileJson?.get("nickname")?.asString ?: "Unknown", avatarUrl = profileJson?.get("avatarUrl")?.asString ?: "")
-                    val plBody = callApi("user/playlist", mapOf("uid" to uid.toString()))
-                    val playlists = plBody.get("playlist")?.asJsonArray?.map {
-                        val obj = it.asJsonObject
-                        Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt)
-                    } ?: emptyList()
-                    withContext(Dispatchers.Main) { otherUserViewState = OtherUserViewState(uid = uid, profile = profile, playlists = playlists, isLoading = false) }
-                } else {
-                    withContext(Dispatchers.Main) { otherUserViewState = otherUserViewState.copy(isLoading = false) }
+                withContext(Dispatchers.Main) {
+                    otherUserViewState = OtherUserViewState(uid = uid, isLoading = true)
+                }
+
+                coroutineScope {
+                    val userDef = async { try { callApi("user/detail", mapOf("uid" to uid.toString())) } catch (e: Exception) { null } }
+                    val artistDef = async { try { callApi("artist/detail", mapOf("id" to uid.toString())) } catch (e: Exception) { null } }
+
+                    val userBody = userDef.await()
+                    val artistBody = artistDef.await()
+
+                    var profile: UserProfile? = null
+                    var playlists = emptyList<Playlist>()
+                    var songs = emptyList<Song>()
+                    var albums = emptyList<Playlist>()
+                    var isArtist = false
+
+                    val profileJson = userBody?.get("profile")?.asJsonObject
+                    if (profileJson != null) {
+                        profile = UserProfile(
+                            userId = uid,
+                            nickname = profileJson.get("nickname")?.asString ?: "Unknown",
+                            avatarUrl = profileJson.get("avatarUrl")?.asString ?: "",
+                            signature = profileJson.get("signature")?.asString,
+                            follows = profileJson.get("follows")?.asInt ?: 0,
+                            followeds = profileJson.get("followeds")?.asInt ?: 0
+                        )
+                        val plBody = callApi("user/playlist", mapOf("uid" to uid.toString()))
+                        playlists = plBody.get("playlist")?.asJsonArray?.map {
+                            val obj = it.asJsonObject
+                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt)
+                        } ?: emptyList()
+                    }
+
+                    val artistData = artistBody?.get("data")?.asJsonObject
+                    if (artistData != null) {
+                        isArtist = true
+                        val artist = artistData.get("artist")?.asJsonObject
+                        if (profile == null) {
+                            profile = UserProfile(
+                                userId = uid,
+                                nickname = artist?.get("name")?.asString ?: "Unknown",
+                                avatarUrl = artist?.get("cover")?.asString ?: artist?.get("picUrl")?.asString ?: "",
+                                signature = artist?.get("briefDesc")?.asString,
+                                follows = 0,
+                                followeds = artistData.get("user")?.asJsonObject?.get("followeds")?.asInt ?: 0
+                            )
+                        }
+
+                        val songsBody = callApi("artist/songs", mapOf("id" to uid.toString(), "limit" to "50"))
+                        songs = songsBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+
+                        val albumBody = callApi("artist/album", mapOf("id" to uid.toString(), "limit" to "20"))
+                        albums = albumBody.get("hotAlbums")?.asJsonArray?.map {
+                            val obj = it.asJsonObject
+                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("picUrl").asString, obj.get("size").asInt)
+                        } ?: emptyList()
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        otherUserViewState = OtherUserViewState(
+                            uid = uid,
+                            profile = profile,
+                            playlists = playlists,
+                            songs = songs,
+                            albums = albums,
+                            isArtist = isArtist,
+                            isLoading = false
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { otherUserViewState = otherUserViewState.copy(isLoading = false) }
+                android.util.Log.e("UserViewModel", "Error fetching other user profile", e)
+                withContext(Dispatchers.Main) {
+                    otherUserViewState = otherUserViewState.copy(isLoading = false)
+                    if (otherUserViewState.profile == null) {
+                        // Fallback to minimal profile to stop the loading spinner
+                        otherUserViewState = otherUserViewState.copy(
+                            profile = UserProfile(uid, "Unknown User", "")
+                        )
+                    }
+                }
             }
         }
     }

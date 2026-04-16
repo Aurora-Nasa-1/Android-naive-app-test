@@ -72,17 +72,6 @@ fun CommentBottomSheet(
                     fontWeight = FontWeight.Bold
                 )
 
-                Row {
-                    val sorts = listOf(1 to R.string.sort_recommend, 2 to R.string.sort_hot, 3 to R.string.sort_time)
-                    sorts.forEach { (type, label) ->
-                        TextButton(onClick = { onSortChange(type) }) {
-                            Text(
-                                stringResource(label),
-                                color = if (currentSort == type) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    }
-                }
             }
 
             LazyColumn(

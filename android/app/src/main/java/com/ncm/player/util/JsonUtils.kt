@@ -164,11 +164,11 @@ object JsonUtils {
         if (element.isJsonObject) {
             val obj = element.asJsonObject
             // Direct check
-            val url = getString(obj, "url")
+            val url = getString(obj, "url") ?: getString(obj, "picUrl") ?: getString(obj, "coverImgUrl") ?: getString(obj, "avatarUrl")
             if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
             // Priority keys
-            listOf("data", "result", "songs", "urlInfo").forEach { key ->
+            listOf("al", "album", "data", "result", "songs", "urlInfo").forEach { key ->
                 if (obj.has(key)) {
                     val found = findUrl(obj.get(key))
                     if (found != null) return found
@@ -186,6 +186,30 @@ object JsonUtils {
             val arr = element.asJsonArray
             for (i in 0 until arr.size()) {
                 val found = findUrl(arr.get(i))
+                if (found != null) return found
+            }
+        }
+
+        return null
+    }
+
+    fun findJsonArray(element: JsonElement?, key: String): JsonArray? {
+        if (element == null || element.isJsonNull) return null
+
+        if (element.isJsonObject) {
+            val obj = element.asJsonObject
+            if (obj.has(key) && obj.get(key).isJsonArray) return obj.getAsJsonArray(key)
+
+            for (entry in obj.entrySet()) {
+                val found = findJsonArray(entry.value, key)
+                if (found != null) return found
+            }
+        }
+
+        if (element.isJsonArray) {
+            val arr = element.asJsonArray
+            for (i in 0 until arr.size()) {
+                val found = findJsonArray(arr.get(i), key)
                 if (found != null) return found
             }
         }

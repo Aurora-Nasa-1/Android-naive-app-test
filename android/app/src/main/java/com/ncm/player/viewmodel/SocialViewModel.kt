@@ -53,12 +53,9 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
                 val body = withContext(Dispatchers.IO) { callApi(legacyApi, params) }
                 android.util.Log.d("SocialViewModel", "Comments result: $body")
 
-                val commentsArr = when {
-                    body.has("comments") && body.get("comments").isJsonArray -> body.get("comments").asJsonArray
-                    body.has("data") && body.get("data").isJsonObject && body.get("data").asJsonObject.has("comments") -> body.get("data").asJsonObject.get("comments").asJsonArray
-                    body.has("data") && body.get("data").isJsonArray -> body.get("data").asJsonArray
-                    else -> null
-                }
+                val commentsArr = JsonUtils.findJsonArray(body, "comments")
+                    ?: JsonUtils.findJsonArray(body, "list")
+                    ?: JsonUtils.findJsonArray(body, "data")
                 val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
 
                 if (page == 1) {

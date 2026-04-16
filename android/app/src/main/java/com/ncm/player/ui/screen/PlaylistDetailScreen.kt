@@ -142,7 +142,7 @@ fun PlaylistDetailScreen(
         }
     ) { innerPadding ->
         if (isLoading && songs.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
+            Box(modifier = Modifier.fillMaxSize()) {
                  WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
         } else {

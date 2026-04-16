@@ -234,7 +234,15 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         }
 
                         val songsBody = callApi("artist/songs", mapOf("id" to uid.toString(), "limit" to "50"))
-                        songs = songsBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                        val rawSongs = songsBody.get("songs")?.asJsonArray
+                        if (rawSongs != null && rawSongs.size() > 0) {
+                            // Fetch full details if picUrl is likely missing (common in artist/songs)
+                            val ids = rawSongs.map { it.asJsonObject.get("id").asString }
+                            val detailBody = callApi("song/detail", mapOf("ids" to ids.joinToString(",")))
+                            songs = detailBody.get("songs")?.asJsonArray?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+                        } else {
+                            songs = emptyList()
+                        }
 
                         val albumBody = callApi("artist/album", mapOf("id" to uid.toString(), "limit" to "20"))
                         albums = albumBody.get("hotAlbums")?.asJsonArray?.map {

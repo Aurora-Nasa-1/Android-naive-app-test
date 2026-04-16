@@ -112,12 +112,10 @@ fun PlaylistDetailScreen(
                     }
                 )
             } else {
-                LargeTopAppBar(
+                TopAppBar(
                     title = {
-                        if (isLoading && playlist.name == "Loading...") {
-                            Text(stringResource(R.string.connecting), style = MaterialTheme.typography.headlineLarge)
-                        } else {
-                            Text(playlist.name, style = MaterialTheme.typography.headlineLarge)
+                        if (!isLoading || playlist.name != "Loading...") {
+                            Text(playlist.name)
                         }
                     },
                     navigationIcon = {
@@ -125,7 +123,6 @@ fun PlaylistDetailScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     },
-                    windowInsets = WindowInsets.statusBars,
                     actions = {
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
@@ -135,6 +132,10 @@ fun PlaylistDetailScreen(
                             DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_artist)) }, onClick = { onSortChange("artist"); showSortMenu = false })
                         }
                     },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surface
+                    ),
                     scrollBehavior = scrollBehavior
                 )
             }

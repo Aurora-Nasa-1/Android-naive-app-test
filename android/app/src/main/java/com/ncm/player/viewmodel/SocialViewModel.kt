@@ -33,48 +33,44 @@ class SocialViewModel(application: Application) : BaseViewModel(application) {
         viewModelScope.launch {
             isLoading = true
             try {
-                val t = when (type) { "music" -> "0"; "mv" -> "1"; "playlist" -> "2"; "album" -> "3"; "dj" -> "4"; "video" -> "5"; "event" -> "6"; else -> "0" }
-                val params = mutableMapOf(
-                    "id" to id,
-                    "type" to t,
-                    "sortType" to sortType.toString(),
-                    "pageNo" to page.toString(),
-                    "pageSize" to "20"
-                )
-                if (sortType == 3 && page > 1 && commentCursor.isNotEmpty()) {
-                    params["cursor"] = commentCursor
+                // Try legacy API if comment/new is not working well or as a fallback
+                val legacyApi = when (type) {
+                    "music" -> "comment/music"
+                    "playlist" -> "comment/playlist"
+                    "album" -> "comment/album"
+                    "mv" -> "comment/mv"
+                    "dj" -> "comment/dj"
+                    "video" -> "comment/video"
+                    else -> "comment/music"
                 }
 
-                val body = withContext(Dispatchers.IO) { callApi("comment/new", params) }
-                val data = body.get("data")?.asJsonObject ?: body
+                val params = mutableMapOf(
+                    "id" to id,
+                    "limit" to "20",
+                    "offset" to ((page - 1) * 20).toString()
+                )
 
-                // The new API might return comments inside another object
-                val innerData = if (data.has("data") && data.get("data").isJsonObject) data.get("data").asJsonObject else data
+                val body = withContext(Dispatchers.IO) { callApi(legacyApi, params) }
+                android.util.Log.d("SocialViewModel", "Comments result: $body")
 
                 val commentsArr = when {
-                    innerData.has("comments") && innerData.get("comments").isJsonArray -> innerData.get("comments").asJsonArray
-                    innerData.has("list") && innerData.get("list").isJsonArray -> innerData.get("list").asJsonArray
-                    data.has("comments") && data.get("comments").isJsonArray -> data.get("comments").asJsonArray
+                    body.has("comments") && body.get("comments").isJsonArray -> body.get("comments").asJsonArray
+                    body.has("data") && body.get("data").isJsonObject && body.get("data").asJsonObject.has("comments") -> body.get("data").asJsonObject.get("comments").asJsonArray
+                    body.has("data") && body.get("data").isJsonArray -> body.get("data").asJsonArray
                     else -> null
                 }
                 val newComments = commentsArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
 
                 if (page == 1) {
                     newestComments = newComments
-                    // Also try to get hot comments if on first page of recommend/new
-                    if (sortType != 2) {
-                        val hotArr = innerData.get("hotComments")?.asJsonArray
-                        hotComments = hotArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
-                    } else {
-                        hotComments = emptyList()
-                    }
+                    val hotArr = body.get("hotComments")?.asJsonArray
+                    hotComments = hotArr?.mapNotNull { JsonUtils.parseComment(it) } ?: emptyList()
                 } else {
                     newestComments = newestComments + newComments
                 }
 
-                commentTotal = (innerData.get("totalCount") ?: innerData.get("total") ?: data.get("totalCount"))?.asInt ?: 0
-                hasMoreComments = (innerData.get("hasMore") ?: innerData.get("more"))?.asBoolean ?: false
-                commentCursor = data?.get("cursor")?.asString ?: ""
+                commentTotal = (body.get("totalCount") ?: body.get("total"))?.asInt ?: 0
+                hasMoreComments = (body.get("hasMore") ?: body.get("more"))?.asBoolean ?: true
                 currentCommentPage = page
                 commentSortType = sortType
             } finally { isLoading = false }

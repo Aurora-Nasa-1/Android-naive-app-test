@@ -34,7 +34,10 @@ object JsonUtils {
             val artistId = artistObj?.get("id")?.asString
             val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
             val albumName = album?.get("name")?.asString ?: "Unknown"
-            val picUrl = album?.get("picUrl")?.asString ?: findUrl(album)
+            var picUrl = album?.get("picUrl")?.asString
+            if (picUrl == null || picUrl.contains("null")) {
+                picUrl = findUrl(obj)
+            }
 
             Song(
                 id = (obj.get("id") ?: obj.get("songId")).asJsonPrimitive.asString,

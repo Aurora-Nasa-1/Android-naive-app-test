@@ -89,9 +89,9 @@ fun AppNavigation(
     val hasBottomBar = showNav && !useSideNav
     val bottomBarHeight = 144.dp
     val density = LocalDensity.current
-    val bottomBarHeightPx = with(density) { bottomBarHeight.toPx() }
     val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
-    val maxOffset = bottomBarHeightPx + WindowInsets.navigationBars.getBottom(density)
+    val navBarHeightPx = with(density) { 80.dp.toPx() } // Standard M3 NavigationBar height is ~80dp
+    val maxOffset = navBarHeightPx + WindowInsets.navigationBars.getBottom(density)
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {

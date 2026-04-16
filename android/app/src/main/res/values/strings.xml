@@ -90,4 +90,5 @@
     <string name="cloud_music">音乐云盘</string>
     <string name="no_cloud_songs">云盘空空如也</string>
     <string name="not_interested">不感兴趣</string>
+    <string name="reply">回复</string>
 </resources>

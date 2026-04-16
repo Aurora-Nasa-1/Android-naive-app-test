@@ -77,7 +77,7 @@ fun PlaylistDetailScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
@@ -112,12 +112,10 @@ fun PlaylistDetailScreen(
                     }
                 )
             } else {
-                LargeTopAppBar(
+                TopAppBar(
                     title = {
-                        if (isLoading && playlist.name == "Loading...") {
-                            Text(stringResource(R.string.connecting), style = MaterialTheme.typography.headlineLarge)
-                        } else {
-                            Text(playlist.name, style = MaterialTheme.typography.headlineLarge)
+                        if (!isLoading || playlist.name != "Loading...") {
+                            Text(playlist.name)
                         }
                     },
                     navigationIcon = {
@@ -125,7 +123,6 @@ fun PlaylistDetailScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     },
-                    windowInsets = WindowInsets.statusBars,
                     actions = {
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
@@ -135,17 +132,26 @@ fun PlaylistDetailScreen(
                             DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_artist)) }, onClick = { onSortChange("artist"); showSortMenu = false })
                         }
                     },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surface
+                    ),
                     scrollBehavior = scrollBehavior
                 )
             }
         }
     ) { innerPadding ->
         if (isLoading && songs.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) { WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center)) }
+            Box(modifier = Modifier.fillMaxSize()) {
+                 WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding()
+                )
             ) {
                 if (!isSelectionMode) {
                     item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }

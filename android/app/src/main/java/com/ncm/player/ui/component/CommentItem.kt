@@ -1,15 +1,8 @@
 package com.ncm.player.ui.component
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbUp
@@ -36,112 +29,100 @@ fun CommentItem(
     onAvatarClick: () -> Unit = {},
     onViewFloorClick: () -> Unit = {}
 ) {
-    Surface(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.Transparent,
-        onClick = onReplyClick
+            .padding(vertical = 8.dp)
+            .clickable { onReplyClick() }
     ) {
         Row(
-            modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
         ) {
-        AsyncImage(
-            model = comment.avatarUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .clickable { onAvatarClick() },
-            contentScale = ContentScale.Crop
-        )
+            AsyncImage(
+                model = comment.avatarUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable { onAvatarClick() },
+                contentScale = ContentScale.Crop
+            )
 
-        Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = comment.nickname,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = comment.timeStr,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onLikeClick() }
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AnimatedContent(
-                        targetState = comment.likedCount,
-                        transitionSpec = {
-                            scaleIn(animationSpec = spring(Spring.DampingRatioMediumBouncy)) togetherWith scaleOut()
-                        },
-                        label = "LikeCountAnimation"
-                    ) { count ->
+                    Column {
                         Text(
-                            text = if (count > 0) count.toString() else "",
+                            text = comment.nickname,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = comment.timeStr,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onLikeClick() }
+                    ) {
+                        Text(
+                            text = if (comment.likedCount > 0) comment.likedCount.toString() else "",
                             style = MaterialTheme.typography.labelMedium,
                             color = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (comment.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                            contentDescription = "Like",
+                            modifier = Modifier.size(14.dp),
+                            tint = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                        )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = if (comment.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                        contentDescription = "Like",
-                        modifier = Modifier.size(16.dp),
-                        tint = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                    )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = comment.content,
-                style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 20.sp
-            )
-
-            comment.beReplied?.forEach { reply ->
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = MaterialTheme.shapes.small
-                ) {
-                    Text(
-                        text = "${reply.nickname}: ${reply.content}",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            if (comment.replyCount > 0) {
                 Text(
-                    text = stringResource(R.string.view_replies, comment.replyCount),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp).clickable { onViewFloorClick() }
+                    text = comment.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    lineHeight = 20.sp
                 )
-            }
+
+                comment.beReplied?.forEach { reply ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            text = "${reply.nickname}: ${reply.content}",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+
+                if (comment.replyCount > 0) {
+                    Text(
+                        text = stringResource(R.string.view_replies, comment.replyCount),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp).clickable { onViewFloorClick() }
+                    )
+                }
             }
         }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
     }
 }

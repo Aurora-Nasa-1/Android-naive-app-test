@@ -34,7 +34,10 @@ object JsonUtils {
             val artistId = artistObj?.get("id")?.asString
             val album = obj.get("al")?.asJsonObject ?: obj.get("album")?.asJsonObject
             val albumName = album?.get("name")?.asString ?: "Unknown"
-            val picUrl = album?.get("picUrl")?.asString
+            var picUrl = album?.get("picUrl")?.asString
+            if (picUrl == null || picUrl.contains("null")) {
+                picUrl = findUrl(obj)
+            }
 
             Song(
                 id = (obj.get("id") ?: obj.get("songId")).asJsonPrimitive.asString,
@@ -52,7 +55,7 @@ object JsonUtils {
     fun parseComment(it: JsonElement): Comment? {
         return try {
             val obj = it.asJsonObject
-            val user = obj.get("user")?.asJsonObject ?: return null
+            val user = obj.get("user")?.asJsonObject ?: obj.get("author")?.asJsonObject ?: return null
             val beReplied = obj.get("beReplied")?.asJsonArray?.mapNotNull {
                 val replyObj = it.asJsonObject
                 val replyUser = replyObj.get("user")?.asJsonObject
@@ -161,11 +164,11 @@ object JsonUtils {
         if (element.isJsonObject) {
             val obj = element.asJsonObject
             // Direct check
-            val url = getString(obj, "url")
+            val url = getString(obj, "url") ?: getString(obj, "picUrl") ?: getString(obj, "coverImgUrl") ?: getString(obj, "avatarUrl")
             if (url != null && url.startsWith("http") && url.length > 12 && !url.contains("null")) return url
 
             // Priority keys
-            listOf("data", "result", "songs", "urlInfo").forEach { key ->
+            listOf("al", "album", "data", "result", "songs", "urlInfo").forEach { key ->
                 if (obj.has(key)) {
                     val found = findUrl(obj.get(key))
                     if (found != null) return found
@@ -183,6 +186,30 @@ object JsonUtils {
             val arr = element.asJsonArray
             for (i in 0 until arr.size()) {
                 val found = findUrl(arr.get(i))
+                if (found != null) return found
+            }
+        }
+
+        return null
+    }
+
+    fun findJsonArray(element: JsonElement?, key: String): JsonArray? {
+        if (element == null || element.isJsonNull) return null
+
+        if (element.isJsonObject) {
+            val obj = element.asJsonObject
+            if (obj.has(key) && obj.get(key).isJsonArray) return obj.getAsJsonArray(key)
+
+            for (entry in obj.entrySet()) {
+                val found = findJsonArray(entry.value, key)
+                if (found != null) return found
+            }
+        }
+
+        if (element.isJsonArray) {
+            val arr = element.asJsonArray
+            for (i in 0 until arr.size()) {
+                val found = findJsonArray(arr.get(i), key)
                 if (found != null) return found
             }
         }

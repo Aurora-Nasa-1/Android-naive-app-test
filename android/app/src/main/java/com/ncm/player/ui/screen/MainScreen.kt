@@ -27,7 +27,9 @@ import com.ncm.player.util.ImageUtils
 @Composable
 fun MainScreen(
     recommendedSongs: List<Song>,
+    recommendedPlaylists: List<Playlist>,
     onSongClick: (Song) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
     onLikeClick: (Song) -> Unit,
     favoriteSongs: List<String>,
     onNavigateToSettings: () -> Unit
@@ -63,6 +65,24 @@ fun MainScreen(
                 ) {
                     items(recommendedSongs) { song ->
                         SongCard(song, onClick = { onSongClick(song) })
+                    }
+                }
+            }
+
+            item(contentType = "header") {
+                Text(
+                    "Recommended Playlists",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(recommendedPlaylists) { playlist ->
+                        PlaylistCard(playlist, onClick = { onPlaylistClick(playlist) })
                     }
                 }
             }
@@ -171,6 +191,42 @@ fun SongItem(
         },
         modifier = Modifier.clickable { onClick() }
     )
+}
+
+@Composable
+fun PlaylistCard(playlist: Playlist, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(150.dp)
+            .clickable { onClick() }
+    ) {
+        Surface(
+            modifier = Modifier.size(150.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.secondaryContainer
+        ) {
+            if (playlist.coverImgUrl != null) {
+                AsyncImage(
+                    model = ImageUtils.getThumbnailUrl(playlist.coverImgUrl, 300),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.padding(32.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = playlist.name,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+    }
 }
 
 @Composable

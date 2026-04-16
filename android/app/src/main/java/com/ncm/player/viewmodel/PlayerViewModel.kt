@@ -45,10 +45,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var currentSong by mutableStateOf<Song?>(null)
     var isPlaying by mutableStateOf(false)
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
+    var recommendedPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var userPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
     var playlistSongs by mutableStateOf<List<Song>>(emptyList())
     var searchResults by mutableStateOf<List<Song>>(emptyList())
+    var userName by mutableStateOf<String?>(null)
+    var userAvatar by mutableStateOf<String?>(null)
     var currentLyrics by mutableStateOf<String?>(null)
     var isLoading by mutableStateOf(false)
 
@@ -146,6 +149,20 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 } ?: emptyList()
 
+                // Fetch Recommended Playlists
+                val resResponse = apiService.getRecommendResource(cookie)
+                val resBody = resResponse.body()
+                val resJson = resBody?.get("recommend")?.asJsonArray ?: resBody?.get("data")?.asJsonArray
+                recommendedPlaylists = resJson?.map {
+                    val obj = it.asJsonObject
+                    Playlist(
+                        id = obj.get("id").asLong,
+                        name = obj.get("name").asString,
+                        coverImgUrl = obj.get("picUrl").asString,
+                        trackCount = obj.get("trackCount").asInt
+                    )
+                } ?: emptyList()
+
                 // Fetch User Playlists
                 val statusResponse = apiService.loginStatus(cookie = cookie)
                 val statusBody = statusResponse.body()
@@ -155,6 +172,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     ?: 0L
 
                 if (uid != 0L) {
+                    userName = statusBody?.get("profile")?.asJsonObject?.get("nickname")?.asString
+                    userAvatar = statusBody?.get("profile")?.asJsonObject?.get("avatarUrl")?.asString
+
                     val plResponse = apiService.getUserPlaylist(uid, cookie)
                     val playlistJson = plResponse.body()?.get("playlist")?.asJsonArray
                     userPlaylists = playlistJson?.map {
@@ -245,6 +265,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun batchDownload(songs: List<Song>, cookie: String?) {
         songs.forEach { downloadSong(it, cookie) }
+    }
+
+    fun subscribePlaylist(playlistId: Long, subscribe: Boolean, cookie: String?) {
+        viewModelScope.launch {
+            try {
+                apiService.subscribePlaylist(playlistId, if (subscribe) 1 else 2, cookie)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun fetchPlaylistSongs(playlistId: Long, cookie: String?) {

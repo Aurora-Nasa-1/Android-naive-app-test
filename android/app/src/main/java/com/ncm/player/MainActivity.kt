@@ -127,9 +127,14 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                 }
                 MainScreen(
                     recommendedSongs = playerViewModel.recommendedSongs,
+                    recommendedPlaylists = playerViewModel.recommendedPlaylists,
                     onSongClick = { song ->
                         playerViewModel.playSong(song, playerViewModel.recommendedSongs, loginViewModel.cookie)
                         navController.navigate("player")
+                    },
+                    onPlaylistClick = { playlist ->
+                        playerViewModel.fetchPlaylistSongs(playlist.id, loginViewModel.cookie)
+                        navController.navigate("playlist/${playlist.id}")
                     },
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
@@ -154,6 +159,9 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                     onLikeClick = { song ->
                         val isFavorite = playerViewModel.favoriteSongs.contains(song.id)
                         playerViewModel.toggleLike(song.id, !isFavorite, loginViewModel.cookie)
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate("settings")
                     }
                 )
             }
@@ -206,16 +214,27 @@ fun AppNavigation(loginViewModel: LoginViewModel, playerViewModel: PlayerViewMod
                         onBatchDownload = { songs ->
                             playerViewModel.batchDownload(songs, loginViewModel.cookie)
                         },
+                        onSubscribeClick = { pid, sub ->
+                            playerViewModel.subscribePlaylist(pid, sub, loginViewModel.cookie)
+                        },
                         onBackPressed = { navController.popBackStack() }
                     )
                 }
             }
             composable("settings") {
                 SettingsScreen(
+                    userName = playerViewModel.userName,
+                    userAvatar = playerViewModel.userAvatar,
                     currentQuality = playerViewModel.currentQuality,
                     onQualityChange = { playerViewModel.setQuality(it) },
                     fadeDuration = playerViewModel.fadeDuration,
                     onFadeChange = { playerViewModel.setFade(it) },
+                    onLogout = {
+                        loginViewModel.logout()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
                     onBackPressed = { navController.popBackStack() }
                 )
             }

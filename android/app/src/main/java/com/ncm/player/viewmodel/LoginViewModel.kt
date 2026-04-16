@@ -41,6 +41,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     var isLogged by mutableStateOf(false)
     var cookie by mutableStateOf<String?>(null)
 
+    fun logout() {
+        UserPreferences.saveCookie(getApplication(), "")
+        cookie = null
+        isLogged = false
+    }
+
     private var checkJob: Job? = null
     private var fetchJob: Job? = null
 

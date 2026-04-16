@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -50,6 +51,7 @@ fun PlaylistDetailScreen(
     onAddToPlaylist: (List<String>, Long) -> Unit,
     onRemoveFromPlaylist: (List<String>) -> Unit,
     onBatchDownload: (List<Song>) -> Unit,
+    onSubscribeClick: (Long, Boolean) -> Unit = { _, _ -> },
     onBackPressed: () -> Unit
 ) {
     val scrollState = rememberTopAppBarState()
@@ -78,6 +80,15 @@ fun PlaylistDetailScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = {
+                            if (selectedSongs.size == songs.size) {
+                                selectedSongs = emptySet()
+                            } else {
+                                selectedSongs = songs.map { it.id }.toSet()
+                            }
+                        }) {
+                            Icon(Icons.Default.DoneAll, contentDescription = "Select All")
+                        }
                         IconButton(onClick = {
                             val selectedList = songs.filter { selectedSongs.contains(it.id) }
                             onQueueAllClick(selectedList)
@@ -115,8 +126,25 @@ fun PlaylistDetailScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {}) {
+                        var showMenu by remember { mutableStateOf(false) }
+                        IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
+                        }
+                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Subscribe") },
+                                onClick = {
+                                    onSubscribeClick(playlist.id, true)
+                                    showMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Unsubscribe") },
+                                onClick = {
+                                    onSubscribeClick(playlist.id, false)
+                                    showMenu = false
+                                }
+                            )
                         }
                     },
                     scrollBehavior = scrollBehavior

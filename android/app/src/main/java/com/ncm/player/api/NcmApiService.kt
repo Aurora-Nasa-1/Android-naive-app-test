@@ -21,6 +21,9 @@ interface NcmApiService {
     @GET("recommend/songs")
     suspend fun getRecommendSongs(@Query("cookie") cookie: String? = null): Response<JsonObject>
 
+    @GET("recommend/resource")
+    suspend fun getRecommendResource(@Query("cookie") cookie: String? = null): Response<JsonObject>
+
     @GET("user/playlist")
     suspend fun getUserPlaylist(@Query("uid") uid: Long, @Query("cookie") cookie: String? = null): Response<JsonObject>
 

@@ -141,7 +141,7 @@ fun AppNavigation(
             AppMainContent(playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, PaddingValues(0.dp), isPlayerScreen, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context, currentDestination, bottomBarOffsetHeightPx, navItems)
         }
     } else {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent) { innerPadding ->
             AppMainContent(playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, innerPadding, isPlayerScreen, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context, currentDestination, bottomBarOffsetHeightPx, navItems)
         }
     }
@@ -170,7 +170,7 @@ fun AppMainContent(
     navItems: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>>
 ) {
     Box(modifier = Modifier.fillMaxSize().then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier)) {
-        Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
+        Box(modifier = Modifier.fillMaxSize().padding(top = if (isPlayerScreen) 0.dp else innerPadding.calculateTopPadding())) {
             NavHost(navController = navController, startDestination = if (loginViewModel.isLogged) "main" else "login", modifier = Modifier.fillMaxSize()) {
                 composable("login") { LoginScreen(loginViewModel, onLoginSuccess = { userViewModel.fetchUserData(); navController.navigate("main") { popUpTo("login") { inclusive = true } } }) }
                 composable("main") {

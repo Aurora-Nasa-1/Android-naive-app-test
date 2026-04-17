@@ -60,12 +60,18 @@ fun LyricsScreen(
             }
         }
 
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(bgBrush)
+        ) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
                         titleContentColor = Color.White,
                         navigationIconContentColor = Color.White
                     ),
@@ -82,7 +88,6 @@ fun LyricsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(bgBrush)
                     .padding(innerPadding)
             ) {
                 LyricContent(
@@ -91,5 +96,6 @@ fun LyricsScreen(
                 )
             }
         }
+    }
     }
 }

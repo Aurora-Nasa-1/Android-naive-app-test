@@ -32,23 +32,52 @@ fun NCMPlayerTheme(
 
     val colorScheme = when {
         themeMode == 1 && followCoverApp && seedColor != null -> {
+            val color = Color(seedColor)
             if (darkTheme) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    dynamicDarkColorScheme(context).copy(primary = Color(seedColor))
-                } else {
-                    DarkColorScheme.copy(primary = Color(seedColor))
-                }
+                darkColorScheme(
+                    primary = color,
+                    primaryContainer = color.copy(alpha = 0.3f),
+                    secondary = color.copy(alpha = 0.7f),
+                    onPrimary = if (androidx.core.graphics.ColorUtils.calculateLuminance(seedColor) < 0.5) Color.White else Color.Black,
+                    surface = Color(0xFF121212),
+                    background = Color(0xFF121212)
+                )
             } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    dynamicLightColorScheme(context).copy(primary = Color(seedColor))
-                } else {
-                    LightColorScheme.copy(primary = Color(seedColor))
-                }
+                lightColorScheme(
+                    primary = color,
+                    primaryContainer = color.copy(alpha = 0.1f),
+                    secondary = color.copy(alpha = 0.6f),
+                    onPrimary = if (androidx.core.graphics.ColorUtils.calculateLuminance(seedColor) < 0.5) Color.White else Color.Black,
+                    surface = Color(0xFFFDFDFD),
+                    background = Color(0xFFFDFDFD)
+                )
             }
         }
         themeMode == 2 -> { // Fixed (Reddish/Monet)
-            val redSeed = Color(0xFFD32F2F)
-            if (darkTheme) darkColorScheme(primary = redSeed) else lightColorScheme(primary = redSeed)
+            val redSeed = Color(0xFFB71C1C)
+            if (darkTheme) {
+                darkColorScheme(
+                    primary = redSeed,
+                    onPrimary = Color.White,
+                    primaryContainer = Color(0xFF8B0000),
+                    onPrimaryContainer = Color.White,
+                    secondary = Color(0xFFFFCDD2),
+                    onSecondary = Color.Black,
+                    background = Color(0xFF1A1111),
+                    surface = Color(0xFF1A1111)
+                )
+            } else {
+                lightColorScheme(
+                    primary = redSeed,
+                    onPrimary = Color.White,
+                    primaryContainer = Color(0xFFFFEBEE),
+                    onPrimaryContainer = Color(0xFFB71C1C),
+                    secondary = Color(0xFF757575),
+                    onSecondary = Color.White,
+                    background = Color(0xFFFFF8F8),
+                    surface = Color(0xFFFFF8F8)
+                )
+            }
         }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

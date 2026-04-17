@@ -16,6 +16,7 @@ import com.ncm.player.model.LyricLine
 import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
 import androidx.palette.graphics.Palette
+import coil3.toBitmap
 import com.ncm.player.util.DebugLog
 import com.ncm.player.util.JsonUtils
 import com.ncm.player.util.LyricUtils
@@ -187,25 +188,28 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         }
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                DebugLog.d("Extracting color from $url")
                 val loader = coil3.SingletonImageLoader.get(getApplication())
                 val request = coil3.request.ImageRequest.Builder(getApplication())
                     .data(url)
                     .build()
                 val result = loader.execute(request)
                 if (result is coil3.request.SuccessResult) {
-                    val bitmap = (result.image as? coil3.BitmapImage)?.bitmap
-                    bitmap?.let {
-                        val palette = Palette.from(it).generate()
-                        val color = palette.getVibrantColor(palette.getMutedColor(0))
-                        if (color != 0) {
-                            withContext(Dispatchers.Main) {
-                                extractedColor = color
-                            }
+                    val bitmap = result.image.toBitmap()
+                    val palette = Palette.from(bitmap).generate()
+                    val color = palette.getVibrantColor(palette.getMutedColor(0))
+                    if (color != 0) {
+                        DebugLog.d("Extracted color: ${Integer.toHexString(color)}")
+                        withContext(Dispatchers.Main) {
+                            extractedColor = color
                         }
                     }
+                } else {
+                    DebugLog.e("Coil result not success: $result")
                 }
             } catch (e: Exception) {
                 DebugLog.e("Palette extraction failed: ${e.message}")
+                e.printStackTrace()
             }
         }
     }

@@ -293,7 +293,11 @@ fun PlayerScreen(
         if (!view.isInEditMode) {
             val isDarkTheme = isSystemInDarkTheme()
             val luminance = coverColor?.let { androidx.core.graphics.ColorUtils.calculateLuminance(it) } ?: 0.0
-            val isAppearanceLightStatusBars = !isDarkTheme && (luminance > 0.5)
+            val isAppearanceLightStatusBars = if (useFluidBackground) {
+                !isDarkTheme
+            } else {
+                !isDarkTheme && (luminance > 0.5)
+            }
 
             SideEffect {
                 val window = (view.context as android.app.Activity).window
@@ -301,12 +305,20 @@ fun PlayerScreen(
             }
         }
 
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
         ) {
             if (useCoverColor && coverColor != null && useFluidBackground) {
-                com.ncm.player.ui.component.FluidBackground(color = Color(coverColor))
+                com.ncm.player.ui.component.FluidBackground(
+                    color = Color(coverColor),
+                    isDark = isSystemInDarkTheme()
+                )
             } else {
                 Box(modifier = Modifier.fillMaxSize().background(bgBrush))
             }
@@ -432,9 +444,9 @@ fun PlayerScreen(
                                 onValueChange = { onSeek((it * duration).toLong()) },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = SliderDefaults.colors(
-                                    thumbColor = Color.White,
-                                    activeTrackColor = Color.White,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                    thumbColor = MaterialTheme.colorScheme.onSurface,
+                                    activeTrackColor = MaterialTheme.colorScheme.onSurface,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                                 )
                             )
 
@@ -494,11 +506,11 @@ fun PlayerScreen(
                                     onClick = onPlayPause,
                                     modifier = Modifier.requiredSize(64.dp),
                                     shape = androidx.compose.foundation.shape.CircleShape,
-                                    containerColor = Color.White,
-                                    contentColor = Color.Black
+                                    containerColor = MaterialTheme.colorScheme.onSurface,
+                                    contentColor = MaterialTheme.colorScheme.surface
                                 ) {
                                     if (isBuffering) {
-                                        WavyCircularProgressIndicator(modifier = Modifier.size(32.dp), color = Color.Black)
+                                        WavyCircularProgressIndicator(modifier = Modifier.size(32.dp), color = MaterialTheme.colorScheme.surface)
                                     } else {
                                         Icon(
                                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -706,9 +718,9 @@ fun PlayerScreen(
                             onValueChange = { onSeek((it * duration).toLong()) },
                             modifier = Modifier.fillMaxWidth(),
                             colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                thumbColor = MaterialTheme.colorScheme.onSurface,
+                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
+                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                             )
                         )
 
@@ -771,11 +783,11 @@ fun PlayerScreen(
                             onClick = onPlayPause,
                             modifier = Modifier.size(72.dp),
                             shape = androidx.compose.foundation.shape.CircleShape,
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = MaterialTheme.colorScheme.onSurface,
+                            contentColor = MaterialTheme.colorScheme.surface
                         ) {
                             if (isBuffering) {
-                                WavyCircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.Black)
+                                WavyCircularProgressIndicator(modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.surface)
                             } else {
                                 AnimatedContent(
                                     targetState = isPlaying,
@@ -900,6 +912,7 @@ fun PlayerScreen(
                 }
             }
         }
+    }
     }
     }
     }

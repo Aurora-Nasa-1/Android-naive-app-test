@@ -52,9 +52,11 @@ fun LyricContent(
         }
     }
 
+    val textColor = MaterialTheme.colorScheme.onSurface
+
     if (lyrics.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.no_lyrics), color = Color.Gray)
+            Text(stringResource(R.string.no_lyrics), color = textColor.copy(alpha = 0.5f))
         }
     } else {
         LazyColumn(
@@ -106,7 +108,7 @@ fun LyricContent(
                                         lineHeight = 36.sp,
                                         fontSize = 28.sp
                                     ),
-                                    color = Color.White.copy(alpha = wordAlpha),
+                                    color = textColor.copy(alpha = wordAlpha),
                                     textAlign = textAlign
                                 )
                             }
@@ -119,7 +121,7 @@ fun LyricContent(
                                 lineHeight = 36.sp,
                                 fontSize = 28.sp
                             ),
-                            color = Color.White,
+                            color = textColor,
                             textAlign = textAlign
                         )
                     }
@@ -130,7 +132,7 @@ fun LyricContent(
                                 lineHeight = 20.sp,
                                 fontSize = 14.sp
                             ),
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = textColor.copy(alpha = 0.6f),
                             textAlign = textAlign,
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
@@ -142,7 +144,7 @@ fun LyricContent(
                                 lineHeight = 28.sp,
                                 fontSize = 20.sp
                             ),
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = textColor.copy(alpha = 0.7f),
                             textAlign = textAlign,
                             modifier = Modifier.padding(top = 4.dp)
                         )

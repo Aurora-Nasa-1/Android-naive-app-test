@@ -18,6 +18,48 @@ import androidx.compose.ui.graphics.Color
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
+fun createCustomColorScheme(seedColor: Int, isDark: Boolean, pureBlack: Boolean = false): ColorScheme {
+    val color = Color(seedColor)
+    val luminance = androidx.core.graphics.ColorUtils.calculateLuminance(seedColor)
+    val isDarkSeed = luminance < 0.5
+
+    return if (isDark) {
+        darkColorScheme(
+            primary = color,
+            onPrimary = if (isDarkSeed) Color.White else Color.Black,
+            primaryContainer = color.copy(alpha = 0.3f),
+            onPrimaryContainer = Color.White,
+            secondary = color.copy(alpha = 0.5f),
+            onSecondary = Color.White,
+            secondaryContainer = color.copy(alpha = 0.2f),
+            onSecondaryContainer = Color.White,
+            surface = if (pureBlack) Color.Black else Color(0xFF121212),
+            onSurface = Color.White,
+            background = if (pureBlack) Color.Black else Color(0xFF121212),
+            onBackground = Color.White,
+            surfaceVariant = color.copy(alpha = 0.1f),
+            onSurfaceVariant = Color.White
+        )
+    } else {
+        lightColorScheme(
+            primary = color,
+            onPrimary = if (isDarkSeed) Color.White else Color.Black,
+            primaryContainer = color.copy(alpha = 0.2f),
+            onPrimaryContainer = color,
+            secondary = color.copy(alpha = 0.6f),
+            onSecondary = Color.White,
+            secondaryContainer = color.copy(alpha = 0.1f),
+            onSecondaryContainer = color,
+            surface = Color(0xFFFDFDFD),
+            onSurface = Color.Black,
+            background = Color(0xFFFDFDFD),
+            onBackground = Color.Black,
+            surfaceVariant = color.copy(alpha = 0.05f),
+            onSurfaceVariant = Color.Black
+        )
+    }
+}
+
 @Composable
 fun NCMPlayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -32,81 +74,10 @@ fun NCMPlayerTheme(
 
     val colorScheme = when {
         themeMode == 1 && followCoverApp && seedColor != null -> {
-            val color = Color(seedColor)
-            val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(seedColor) < 0.5
-            if (darkTheme) {
-                darkColorScheme(
-                    primary = color,
-                    onPrimary = if (isDark) Color.White else Color.Black,
-                    primaryContainer = color.copy(alpha = 0.3f),
-                    onPrimaryContainer = Color.White,
-                    secondary = color.copy(alpha = 0.5f),
-                    onSecondary = Color.White,
-                    secondaryContainer = color.copy(alpha = 0.2f),
-                    onSecondaryContainer = Color.White,
-                    surface = Color(0xFF121212),
-                    onSurface = Color.White,
-                    background = Color(0xFF121212),
-                    onBackground = Color.White,
-                    surfaceVariant = color.copy(alpha = 0.1f),
-                    onSurfaceVariant = Color.White
-                )
-            } else {
-                lightColorScheme(
-                    primary = color,
-                    onPrimary = if (isDark) Color.White else Color.Black,
-                    primaryContainer = color.copy(alpha = 0.2f),
-                    onPrimaryContainer = color,
-                    secondary = color.copy(alpha = 0.6f),
-                    onSecondary = Color.White,
-                    secondaryContainer = color.copy(alpha = 0.1f),
-                    onSecondaryContainer = color,
-                    surface = Color(0xFFFDFDFD),
-                    onSurface = Color.Black,
-                    background = Color(0xFFFDFDFD),
-                    onBackground = Color.Black,
-                    surfaceVariant = color.copy(alpha = 0.05f),
-                    onSurfaceVariant = Color.Black
-                )
-            }
+            createCustomColorScheme(seedColor, darkTheme, pureBlack)
         }
         themeMode == 2 -> { // Fixed (Reddish/Monet)
-            val redSeed = Color(0xFFB71C1C)
-            if (darkTheme) {
-                darkColorScheme(
-                    primary = redSeed,
-                    onPrimary = Color.White,
-                    primaryContainer = Color(0xFF8B0000),
-                    onPrimaryContainer = Color.White,
-                    secondary = Color(0xFFFFCDD2),
-                    onSecondary = Color.Black,
-                    secondaryContainer = Color(0xFF4A0000),
-                    onSecondaryContainer = Color.White,
-                    background = Color(0xFF1A0808),
-                    surface = Color(0xFF1A0808),
-                    surfaceVariant = Color(0xFF2D1414),
-                    onSurface = Color.White,
-                    onBackground = Color.White,
-                    onSurfaceVariant = Color.White
-                )
-            } else {
-                lightColorScheme(
-                    primary = redSeed,
-                    onPrimary = Color.White,
-                    primaryContainer = Color(0xFFFFEBEE),
-                    onPrimaryContainer = Color(0xFFB71C1C),
-                    secondary = Color(0xFFD32F2F),
-                    onSecondary = Color.White,
-                    secondaryContainer = Color(0xFFFFE0E0),
-                    onSecondaryContainer = Color(0xFFB71C1C),
-                    background = Color(0xFFFFF5F5),
-                    surface = Color(0xFFFFF5F5),
-                    surfaceVariant = Color(0xFFFFEAEA),
-                    onSurface = Color.Black,
-                    onBackground = Color.Black,
-                    onSurfaceVariant = Color.Black
-                )
-            }
+            createCustomColorScheme(0xFFB71C1C.toInt(), darkTheme, pureBlack)
         }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -117,7 +88,7 @@ fun NCMPlayerTheme(
 
     var finalColorScheme = colorScheme
 
-    if (darkTheme && pureBlack) {
+    if (darkTheme && pureBlack && themeMode == 0) {
         finalColorScheme = finalColorScheme.copy(
             surface = Color.Black,
             background = Color.Black,

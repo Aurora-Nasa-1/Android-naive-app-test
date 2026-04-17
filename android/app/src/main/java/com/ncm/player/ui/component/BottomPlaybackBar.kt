@@ -19,8 +19,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
+import com.ncm.player.ui.theme.createCustomColorScheme
 
 @Composable
 fun BottomPlaybackBar(
@@ -36,19 +38,20 @@ fun BottomPlaybackBar(
 ) {
     if (song == null) return
 
-    val containerColor = if (useCoverColor && coverColor != null) {
-        Color(coverColor).copy(alpha = 0.8f)
+    val barColorScheme = if (useCoverColor && coverColor != null) {
+        createCustomColorScheme(coverColor, isSystemInDarkTheme())
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme
     }
 
+    MaterialTheme(colorScheme = barColorScheme) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clickable { onClick() },
-        color = containerColor,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
         shape = MaterialTheme.shapes.medium,
         tonalElevation = 4.dp
     ) {
@@ -112,5 +115,6 @@ fun BottomPlaybackBar(
                 }
             }
         }
+    }
     }
 }

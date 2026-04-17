@@ -38,7 +38,9 @@ import com.ncm.player.model.Song
 import com.ncm.player.ui.component.QueueBottomSheet
 import com.ncm.player.ui.component.CommentBottomSheet
 import com.ncm.player.ui.component.SleepTimerBottomSheet
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.ncm.player.ui.component.LyricContent
+import com.ncm.player.ui.theme.createCustomColorScheme
 import com.ncm.player.viewmodel.PlaybackViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
@@ -258,6 +260,13 @@ fun PlayerScreen(
         )
     }
 
+    val playerColorScheme = if (useCoverColor && coverColor != null) {
+        createCustomColorScheme(coverColor, isSystemInDarkTheme())
+    } else {
+        MaterialTheme.colorScheme
+    }
+
+    MaterialTheme(colorScheme = playerColorScheme) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -776,6 +785,7 @@ fun PlayerScreen(
                 }
             }
         }
+    }
     }
 }
 

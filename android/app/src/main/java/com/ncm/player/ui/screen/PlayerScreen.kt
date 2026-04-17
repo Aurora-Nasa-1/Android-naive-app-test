@@ -267,25 +267,6 @@ fun PlayerScreen(
     }
 
     MaterialTheme(colorScheme = playerColorScheme) {
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
-                ),
-                title = { Text(stringResource(R.string.playing)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = Color.White)
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
         val bgBrush = if (useCoverColor && coverColor != null) {
             Brush.verticalGradient(
                 colors = listOf(
@@ -301,10 +282,47 @@ fun PlayerScreen(
                 )
             )
         }
+
+        val view = androidx.compose.ui.platform.LocalView.current
+        if (!view.isInEditMode) {
+            val isDarkTheme = isSystemInDarkTheme()
+            val luminance = coverColor?.let { androidx.core.graphics.ColorUtils.calculateLuminance(it) } ?: 0.0
+            val isAppearanceLightStatusBars = !isDarkTheme && (luminance > 0.5)
+
+            SideEffect {
+                val window = (view.context as android.app.Activity).window
+                androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = isAppearanceLightStatusBars
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(bgBrush)
+        ) {
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                title = { Text(stringResource(R.string.playing)) },
+                navigationIcon = {
+                    IconButton(onClick = onBackPressed) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+                windowInsets = WindowInsets.statusBars
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(innerPadding)
         ) {
             if (isWideScreen) {
@@ -785,6 +803,7 @@ fun PlayerScreen(
                 }
             }
         }
+    }
     }
     }
 }

@@ -25,8 +25,10 @@ fun SongCard(song: Song, onClick: () -> Unit, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceVariant
+            shape = MaterialTheme.shapes.large, // 20dp from our updated theme
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shadowElevation = 4.dp, // 2.5D visual effect
+            tonalElevation = 2.dp
         ) {
             if (song.albumArtUrl != null) {
                 AsyncImage(

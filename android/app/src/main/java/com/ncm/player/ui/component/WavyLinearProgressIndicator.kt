@@ -7,22 +7,24 @@ import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun WavyCircularProgressIndicator(
+fun WavyLinearProgressIndicator(
     modifier: Modifier = Modifier,
     progress: (() -> Float)? = null,
-    color: Color = MaterialTheme.colorScheme.primary
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant
 ) {
-    // Official MD3 Expressive LoadingIndicator
     if (progress != null) {
-        LoadingIndicator(
+        LinearWavyProgressIndicator(
             progress = progress,
             modifier = modifier,
-            color = color
+            color = color,
+            trackColor = trackColor
         )
     } else {
-        LoadingIndicator(
+        LinearWavyProgressIndicator(
             modifier = modifier,
-            color = color
+            color = color,
+            trackColor = trackColor
         )
     }
 }

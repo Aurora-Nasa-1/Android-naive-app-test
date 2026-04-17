@@ -229,14 +229,39 @@ fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = playlist.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = stringResource(R.string.songs_count, playlist.trackCount), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            IconButton(onClick = {}) { Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", modifier = Modifier.size(32.dp)) }
-            FloatingActionButton(onClick = onPlayAllClick, shape = androidx.compose.foundation.shape.CircleShape, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Play All", modifier = Modifier.size(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // MD3E Containment for main actions
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge, // Rounded Container
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.fillMaxWidth().height(64.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.songs_count, playlist.trackCount),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {}) {
+                        Icon(Icons.Default.Shuffle, contentDescription = "Shuffle")
+                    }
+                    Button(
+                        onClick = onPlayAllClick,
+                        shape = MaterialTheme.shapes.extraLarge,
+                        contentPadding = PaddingValues(horizontal = 24.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Play All") // Sentence case
+                    }
+                }
             }
         }
     }

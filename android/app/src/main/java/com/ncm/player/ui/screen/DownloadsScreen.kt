@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
+import com.ncm.player.ui.component.WavyLinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,7 +61,7 @@ fun DownloadsScreen(
                                     Text(task.song.artist, style = MaterialTheme.typography.bodySmall)
                                     Text(if (task.progress >= 0f) "${(task.progress * 100).toInt()}%" else "Connecting...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
-                                LinearProgressIndicator(
+                                WavyLinearProgressIndicator(
                                     progress = { if (task.progress >= 0f) task.progress else 0f },
                                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                                 )

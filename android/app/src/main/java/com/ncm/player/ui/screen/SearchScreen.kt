@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.*
+import com.ncm.player.ui.component.WavyLinearProgressIndicator
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -127,7 +128,7 @@ fun SearchScreen(
         if (!active) {
             if (isLoading) {
 
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                WavyLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
             // Filter Chips

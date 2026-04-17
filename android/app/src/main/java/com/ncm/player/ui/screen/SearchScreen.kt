@@ -182,87 +182,57 @@ fun SearchScreen(
                     }
 
                     itemsIndexed(hotSearches, span = { _, _ -> androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) { index, hot ->
-                        val shape = when {
-                            hotSearches.size == 1 -> MaterialTheme.shapes.large
-                            index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                            index == hotSearches.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
-                            else -> androidx.compose.ui.graphics.RectangleShape
-                        }
-                        Surface(
-                            shape = shape,
-                            color = MaterialTheme.colorScheme.surfaceContainerLow
-                        ) {
-                            Column {
-                                ListItem(
-                                    headlineContent = { Text(hot.first) },
-                                    supportingContent = { if (hot.second.isNotBlank()) Text(hot.second, maxLines = 1) },
-                                    leadingContent = {
-                                        Text(
-                                            "${index + 1}",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = if (index < 3) MaterialTheme.colorScheme.primary else Color.Gray,
-                                            modifier = Modifier.width(24.dp)
-                                        )
-                                    },
-                                    trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = Color.Red.copy(alpha = 0.7f)) },
-                                    modifier = Modifier.clickable {
-                                        query = hot.first
-                                        onSearch(hot.first, searchType)
-                                    },
-                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                                )
-                                if (index < hotSearches.size - 1) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(horizontal = 16.dp),
-                                        thickness = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        Column {
+                            ListItem(
+                                headlineContent = { Text(hot.first) },
+                                supportingContent = { if (hot.second.isNotBlank()) Text(hot.second, maxLines = 1) },
+                                leadingContent = {
+                                    Text(
+                                        "${index + 1}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = if (index < 3) MaterialTheme.colorScheme.primary else Color.Gray,
+                                        modifier = Modifier.width(24.dp)
                                     )
+                                },
+                                trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = Color.Red.copy(alpha = 0.7f)) },
+                                modifier = Modifier.clickable {
+                                    query = hot.first
+                                    onSearch(hot.first, searchType)
                                 }
+                            )
+                            if (index < hotSearches.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 56.dp, end = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
                             }
                         }
                     }
                 } else {
                     if (searchType == 1) {
                         itemsIndexed(searchResults, span = { _, _ -> androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) { index, song ->
-                            val shape = when {
-                                searchResults.size == 1 -> MaterialTheme.shapes.large
-                                index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                                index == searchResults.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
-                                else -> androidx.compose.ui.graphics.RectangleShape
-                            }
                             SongItem(
                                 song = song,
                                 isFavorite = favoriteSongs.contains(song.id),
                                 onLikeClick = { onLikeClick(song) },
                                 onClick = { onSongClick(song) },
-                                showDivider = index < searchResults.size - 1,
-                                modifier = Modifier.clip(shape)
+                                showDivider = index < searchResults.size - 1
                             )
                         }
                     } else if (searchType == 1000) {
                         itemsIndexed(searchPlaylists, span = { _, _ -> androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) { index, playlist ->
-                            val shape = when {
-                                searchPlaylists.size == 1 -> MaterialTheme.shapes.large
-                                index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                                index == searchPlaylists.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
-                                else -> androidx.compose.ui.graphics.RectangleShape
-                            }
-                            Surface(
-                                shape = shape,
-                                color = MaterialTheme.colorScheme.surfaceContainerLow
-                            ) {
-                                Column {
-                                    PlaylistItem(
-                                        playlist = playlist,
-                                        onClick = { onPlaylistClick(playlist) }
+                            Column {
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    onClick = { onPlaylistClick(playlist) }
+                                )
+                                if (index < searchPlaylists.size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 88.dp, end = 16.dp),
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                                     )
-                                    if (index < searchPlaylists.size - 1) {
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(horizontal = 16.dp),
-                                            thickness = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                        )
-                                    }
                                 }
                             }
                         }

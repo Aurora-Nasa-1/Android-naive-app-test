@@ -202,26 +202,13 @@ fun MainScreen(
                 val columns = if (widthClass != WindowWidthSizeClass.Compact) 2 else 1
                 val items = recommendedSongs.drop(10).take(if (columns > 1) 10 else 5)
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column {
                     for (i in items.indices step columns) {
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             for (j in 0 until columns) {
                                 val idx = i + j
                                 if (idx < items.size) {
                                     val s = items[idx]
-                                    // Calculate shape for grouped look in grid
-                                    val shape = if (columns == 1) {
-                                        when {
-                                            items.size == 1 -> MaterialTheme.shapes.large
-                                            idx == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                                            idx == items.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
-                                            else -> androidx.compose.ui.graphics.RectangleShape
-                                        }
-                                    } else {
-                                        // Simple rounded for grid items
-                                        MaterialTheme.shapes.large
-                                    }
-
                                     SongItem(
                                         song = s,
                                         isFavorite = favoriteSongs.contains(s.id),
@@ -229,7 +216,7 @@ fun MainScreen(
                                         onLikeClick = { onLikeClick(s) },
                                         onClick = { onSongClick(s) },
                                         showDivider = if (columns == 1) idx < items.size - 1 else false,
-                                        modifier = Modifier.weight(1f).clip(shape)
+                                        modifier = Modifier.weight(1f)
                                     )
                                 } else if (columns > 1) {
                                     Spacer(Modifier.weight(1f))

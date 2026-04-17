@@ -24,6 +24,8 @@ import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 import com.ncm.player.ui.theme.createCustomColorScheme
 
+import androidx.compose.foundation.shape.CircleShape
+
 @Composable
 fun BottomPlaybackBar(
     song: Song?,
@@ -46,80 +48,83 @@ fun BottomPlaybackBar(
     }
 
     MaterialTheme(colorScheme = barColorScheme) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clickable { onClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-        shape = MaterialTheme.shapes.medium,
-        tonalElevation = 4.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Floating Capsule Mini Player (Phone/Vertical mode)
+        Surface(
+            modifier = modifier
+                .height(56.dp)
+                .width(280.dp)
+                .clickable { onClick() },
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = CircleShape,
+            tonalElevation = 8.dp,
+            shadowElevation = 4.dp
         ) {
-            AsyncImage(
-                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(MaterialTheme.shapes.small),
-                contentScale = ContentScale.Crop
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp)
-            ) {
-                Text(
-                    text = song.name,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-
             Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 4.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onSkipPrevious) {
-                    Icon(
-                        imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous"
+                AsyncImage(
+                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 100),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = song.name,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = song.artist,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                IconButton(onClick = onPlayPause) {
-                    if (isBuffering) {
-                        WavyCircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
-                    } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    IconButton(
+                        onClick = onPlayPause,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        if (isBuffering) {
+                            WavyCircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.primary)
+                        } else {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onSkipNext,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play"
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = "Next",
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
-
-                IconButton(onClick = onSkipNext) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next"
-                    )
-                }
             }
         }
-    }
     }
 }

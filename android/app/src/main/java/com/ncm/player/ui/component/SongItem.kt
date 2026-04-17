@@ -1,5 +1,6 @@
 package com.ncm.player.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -31,68 +32,67 @@ fun SongItem(
     leadingContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     showDivider: Boolean = false,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow
+    containerColor: Color = Color.Transparent
 ) {
-    Surface(
-        modifier = modifier,
-        color = containerColor
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .background(containerColor)
     ) {
-        Column {
-            ListItem(
-                headlineContent = {
-                    Text(song.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                },
-                supportingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isDownloaded) {
-                            Icon(
-                                Icons.Default.DownloadDone,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp).padding(end = 4.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Text(song.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+        ListItem(
+            headlineContent = {
+                Text(song.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+            },
+            supportingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isDownloaded) {
+                        Icon(
+                            Icons.Default.DownloadDone,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp).padding(end = 4.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
-                },
-                leadingContent = leadingContent ?: {
-                    Surface(
-                        modifier = Modifier.size(48.dp),
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        if (song.albumArtUrl != null) {
-                            AsyncImage(
-                                model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(12.dp))
-                        }
+                    Text(song.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+            leadingContent = leadingContent ?: {
+                Surface(
+                    modifier = Modifier.size(56.dp),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    if (song.albumArtUrl != null) {
+                        AsyncImage(
+                            model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 180),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(16.dp))
                     }
-                },
-                trailingContent = trailingContent ?: if (onLikeClick != null) {
-                    {
-                        IconButton(onClick = onLikeClick) {
-                            Icon(
-                                if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = null,
-                                tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                            )
-                        }
+                }
+            },
+            trailingContent = trailingContent ?: if (onLikeClick != null) {
+                {
+                    IconButton(onClick = onLikeClick) {
+                        Icon(
+                            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
                     }
-                } else null,
-                modifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier,
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                }
+            } else null,
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+        if (showDivider) {
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 88.dp, end = 16.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
             )
-            if (showDivider) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
         }
     }
 }

@@ -174,26 +174,18 @@ fun PlaylistDetailScreen(
 
                 itemsIndexed(items = songs, key = { _, s -> s.id }) { index, song ->
                     val isSelected = selectedSongs.contains(song.id)
-                    val shape = when {
-                        songs.size == 1 -> MaterialTheme.shapes.large
-                        index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                        index == songs.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
-                        else -> androidx.compose.ui.graphics.RectangleShape
-                    }
                     SongItem(
                         song = song,
                         isFavorite = favoriteSongs.contains(song.id),
                         isDownloaded = completedSongs.contains(song.id),
                         onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
-                        onClick = null, // Disable inner clickable to allow combinedClickable to handle it
+                        onClick = null,
                         leadingContent = if (isSelectionMode) {
                             { Checkbox(checked = isSelected, onCheckedChange = {
                                 selectedSongs = if (it) selectedSongs + song.id else selectedSongs - song.id
                             }) }
                         } else null,
                         modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .clip(shape)
                             .combinedClickable(
                                 onClick = {
                                     if (isSelectionMode) {
@@ -208,10 +200,9 @@ fun PlaylistDetailScreen(
                                         selectedSongs = setOf(song.id)
                                     }
                                 }
-                            )
-                            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent),
+                            ),
                         showDivider = index < songs.size - 1,
-                        containerColor = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
                     )
                 }
             }

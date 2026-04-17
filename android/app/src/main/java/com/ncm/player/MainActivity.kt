@@ -91,8 +91,8 @@ fun AppNavigation(
 
     val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
     val showNav = loginViewModel.isLogged && !isPlayerScreen
-    val hasBottomBar = showNav && !useSideNav
-    val bottomBarHeight = 96.dp // Reduced for DockedToolbar
+    val hasBottomBar = showNav // Show bottom bar (Nav or Docked) if logged and not in player
+    val bottomBarHeight = 140.dp // Space for Nav + Capsule or Docked
     val density = LocalDensity.current
     val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
     val navBarHeightPx = with(density) { 80.dp.toPx() } // Standard M3 NavigationBar height is ~80dp
@@ -109,41 +109,33 @@ fun AppNavigation(
 
     val navItems = listOf(Triple("main", "Home", Icons.Filled.Home), Triple("search", "Search", Icons.Filled.Search), Triple("library", "Library", Icons.Filled.LibraryMusic))
 
-    if (useSideNav && showNav) {
-        PermanentNavigationDrawer(
-            drawerContent = {
-                PermanentDrawerSheet(modifier = Modifier.width(240.dp)) {
-                    Spacer(Modifier.height(24.dp))
-                    Text("CNMDPlayer", modifier = Modifier.padding(horizontal = 28.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(24.dp))
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Transparent,
+        bottomBar = {
+            if (showNav && !useSideNav) {
+                NavigationBar(
+                    modifier = Modifier.offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
+                ) {
                     navItems.forEach { (route, label, icon) ->
-                        NavigationDrawerItem(label = { Text(label) }, icon = { Icon(icon, null) }, selected = currentDestination?.hierarchy?.any { it.route == route } == true, onClick = { navController.navigate(route) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                        NavigationBarItem(
+                            icon = { Icon(icon, contentDescription = label) },
+                            label = { Text(label) },
+                            selected = currentDestination?.hierarchy?.any { it.route == route } == true,
+                            onClick = {
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        )
                     }
-                    Spacer(Modifier.weight(1f))
-                    if (playbackViewModel.currentSong != null) {
-                        Box(modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)) {
-                            BottomPlaybackBar(
-                                song = playbackViewModel.currentSong,
-                                isPlaying = playbackViewModel.isPlaying,
-                                onPlayPause = { playbackViewModel.togglePlayPause() },
-                                onSkipNext = { playbackViewModel.skipNext() },
-                                onSkipPrevious = { playbackViewModel.skipPrevious() },
-                                onClick = { navController.navigate("player") { launchSingleTop = true } },
-                                useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
-                                coverColor = playbackViewModel.extractedColor
-                            )
-                        }
-                    }
-                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                 }
             }
-        ) {
-            AppMainContent(playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, PaddingValues(0.dp), isPlayerScreen, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context, currentDestination, bottomBarOffsetHeightPx, navItems)
         }
-    } else {
-        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent) { innerPadding ->
-            AppMainContent(playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, innerPadding, isPlayerScreen, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context, currentDestination, bottomBarOffsetHeightPx, navItems)
-        }
+    ) { innerPadding ->
+        AppMainContent(playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, innerPadding, isPlayerScreen, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context, currentDestination, bottomBarOffsetHeightPx, navItems)
     }
 }
 
@@ -373,32 +365,56 @@ fun AppMainContent(
                 composable("logs") { LogViewerScreen(onBackPressed = { navController.popBackStack() }) }
             }
         }
-        if (loginViewModel.isLogged && !isPlayerScreen && !useSideNav) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-            ) {
-                DockedToolbar(
-                    song = playbackViewModel.currentSong,
-                    isPlaying = playbackViewModel.isPlaying,
-                    isBuffering = playbackViewModel.isBuffering,
-                    onPlayPause = { playbackViewModel.togglePlayPause() },
-                    onSkipNext = { playbackViewModel.skipNext() },
-                    onSkipPrevious = { playbackViewModel.skipPrevious() },
-                    onClick = { navController.navigate("player") { launchSingleTop = true } },
-                    navItems = navItems,
-                    currentRoute = currentDestination?.route,
-                    onNavItemClick = { route ->
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+        if (loginViewModel.isLogged && !isPlayerScreen) {
+            if (useSideNav) {
+                // Tablet/Wide Screen: Use DockedToolbar (Floating Capsule Bar) at the bottom center
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                ) {
+                    DockedToolbar(
+                        song = playbackViewModel.currentSong,
+                        isPlaying = playbackViewModel.isPlaying,
+                        isBuffering = playbackViewModel.isBuffering,
+                        onPlayPause = { playbackViewModel.togglePlayPause() },
+                        onSkipNext = { playbackViewModel.skipNext() },
+                        onSkipPrevious = { playbackViewModel.skipPrevious() },
+                        onClick = { navController.navigate("player") { launchSingleTop = true } },
+                        navItems = navItems,
+                        currentRoute = currentDestination?.route,
+                        onNavItemClick = { route ->
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
+                    )
+                }
+            } else {
+                // Phone/Vertical Screen: Use Bottom Navigation + Capsule Mini Player on the right
+                if (playbackViewModel.currentSong != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 96.dp) // Positioned above the Bottom Nav
+                            .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
+                    ) {
+                        BottomPlaybackBar(
+                            song = playbackViewModel.currentSong,
+                            isPlaying = playbackViewModel.isPlaying,
+                            isBuffering = playbackViewModel.isBuffering,
+                            onPlayPause = { playbackViewModel.togglePlayPause() },
+                            onSkipNext = { playbackViewModel.skipNext() },
+                            onSkipPrevious = { playbackViewModel.skipPrevious() },
+                            onClick = { navController.navigate("player") { launchSingleTop = true } },
+                            useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
+                            coverColor = playbackViewModel.extractedColor
+                        )
                     }
-                )
+                }
             }
         }
         downloadViewModel.showCellularDownloadDialog?.let { song ->

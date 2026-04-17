@@ -55,25 +55,16 @@ fun CloudMusicScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
                         bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
                     )
                 ) {
                     itemsIndexed(songs, key = { _, s -> s.id }) { index, song ->
-                        val shape = when {
-                            songs.size == 1 -> MaterialTheme.shapes.large
-                            index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                            index == songs.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
-                            else -> androidx.compose.ui.graphics.RectangleShape
-                        }
                         SongItem(
                             song = song,
                             isFavorite = favoriteSongs.contains(song.id),
                             onClick = { onSongClick(song) },
                             onLikeClick = { onLikeClick(song) },
-                            showDivider = index < songs.size - 1,
-                            modifier = Modifier.clip(shape)
+                            showDivider = index < songs.size - 1
                         )
                     }
                 }

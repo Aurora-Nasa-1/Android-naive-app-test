@@ -7,6 +7,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -716,23 +717,31 @@ fun PlayerScreen(
 
                         // Progress Bar
                         @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-                        WavySlider(
-                            value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
-                            onValueChange = { onSeek((it * duration).toLong()) },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.onSurface,
-                                activeTrackColor = MaterialTheme.colorScheme.onSurface,
-                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                            )
-                        )
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(formatTime(currentPosition), style = MaterialTheme.typography.labelSmall)
-                            Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                formatTime(currentPosition),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            WavySlider(
+                                value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                                onValueChange = { onSeek((it * duration).toLong()) },
+                                modifier = Modifier.weight(1f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                                )
+                            )
+                            Text(
+                                formatTime(duration),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
 
                         Row(
@@ -771,51 +780,76 @@ fun PlayerScreen(
                             Icon(
                                 Icons.Default.Shuffle,
                                 contentDescription = "Shuffle",
-                                modifier = Modifier.size(28.dp),
-                                tint = if (shuffleMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                modifier = Modifier.size(24.dp),
+                                tint = if (shuffleMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = onSkipPrevious) {
-                            Icon(
-                                Icons.Default.SkipPrevious,
-                                contentDescription = "Previous",
-                                modifier = Modifier.size(44.dp)
-                            )
-                        }
-                        FloatingActionButton(
-                            onClick = onPlayPause,
-                            modifier = Modifier.size(72.dp),
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                            containerColor = MaterialTheme.colorScheme.onSurface,
-                            contentColor = MaterialTheme.colorScheme.surface
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            if (isBuffering) {
-                                WavyCircularProgressIndicator(modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.surface)
-                            } else {
-                                AnimatedContent(
-                                    targetState = isPlaying,
-                                    label = "PlayPauseAnimationMobile",
-                                    transitionSpec = {
-                                            // MD3E Spring based transition
-                                            (fadeIn(animationSpec = spring()) + scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy))) togetherWith
-                                            (fadeOut(animationSpec = spring()) + scaleOut(animationSpec = spring()))
+                            FilledTonalIconButton(
+                                onClick = onSkipPrevious,
+                                modifier = Modifier.size(56.dp),
+                                shape = MaterialTheme.shapes.medium,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+
+                            Box(contentAlignment = Alignment.Center) {
+                                FloatingActionButton(
+                                    onClick = onPlayPause,
+                                    modifier = Modifier.size(80.dp),
+                                    shape = CircleShape,
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
+                                ) {
+                                    if (isBuffering) {
+                                        WavyCircularProgressIndicator(modifier = Modifier.size(40.dp))
+                                    } else {
+                                        AnimatedContent(
+                                            targetState = isPlaying,
+                                            label = "PlayPauseAnimationMobile",
+                                            transitionSpec = {
+                                                (fadeIn(animationSpec = spring()) + scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy))) togetherWith
+                                                (fadeOut(animationSpec = spring()) + scaleOut(animationSpec = spring()))
+                                            }
+                                        ) { targetPlaying ->
+                                            Icon(
+                                                if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                contentDescription = "Play/Pause",
+                                                modifier = Modifier.size(44.dp)
+                                            )
+                                        }
                                     }
-                                ) { targetPlaying ->
-                                    Icon(
-                                        if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Play/Pause",
-                                        modifier = Modifier.size(40.dp)
-                                    )
                                 }
                             }
+
+                            FilledTonalIconButton(
+                                onClick = onSkipNext,
+                                modifier = Modifier.size(56.dp),
+                                shape = MaterialTheme.shapes.large,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
                         }
-                        IconButton(onClick = onSkipNext) {
-                            Icon(
-                                Icons.Default.SkipNext,
-                                contentDescription = "Next",
-                                modifier = Modifier.size(44.dp)
-                            )
-                        }
+
                         IconButton(onClick = onRepeatClick) {
                             val icon = when (repeatMode) {
                                 Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
@@ -824,8 +858,8 @@ fun PlayerScreen(
                             Icon(
                                 icon,
                                 contentDescription = "Repeat",
-                                modifier = Modifier.size(28.dp),
-                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                modifier = Modifier.size(24.dp),
+                                tint = if (repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

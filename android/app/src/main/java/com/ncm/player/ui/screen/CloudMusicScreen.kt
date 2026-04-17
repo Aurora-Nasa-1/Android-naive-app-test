@@ -3,6 +3,8 @@ package com.ncm.player.ui.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -52,14 +54,26 @@ fun CloudMusicScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding() + 16.dp)
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
+                    )
                 ) {
-                    items(songs, key = { it.id }) { song ->
+                    itemsIndexed(songs, key = { _, s -> s.id }) { index, song ->
+                        val shape = when {
+                            songs.size == 1 -> MaterialTheme.shapes.large
+                            index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                            index == songs.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+                            else -> androidx.compose.ui.graphics.RectangleShape
+                        }
                         SongItem(
                             song = song,
                             isFavorite = favoriteSongs.contains(song.id),
                             onClick = { onSongClick(song) },
-                            onLikeClick = { onLikeClick(song) }
+                            onLikeClick = { onLikeClick(song) },
+                            showDivider = index < songs.size - 1,
+                            modifier = Modifier.clip(shape)
                         )
                     }
                 }

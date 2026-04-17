@@ -8,6 +8,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -163,32 +165,35 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding()
+                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp
                 )
             ) {
                 if (!isSelectionMode) {
                     item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }
                 }
-                items(items = songs, key = { it.id }) { song ->
+
+                itemsIndexed(items = songs, key = { _, s -> s.id }) { index, song ->
                     val isSelected = selectedSongs.contains(song.id)
+                    val shape = when {
+                        songs.size == 1 -> MaterialTheme.shapes.large
+                        index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                        index == songs.size - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+                        else -> androidx.compose.ui.graphics.RectangleShape
+                    }
                     SongItem(
                         song = song,
                         isFavorite = favoriteSongs.contains(song.id),
                         isDownloaded = completedSongs.contains(song.id),
                         onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
-                        onClick = {
-                            if (isSelectionMode) {
-                                selectedSongs = if (isSelected) selectedSongs - song.id else selectedSongs + song.id
-                            } else {
-                                onSongClick(song)
-                            }
-                        },
+                        onClick = null, // Disable inner clickable to allow combinedClickable to handle it
                         leadingContent = if (isSelectionMode) {
                             { Checkbox(checked = isSelected, onCheckedChange = {
                                 selectedSongs = if (it) selectedSongs + song.id else selectedSongs - song.id
                             }) }
                         } else null,
                         modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .clip(shape)
                             .combinedClickable(
                                 onClick = {
                                     if (isSelectionMode) {
@@ -204,7 +209,9 @@ fun PlaylistDetailScreen(
                                     }
                                 }
                             )
-                            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent)
+                            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent),
+                        showDivider = index < songs.size - 1,
+                        containerColor = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow
                     )
                 }
             }

@@ -75,7 +75,11 @@ fun DockedToolbar(
                             contentScale = ContentScale.Crop
                         )
                         Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
                             Text(
                                 text = song.name,
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
@@ -91,23 +95,52 @@ fun DockedToolbar(
                             )
                         }
 
-                        IconButton(onClick = onSkipPrevious) {
-                            Icon(Icons.Default.SkipPrevious, null)
-                        }
-
-                        IconButton(onClick = onPlayPause) {
-                            if (isBuffering) {
-                                WavyCircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            } else {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = null
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(start = 4.dp)
+                        ) {
+                            FilledTonalIconButton(
+                                onClick = onSkipPrevious,
+                                modifier = Modifier.requiredSize(32.dp),
+                                shape = MaterialTheme.shapes.small,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                                 )
+                            ) {
+                                Icon(Icons.Default.SkipPrevious, null, modifier = Modifier.size(18.dp))
                             }
-                        }
 
-                        IconButton(onClick = onSkipNext) {
-                            Icon(Icons.Default.SkipNext, null)
+                            FilledTonalIconButton(
+                                onClick = onPlayPause,
+                                modifier = Modifier.requiredSize(44.dp),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                if (isBuffering) {
+                                    WavyCircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                } else {
+                                    Icon(
+                                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
+
+                            FilledTonalIconButton(
+                                onClick = onSkipNext,
+                                modifier = Modifier.requiredSize(32.dp),
+                                shape = MaterialTheme.shapes.small,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                                )
+                            ) {
+                                Icon(Icons.Default.SkipNext, null, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 } else {

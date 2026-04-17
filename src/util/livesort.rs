@@ -110,7 +110,8 @@ pub fn analyze_audio_file(path: &str) -> Result<AudioFeatures, String> {
 
     let sum_squares: f32 = all_samples.iter().map(|&s| s * s).sum();
     let rms = (sum_squares / all_samples.len() as f32).sqrt();
-    let energy = rms as f64;
+    // Normalize energy more effectively. RMS for normal audio is often 0.1-0.3.
+    let energy = (rms as f64 * 5.0).min(1.0);
 
     let window_size = 2048;
     let mut planner = FftPlanner::new();
@@ -159,44 +160,47 @@ pub fn analyze_audio_file(path: &str) -> Result<AudioFeatures, String> {
     };
 
     let mut bpm = 120.0;
-    if onset_envelope.len() > 10 {
+    if onset_envelope.len() > 20 {
         let mut flux = Vec::new();
+        // Moving average for adaptive threshold
+        let mut sum_flux = 0.0;
         for i in 1..onset_envelope.len() {
             let diff = onset_envelope[i] - onset_envelope[i - 1];
-            flux.push(if diff > 0.0 { diff } else { 0.0 });
+            let val = if diff > 0.0 { diff } else { 0.0 };
+            flux.push(val);
+            sum_flux += val;
         }
 
+        let avg_flux = sum_flux / flux.len() as f64;
         let mut peaks = Vec::new();
-        let max_flux = flux.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let threshold = max_flux * 0.5;
 
         for i in 1..flux.len() - 1 {
-            if flux[i] > flux[i - 1] && flux[i] > flux[i + 1] && flux[i] > threshold {
+            if flux[i] > flux[i - 1] && flux[i] > flux[i + 1] && flux[i] > avg_flux * 1.5 {
                 peaks.push(i);
             }
         }
 
-        if peaks.len() > 1 {
+        if peaks.len() > 2 {
             let mut intervals = Vec::new();
             for i in 1..peaks.len() {
-                intervals.push(peaks[i] - peaks[i - 1]);
+                let interval = peaks[i] - peaks[i - 1];
+                if interval > 5 { // Avoid too fast onsets (noise)
+                    intervals.push(interval);
+                }
             }
 
-            intervals.sort_unstable();
-            let median_interval = if !intervals.is_empty() {
-                intervals[intervals.len() / 2]
-            } else {
-                0
-            };
+            if !intervals.is_empty() {
+                intervals.sort_unstable();
+                let median_interval = intervals[intervals.len() / 2];
 
-            if median_interval > 0 {
                 let time_per_window = window_size as f64 / sample_rate;
                 let time_per_beat = median_interval as f64 * time_per_window;
                 if time_per_beat > 0.0 {
-                    let calculated_bpm = 60.0 / time_per_beat;
-                    if calculated_bpm > 50.0 && calculated_bpm < 250.0 {
-                        bpm = calculated_bpm;
-                    }
+                    let mut calculated_bpm = 60.0 / time_per_beat;
+                    // Clamp to common ranges
+                    while calculated_bpm < 60.0 { calculated_bpm *= 2.0; }
+                    while calculated_bpm > 180.0 { calculated_bpm /= 2.0; }
+                    bpm = calculated_bpm;
                 }
             }
         }

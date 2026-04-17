@@ -16,6 +16,10 @@ object UserPreferences {
     private const val KEY_FIRST_DOWNLOAD = "first_download"
     private const val KEY_ALLOW_CELLULAR_DOWNLOAD = "allow_cellular_download"
     private const val KEY_PURE_BLACK_MODE = "pure_black_mode"
+    private const val KEY_THEME_MODE = "theme_mode" // 0: System, 1: Follow Cover, 2: Fixed
+    private const val KEY_FOLLOW_COVER_APP = "follow_cover_app"
+    private const val KEY_FOLLOW_COVER_MINI = "follow_cover_mini"
+    private const val KEY_FOLLOW_COVER_PLAYER = "follow_cover_player"
     private const val KEY_USER_PROFILE_CACHE = "user_profile_cache"
     private const val KEY_AUDIO_FEATURES_CACHE = "audio_features_cache"
 
@@ -109,6 +113,38 @@ object UserPreferences {
 
     fun getPureBlackMode(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_PURE_BLACK_MODE, false)
+    }
+
+    fun saveThemeMode(context: Context, mode: Int) {
+        getPrefs(context).edit().putInt(KEY_THEME_MODE, mode).apply()
+    }
+
+    fun getThemeMode(context: Context): Int {
+        return getPrefs(context).getInt(KEY_THEME_MODE, 0)
+    }
+
+    fun saveFollowCoverApp(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_FOLLOW_COVER_APP, enabled).apply()
+    }
+
+    fun getFollowCoverApp(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_FOLLOW_COVER_APP, false)
+    }
+
+    fun saveFollowCoverMini(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_FOLLOW_COVER_MINI, enabled).apply()
+    }
+
+    fun getFollowCoverMini(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_FOLLOW_COVER_MINI, true)
+    }
+
+    fun saveFollowCoverPlayer(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_FOLLOW_COVER_PLAYER, enabled).apply()
+    }
+
+    fun getFollowCoverPlayer(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_FOLLOW_COVER_PLAYER, true)
     }
 
     fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {

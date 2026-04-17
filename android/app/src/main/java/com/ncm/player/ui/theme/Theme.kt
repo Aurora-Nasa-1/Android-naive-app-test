@@ -23,19 +23,44 @@ fun NCMPlayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     pureBlack: Boolean = false,
+    themeMode: Int = 0, // 0: System, 1: Follow Cover, 2: Fixed
+    followCoverApp: Boolean = false,
+    seedColor: Int? = null,
     content: @Composable () -> Unit
 ) {
-    var colorScheme = when {
+    val context = LocalContext.current
+
+    val colorScheme = when {
+        themeMode == 1 && followCoverApp && seedColor != null -> {
+            if (darkTheme) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    dynamicDarkColorScheme(context).copy(primary = Color(seedColor))
+                } else {
+                    DarkColorScheme.copy(primary = Color(seedColor))
+                }
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    dynamicLightColorScheme(context).copy(primary = Color(seedColor))
+                } else {
+                    LightColorScheme.copy(primary = Color(seedColor))
+                }
+            }
+        }
+        themeMode == 2 -> { // Fixed (Reddish/Monet)
+            val redSeed = Color(0xFFD32F2F)
+            if (darkTheme) darkColorScheme(primary = redSeed) else lightColorScheme(primary = redSeed)
+        }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
+    var finalColorScheme = colorScheme
+
     if (darkTheme && pureBlack) {
-        colorScheme = colorScheme.copy(
+        finalColorScheme = finalColorScheme.copy(
             surface = Color.Black,
             background = Color.Black,
             surfaceVariant = Color.Black,
@@ -79,7 +104,7 @@ fun NCMPlayerTheme(
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = finalColorScheme,
         shapes = expressiveShapes,
         typography = expressiveTypography,
         content = content

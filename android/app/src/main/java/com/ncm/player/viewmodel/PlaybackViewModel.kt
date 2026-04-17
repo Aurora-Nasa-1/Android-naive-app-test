@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.ncm.player.model.LyricLine
 import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
+import androidx.palette.graphics.Palette
 import com.ncm.player.util.DebugLog
 import com.ncm.player.util.JsonUtils
 import com.ncm.player.util.LyricUtils
@@ -38,6 +39,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     var isFmMode by mutableStateOf(false)
     var localSongs by mutableStateOf<List<Pair<Song, android.net.Uri>>>(emptyList())
     var sleepTimerRemaining by mutableLongStateOf(0L)
+    var extractedColor by mutableStateOf<Int?>(null)
     private var sleepTimerJob: Job? = null
     private var isFetchingMoreFm = false
 
@@ -164,7 +166,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     private fun updateSongFromMediaItem(mediaItem: MediaItem?) {
         mediaItem?.let {
-            currentSong = Song(
+            val song = Song(
                 id = it.mediaId,
                 name = it.mediaMetadata.title?.toString() ?: "Unknown",
                 artist = it.mediaMetadata.artist?.toString() ?: "Unknown",
@@ -172,7 +174,39 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 albumArtUrl = it.mediaMetadata.artworkUri?.toString(),
                 artistId = it.mediaMetadata.extras?.getString("artistId")
             )
+            currentSong = song
             fetchLyrics(it.mediaId)
+            extractColorFromUrl(song.albumArtUrl)
+        }
+    }
+
+    private fun extractColorFromUrl(url: String?) {
+        if (url.isNullOrEmpty()) {
+            extractedColor = null
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val loader = coil3.SingletonImageLoader.get(getApplication())
+                val request = coil3.request.ImageRequest.Builder(getApplication())
+                    .data(url)
+                    .build()
+                val result = loader.execute(request)
+                if (result is coil3.request.SuccessResult) {
+                    val bitmap = (result.image as? coil3.BitmapImage)?.bitmap
+                    bitmap?.let {
+                        val palette = Palette.from(it).generate()
+                        val color = palette.getVibrantColor(palette.getMutedColor(0))
+                        if (color != 0) {
+                            withContext(Dispatchers.Main) {
+                                extractedColor = color
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLog.e("Palette extraction failed: ${e.message}")
+            }
         }
     }
 
@@ -318,17 +352,46 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         viewModelScope.launch {
             try {
                 isLoading = true
-                val body = withContext(Dispatchers.IO) { callApi("playmode/intelligence/list", mapOf("id" to songId, "pid" to playlistId.toString(), "sid" to songId, "count" to "20")) }
+
+                // If playlistId is 0, heart mode might fail.
+                // However, NCM API often requires a valid playlist ID that the song belongs to.
+                // If it's 0, it means it's likely from 'Liked Songs' which we should have the ID for in UserViewModel.
+
+                DebugLog.d("Heartbeat: id=$songId, pid=$playlistId")
+
+                val params = mutableMapOf(
+                    "id" to songId,
+                    "pid" to playlistId.toString(),
+                    "sid" to songId,
+                    "count" to "20"
+                )
+
+                val body = withContext(Dispatchers.IO) { callApi("playmode/intelligence/list", params) }
+
+                if (body.get("code")?.asInt != 200) {
+                    DebugLog.e("Heartbeat API failed: ${body.get("message")?.asString}")
+                    // Fallback: If playlistId was 0, maybe try without it or with a different param?
+                    // Actually, if it failed with 400 "歌单不存在", it means pid was definitely wrong.
+                }
+
                 val songsJson = when {
                     body.get("data")?.isJsonArray == true -> body.get("data").asJsonArray
                     body.get("data")?.isJsonObject == true && body.get("data").asJsonObject.has("data") -> body.get("data").asJsonObject.get("data").asJsonArray
                     body.has("list") && body.get("list").isJsonArray -> body.get("list").asJsonArray
                     else -> null
                 }
+
                 val songs = songsJson?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
-                if (songs.isNotEmpty()) playSong(songs[0], songs)
+                if (songs.isNotEmpty()) {
+                    playSong(songs[0], songs)
+                } else {
+                    DebugLog.toast(getApplication(), "Heartbeat mode: No songs returned")
+                }
             } catch (e: Exception) {
-            } finally { isLoading = false }
+                DebugLog.e("Heartbeat error: ${e.message}")
+            } finally {
+                isLoading = false
+            }
         }
     }
 

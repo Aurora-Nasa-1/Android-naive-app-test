@@ -96,6 +96,8 @@ fun PlayerScreen(
     activeParentComment: com.ncm.player.model.Comment? = null,
     sleepTimerRemaining: Long = 0L,
     onSetSleepTimer: (Int) -> Unit = {},
+    useCoverColor: Boolean = false,
+    coverColor: Int? = null,
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -275,17 +277,25 @@ fun PlayerScreen(
             )
         }
     ) { innerPadding ->
+        val bgBrush = if (useCoverColor && coverColor != null) {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(coverColor).copy(alpha = 0.5f),
+                    MaterialTheme.colorScheme.surface
+                )
+            )
+        } else {
+            Brush.verticalGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    MaterialTheme.colorScheme.surface
+                )
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.surface
-                        )
-                    )
-                )
+                .background(bgBrush)
                 .padding(innerPadding)
         ) {
             if (isWideScreen) {

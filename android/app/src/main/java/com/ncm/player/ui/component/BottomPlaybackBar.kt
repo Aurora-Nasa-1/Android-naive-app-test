@@ -30,9 +30,17 @@ fun BottomPlaybackBar(
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    useCoverColor: Boolean = false,
+    coverColor: Int? = null
 ) {
     if (song == null) return
+
+    val containerColor = if (useCoverColor && coverColor != null) {
+        Color(coverColor).copy(alpha = 0.8f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
 
     Surface(
         modifier = modifier
@@ -40,7 +48,7 @@ fun BottomPlaybackBar(
             .height(64.dp)
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clickable { onClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = containerColor,
         shape = MaterialTheme.shapes.medium,
         tonalElevation = 4.dp
     ) {

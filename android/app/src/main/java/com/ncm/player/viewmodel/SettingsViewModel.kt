@@ -17,6 +17,14 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var pureBlackMode by mutableStateOf(UserPreferences.getPureBlackMode(application))
         private set
+    var themeMode by mutableIntStateOf(UserPreferences.getThemeMode(application))
+        private set
+    var followCoverApp by mutableStateOf(UserPreferences.getFollowCoverApp(application))
+        private set
+    var followCoverMini by mutableStateOf(UserPreferences.getFollowCoverMini(application))
+        private set
+    var followCoverPlayer by mutableStateOf(UserPreferences.getFollowCoverPlayer(application))
+        private set
     var downloadDir by mutableStateOf(UserPreferences.getDownloadDir(application))
         private set
 
@@ -48,6 +56,26 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updatePureBlackMode(e: Boolean) {
         pureBlackMode = e
         UserPreferences.savePureBlackMode(getApplication(), e)
+    }
+
+    fun updateThemeMode(m: Int) {
+        themeMode = m
+        UserPreferences.saveThemeMode(getApplication(), m)
+    }
+
+    fun updateFollowCoverApp(e: Boolean) {
+        followCoverApp = e
+        UserPreferences.saveFollowCoverApp(getApplication(), e)
+    }
+
+    fun updateFollowCoverMini(e: Boolean) {
+        followCoverMini = e
+        UserPreferences.saveFollowCoverMini(getApplication(), e)
+    }
+
+    fun updateFollowCoverPlayer(e: Boolean) {
+        followCoverPlayer = e
+        UserPreferences.saveFollowCoverPlayer(getApplication(), e)
     }
 
     fun updateDownloadPath(p: String) {

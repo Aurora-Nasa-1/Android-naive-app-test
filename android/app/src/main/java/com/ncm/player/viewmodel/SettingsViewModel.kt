@@ -25,6 +25,8 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var followCoverPlayer by mutableStateOf(UserPreferences.getFollowCoverPlayer(application))
         private set
+    var useFluidBackground by mutableStateOf(UserPreferences.getUseFluidBackground(application))
+        private set
     var downloadDir by mutableStateOf(UserPreferences.getDownloadDir(application))
         private set
 
@@ -76,6 +78,11 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updateFollowCoverPlayer(e: Boolean) {
         followCoverPlayer = e
         UserPreferences.saveFollowCoverPlayer(getApplication(), e)
+    }
+
+    fun updateUseFluidBackground(e: Boolean) {
+        useFluidBackground = e
+        UserPreferences.saveUseFluidBackground(getApplication(), e)
     }
 
     fun updateDownloadPath(p: String) {

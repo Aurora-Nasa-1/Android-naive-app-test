@@ -15,6 +15,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
     var userPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var favoriteSongs by mutableStateOf<List<String>>(emptyList())
     var recommendedSongs by mutableStateOf<List<Song>>(emptyList())
+    var recommendedPlaylists by mutableStateOf<List<Playlist>>(emptyList())
     var cloudSongs by mutableStateOf<List<Song>>(emptyList())
 
     var playlistSongs by mutableStateOf<List<Song>>(emptyList())
@@ -51,6 +52,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                 coroutineScope {
                     val statusDef = async(Dispatchers.IO) { callApi("login/status") }
                     val recDef = async(Dispatchers.IO) { callApi("recommend/songs") }
+                    val recPlDef = async(Dispatchers.IO) { callApi("recommend/resource") }
 
                     val statusBody = statusDef.await()
                     val profileJson = statusBody.get("data")?.asJsonObject?.get("profile")?.asJsonObject
@@ -78,6 +80,18 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                     recommendedSongs = (recBody.get("data")?.asJsonObject?.get("dailySongs")?.asJsonArray
                         ?: recBody.get("dailySongs")?.asJsonArray)
                         ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
+
+                    val recPlBody = recPlDef.await()
+                    recommendedPlaylists = (recPlBody.get("recommend")?.asJsonArray ?: recPlBody.get("data")?.asJsonArray)
+                        ?.map {
+                            val obj = it.asJsonObject
+                            Playlist(
+                                obj.get("id").asLong,
+                                obj.get("name").asString,
+                                obj.get("picUrl")?.asString ?: obj.get("coverImgUrl")?.asString,
+                                obj.get("trackCount")?.asInt ?: 0
+                            )
+                        } ?: emptyList()
                 }
             } finally { isLoading = false }
         }

@@ -51,6 +51,7 @@ import com.ncm.player.ui.component.PlaylistItem
 @Composable
 fun MainScreen(
     recommendedSongs: List<Song>,
+    recommendedPlaylists: List<Playlist> = emptyList(),
     userPlaylists: List<Playlist>,
     userProfile: UserProfile?,
     versionName: String,
@@ -147,6 +148,27 @@ fun MainScreen(
                 }
             }
 
+            if (recommendedPlaylists.isNotEmpty()) {
+                item { Text("Recommended Playlists", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
+                        items(items = recommendedPlaylists, key = { "rec_pl_${it.id}" }) { p ->
+                            Column(modifier = Modifier.width(160.dp).clickable { onPlaylistClick(p) }) {
+                                AsyncImage(
+                                    model = ImageUtils.getResizedImageUrl(p.coverImgUrl ?: "", 400),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(160.dp).clip(MaterialTheme.shapes.large),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+            }
+
             item { Text(stringResource(R.string.made_for_you), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
 
             item {
@@ -171,6 +193,7 @@ fun MainScreen(
                     }
                 }
             }
+
 
             item { Text(stringResource(R.string.recently_played), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
 

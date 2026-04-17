@@ -200,16 +200,27 @@ fun MainScreen(
 
             item {
                 val columns = if (widthClass != WindowWidthSizeClass.Compact) 2 else 1
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val items = recommendedSongs.drop(10).take(if (columns > 1) 10 else 5)
+                val items = recommendedSongs.drop(10).take(if (columns > 1) 10 else 5)
+
+                Column {
                     for (i in items.indices step columns) {
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             for (j in 0 until columns) {
                                 val idx = i + j
                                 if (idx < items.size) {
                                     val s = items[idx]
-                                    SongItem(song = s, isFavorite = favoriteSongs.contains(s.id), isDownloaded = completedSongs.contains(s.id), onLikeClick = { onLikeClick(s) }, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f))
-                                } else if (columns > 1) Spacer(Modifier.weight(1f))
+                                    SongItem(
+                                        song = s,
+                                        isFavorite = favoriteSongs.contains(s.id),
+                                        isDownloaded = completedSongs.contains(s.id),
+                                        onLikeClick = { onLikeClick(s) },
+                                        onClick = { onSongClick(s) },
+                                        showDivider = if (columns == 1) idx < items.size - 1 else false,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else if (columns > 1) {
+                                    Spacer(Modifier.weight(1f))
+                                }
                             }
                         }
                     }

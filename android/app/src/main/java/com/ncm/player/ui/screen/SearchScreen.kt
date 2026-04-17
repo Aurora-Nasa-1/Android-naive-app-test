@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.*
 import com.ncm.player.ui.component.WavyLinearProgressIndicator
 import androidx.compose.ui.Alignment
@@ -164,7 +165,11 @@ fun SearchScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
+                )
             ) {
                 if (searchResults.isEmpty() && searchPlaylists.isEmpty() && query.isEmpty()) {
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
@@ -172,44 +177,64 @@ fun SearchScreen(
                             "Hot Searches",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(vertical = 16.dp)
                         )
                     }
-                    itemsIndexed(hotSearches) { index, hot ->
-                        ListItem(
-                            headlineContent = { Text(hot.first) },
-                            supportingContent = { if (hot.second.isNotBlank()) Text(hot.second, maxLines = 1) },
-                            leadingContent = {
-                                Text(
-                                    "${index + 1}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = if (index < 3) MaterialTheme.colorScheme.primary else Color.Gray,
-                                    modifier = Modifier.width(24.dp)
+
+                    itemsIndexed(hotSearches, span = { _, _ -> androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) { index, hot ->
+                        Column {
+                            ListItem(
+                                headlineContent = { Text(hot.first) },
+                                supportingContent = { if (hot.second.isNotBlank()) Text(hot.second, maxLines = 1) },
+                                leadingContent = {
+                                    Text(
+                                        "${index + 1}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = if (index < 3) MaterialTheme.colorScheme.primary else Color.Gray,
+                                        modifier = Modifier.width(24.dp)
+                                    )
+                                },
+                                trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = Color.Red.copy(alpha = 0.7f)) },
+                                modifier = Modifier.clickable {
+                                    query = hot.first
+                                    onSearch(hot.first, searchType)
+                                }
+                            )
+                            if (index < hotSearches.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 56.dp, end = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                                 )
-                            },
-                            trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = Color.Red.copy(alpha = 0.7f)) },
-                            modifier = Modifier.clickable {
-                                query = hot.first
-                                onSearch(hot.first, searchType)
                             }
-                        )
+                        }
                     }
                 } else {
                     if (searchType == 1) {
-                        items(searchResults) { song ->
+                        itemsIndexed(searchResults, span = { _, _ -> androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) { index, song ->
                             SongItem(
                                 song = song,
                                 isFavorite = favoriteSongs.contains(song.id),
                                 onLikeClick = { onLikeClick(song) },
-                                onClick = { onSongClick(song) }
+                                onClick = { onSongClick(song) },
+                                showDivider = index < searchResults.size - 1
                             )
                         }
                     } else if (searchType == 1000) {
-                        items(searchPlaylists) { playlist ->
-                            PlaylistItem(
-                                playlist = playlist,
-                                onClick = { onPlaylistClick(playlist) }
-                            )
+                        itemsIndexed(searchPlaylists, span = { _, _ -> androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) { index, playlist ->
+                            Column {
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    onClick = { onPlaylistClick(playlist) }
+                                )
+                                if (index < searchPlaylists.size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 88.dp, end = 16.dp),
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

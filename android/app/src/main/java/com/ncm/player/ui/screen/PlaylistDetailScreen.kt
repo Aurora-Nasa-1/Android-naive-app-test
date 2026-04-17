@@ -8,6 +8,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -163,26 +165,21 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding()
+                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp
                 )
             ) {
                 if (!isSelectionMode) {
                     item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }
                 }
-                items(items = songs, key = { it.id }) { song ->
+
+                itemsIndexed(items = songs, key = { _, s -> s.id }) { index, song ->
                     val isSelected = selectedSongs.contains(song.id)
                     SongItem(
                         song = song,
                         isFavorite = favoriteSongs.contains(song.id),
                         isDownloaded = completedSongs.contains(song.id),
                         onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
-                        onClick = {
-                            if (isSelectionMode) {
-                                selectedSongs = if (isSelected) selectedSongs - song.id else selectedSongs + song.id
-                            } else {
-                                onSongClick(song)
-                            }
-                        },
+                        onClick = null,
                         leadingContent = if (isSelectionMode) {
                             { Checkbox(checked = isSelected, onCheckedChange = {
                                 selectedSongs = if (it) selectedSongs + song.id else selectedSongs - song.id
@@ -203,8 +200,9 @@ fun PlaylistDetailScreen(
                                         selectedSongs = setOf(song.id)
                                     }
                                 }
-                            )
-                            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent)
+                            ),
+                        showDivider = index < songs.size - 1,
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
                     )
                 }
             }

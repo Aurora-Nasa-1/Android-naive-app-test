@@ -17,6 +17,7 @@ import com.ncm.player.model.Song
 import com.ncm.player.service.MusicService
 import androidx.palette.graphics.Palette
 import coil3.toBitmap
+import coil3.request.allowHardware
 import com.ncm.player.util.DebugLog
 import com.ncm.player.util.JsonUtils
 import com.ncm.player.util.LyricUtils
@@ -192,6 +193,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 val loader = coil3.SingletonImageLoader.get(getApplication())
                 val request = coil3.request.ImageRequest.Builder(getApplication())
                     .data(url)
+                    .allowHardware(false)
                     .build()
                 val result = loader.execute(request)
                 if (result is coil3.request.SuccessResult) {
@@ -203,6 +205,8 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                         withContext(Dispatchers.Main) {
                             extractedColor = color
                         }
+                    } else {
+                        DebugLog.e("Palette extraction returned 0")
                     }
                 } else {
                     DebugLog.e("Coil result not success: $result")

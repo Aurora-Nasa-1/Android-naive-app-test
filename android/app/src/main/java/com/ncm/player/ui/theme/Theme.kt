@@ -33,23 +33,40 @@ fun NCMPlayerTheme(
     val colorScheme = when {
         themeMode == 1 && followCoverApp && seedColor != null -> {
             val color = Color(seedColor)
+            val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(seedColor) < 0.5
             if (darkTheme) {
                 darkColorScheme(
                     primary = color,
+                    onPrimary = if (isDark) Color.White else Color.Black,
                     primaryContainer = color.copy(alpha = 0.3f),
-                    secondary = color.copy(alpha = 0.7f),
-                    onPrimary = if (androidx.core.graphics.ColorUtils.calculateLuminance(seedColor) < 0.5) Color.White else Color.Black,
+                    onPrimaryContainer = Color.White,
+                    secondary = color.copy(alpha = 0.5f),
+                    onSecondary = Color.White,
+                    secondaryContainer = color.copy(alpha = 0.2f),
+                    onSecondaryContainer = Color.White,
                     surface = Color(0xFF121212),
-                    background = Color(0xFF121212)
+                    onSurface = Color.White,
+                    background = Color(0xFF121212),
+                    onBackground = Color.White,
+                    surfaceVariant = color.copy(alpha = 0.1f),
+                    onSurfaceVariant = Color.White
                 )
             } else {
                 lightColorScheme(
                     primary = color,
-                    primaryContainer = color.copy(alpha = 0.1f),
+                    onPrimary = if (isDark) Color.White else Color.Black,
+                    primaryContainer = color.copy(alpha = 0.2f),
+                    onPrimaryContainer = color,
                     secondary = color.copy(alpha = 0.6f),
-                    onPrimary = if (androidx.core.graphics.ColorUtils.calculateLuminance(seedColor) < 0.5) Color.White else Color.Black,
+                    onSecondary = Color.White,
+                    secondaryContainer = color.copy(alpha = 0.1f),
+                    onSecondaryContainer = color,
                     surface = Color(0xFFFDFDFD),
-                    background = Color(0xFFFDFDFD)
+                    onSurface = Color.Black,
+                    background = Color(0xFFFDFDFD),
+                    onBackground = Color.Black,
+                    surfaceVariant = color.copy(alpha = 0.05f),
+                    onSurfaceVariant = Color.Black
                 )
             }
         }
@@ -63,8 +80,14 @@ fun NCMPlayerTheme(
                     onPrimaryContainer = Color.White,
                     secondary = Color(0xFFFFCDD2),
                     onSecondary = Color.Black,
-                    background = Color(0xFF1A1111),
-                    surface = Color(0xFF1A1111)
+                    secondaryContainer = Color(0xFF4A0000),
+                    onSecondaryContainer = Color.White,
+                    background = Color(0xFF1A0808),
+                    surface = Color(0xFF1A0808),
+                    surfaceVariant = Color(0xFF2D1414),
+                    onSurface = Color.White,
+                    onBackground = Color.White,
+                    onSurfaceVariant = Color.White
                 )
             } else {
                 lightColorScheme(
@@ -72,10 +95,16 @@ fun NCMPlayerTheme(
                     onPrimary = Color.White,
                     primaryContainer = Color(0xFFFFEBEE),
                     onPrimaryContainer = Color(0xFFB71C1C),
-                    secondary = Color(0xFF757575),
+                    secondary = Color(0xFFD32F2F),
                     onSecondary = Color.White,
-                    background = Color(0xFFFFF8F8),
-                    surface = Color(0xFFFFF8F8)
+                    secondaryContainer = Color(0xFFFFE0E0),
+                    onSecondaryContainer = Color(0xFFB71C1C),
+                    background = Color(0xFFFFF5F5),
+                    surface = Color(0xFFFFF5F5),
+                    surfaceVariant = Color(0xFFFFEAEA),
+                    onSurface = Color.Black,
+                    onBackground = Color.Black,
+                    onSurfaceVariant = Color.Black
                 )
             }
         }

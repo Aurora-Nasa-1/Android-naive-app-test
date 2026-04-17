@@ -49,7 +49,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
             val useSideNav = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
-            NCMPlayerTheme(pureBlack = settingsViewModel.pureBlackMode) {
+            NCMPlayerTheme(
+                pureBlack = settingsViewModel.pureBlackMode,
+                themeMode = settingsViewModel.themeMode,
+                followCoverApp = settingsViewModel.followCoverApp,
+                seedColor = playbackViewModel.extractedColor
+            ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val context = LocalContext.current
                     LaunchedEffect(Unit) { playbackViewModel.initController(context) }
@@ -117,7 +122,16 @@ fun AppNavigation(
                     Spacer(Modifier.weight(1f))
                     if (playbackViewModel.currentSong != null) {
                         Box(modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)) {
-                            BottomPlaybackBar(song = playbackViewModel.currentSong, isPlaying = playbackViewModel.isPlaying, onPlayPause = { playbackViewModel.togglePlayPause() }, onSkipNext = { playbackViewModel.skipNext() }, onSkipPrevious = { playbackViewModel.skipPrevious() }, onClick = { navController.navigate("player") { launchSingleTop = true } })
+                            BottomPlaybackBar(
+                                song = playbackViewModel.currentSong,
+                                isPlaying = playbackViewModel.isPlaying,
+                                onPlayPause = { playbackViewModel.togglePlayPause() },
+                                onSkipNext = { playbackViewModel.skipNext() },
+                                onSkipPrevious = { playbackViewModel.skipPrevious() },
+                                onClick = { navController.navigate("player") { launchSingleTop = true } },
+                                useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
+                                coverColor = playbackViewModel.extractedColor
+                            )
                         }
                     }
                     Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
@@ -127,7 +141,7 @@ fun AppNavigation(
             AppMainContent(playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, PaddingValues(0.dp), isPlayerScreen, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context, currentDestination, bottomBarOffsetHeightPx, navItems)
         }
     } else {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = Color.Transparent) { innerPadding ->
             AppMainContent(playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, innerPadding, isPlayerScreen, nestedScrollConnection, navController, loginViewModel, useSideNav, hasBottomBar, bottomBarHeight, context, currentDestination, bottomBarOffsetHeightPx, navItems)
         }
     }
@@ -156,17 +170,17 @@ fun AppMainContent(
     navItems: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>>
 ) {
     Box(modifier = Modifier.fillMaxSize().then(if (!isPlayerScreen) Modifier.nestedScroll(nestedScrollConnection) else Modifier)) {
-        Box(modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding())) {
+        Box(modifier = Modifier.fillMaxSize().padding(top = 0.dp)) {
             NavHost(navController = navController, startDestination = if (loginViewModel.isLogged) "main" else "login", modifier = Modifier.fillMaxSize()) {
                 composable("login") { LoginScreen(loginViewModel, onLoginSuccess = { userViewModel.fetchUserData(); navController.navigate("main") { popUpTo("login") { inclusive = true } } }) }
                 composable("main") {
                     LaunchedEffect(Unit) { if (userViewModel.recommendedSongs.isEmpty()) userViewModel.fetchUserData() else { socialViewModel.fetchUnreadCount(); socialViewModel.fetchContacts() } }
                     val tasks by downloadViewModel.tasks.collectAsState()
                     val completedSongs by downloadViewModel.completedSongs.collectAsState()
-                    MainScreen(recommendedSongs = userViewModel.recommendedSongs, userPlaylists = userViewModel.userPlaylists, userProfile = userViewModel.userProfile, versionName = "1.0.0", onSongClick = { s -> playbackViewModel.playSong(s, userViewModel.recommendedSongs); navController.navigate("player") { launchSingleTop = true } }, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onPersonalFmClick = { playbackViewModel.playPersonalFm(); navController.navigate("player") { launchSingleTop = true } }, onHeartbeatClick = { if (userViewModel.favoriteSongs.isNotEmpty()) { playbackViewModel.playHeartbeat(userViewModel.favoriteSongs[0], userViewModel.likedSongsPlaylistId); navController.navigate("player") { launchSingleTop = true } } }, onLiveSortClick = { navController.navigate("livesort") }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, favoriteSongs = userViewModel.favoriteSongs, completedSongs = completedSongs, unreadMessagesCount = socialViewModel.unreadCount, onNavigateToMessages = { navController.navigate("messages") }, onNavigateToSettings = { navController.navigate("settings") }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp), actions = { DownloadIndicator(tasks = tasks) { navController.navigate("downloads") } })
+                    MainScreen(recommendedSongs = userViewModel.recommendedSongs, userPlaylists = userViewModel.userPlaylists, userProfile = userViewModel.userProfile, versionName = "1.0.0", onSongClick = { s -> playbackViewModel.playSong(s, userViewModel.recommendedSongs); navController.navigate("player") { launchSingleTop = true } }, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onPersonalFmClick = { playbackViewModel.playPersonalFm(); navController.navigate("player") { launchSingleTop = true } }, onHeartbeatClick = { if (userViewModel.favoriteSongs.isNotEmpty()) { val pid = if (userViewModel.likedSongsPlaylistId != 0L) userViewModel.likedSongsPlaylistId else userViewModel.userPlaylists.find { it.name.contains("喜欢的音乐") }?.id ?: userViewModel.userPlaylists.firstOrNull()?.id ?: 0L; playbackViewModel.playHeartbeat(userViewModel.favoriteSongs[0], pid); navController.navigate("player") { launchSingleTop = true } } }, onLiveSortClick = { navController.navigate("livesort") }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, favoriteSongs = userViewModel.favoriteSongs, completedSongs = completedSongs, unreadMessagesCount = socialViewModel.unreadCount, onNavigateToMessages = { navController.navigate("messages") }, onNavigateToSettings = { navController.navigate("settings") }, bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp), actions = { DownloadIndicator(tasks = tasks) { navController.navigate("downloads") } })
                 }
-                composable("search") { SearchScreen(searchResults = searchViewModel.searchResults, searchPlaylists = searchViewModel.searchPlaylists, favoriteSongs = userViewModel.favoriteSongs, hotSearches = searchViewModel.hotSearches, searchHistory = searchViewModel.searchHistory, suggestions = searchViewModel.searchSuggestions, searchType = searchViewModel.searchType, isLoading = searchViewModel.isLoading, onSearch = { kw, t -> searchViewModel.search(kw, t) }, onSuggestionFetch = { searchViewModel.fetchSuggestions(it) }, onClearHistory = { searchViewModel.clearHistory() }, onSongClick = { s -> playbackViewModel.playSong(s, searchViewModel.searchResults); navController.navigate("player") { launchSingleTop = true } }, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
-                composable("library") { LibraryScreen(userPlaylists = userViewModel.userPlaylists, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onNavigateToLiveSort = { navController.navigate("livesort") }, onNavigateToDownloads = { navController.navigate("downloads") }, onNavigateToCloud = { navController.navigate("cloud") }, onNavigateToSettings = { navController.navigate("settings") }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
+                composable("search") { SearchScreen(searchResults = searchViewModel.searchResults, searchPlaylists = searchViewModel.searchPlaylists, favoriteSongs = userViewModel.favoriteSongs, hotSearches = searchViewModel.hotSearches, searchHistory = searchViewModel.searchHistory, suggestions = searchViewModel.searchSuggestions, searchType = searchViewModel.searchType, isLoading = searchViewModel.isLoading, onSearch = { kw, t -> searchViewModel.search(kw, t) }, onSuggestionFetch = { searchViewModel.fetchSuggestions(it) }, onClearHistory = { searchViewModel.clearHistory() }, onSongClick = { s -> playbackViewModel.playSong(s, searchViewModel.searchResults); navController.navigate("player") { launchSingleTop = true } }, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
+                composable("library") { LibraryScreen(userPlaylists = userViewModel.userPlaylists, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onNavigateToLiveSort = { navController.navigate("livesort") }, onNavigateToDownloads = { navController.navigate("downloads") }, onNavigateToCloud = { navController.navigate("cloud") }, onNavigateToSettings = { navController.navigate("settings") }, bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
                 composable("cloud") {
                     LaunchedEffect(Unit) { userViewModel.fetchCloudSongs() }
                     CloudMusicScreen(
@@ -176,7 +190,7 @@ fun AppMainContent(
                         onSongClick = { s -> playbackViewModel.playSong(s, userViewModel.cloudSongs); navController.navigate("player") { launchSingleTop = true } },
                         onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) },
                         onBackPressed = { navController.popBackStack() },
-                        bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
+                        bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
                     )
                 }
                 composable("livesort") { LiveSortScreen(liveSortViewModel = liveSortViewModel, playbackViewModel = playbackViewModel, onBackPressed = { navController.popBackStack() }) }
@@ -184,7 +198,7 @@ fun AppMainContent(
                     val pid = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
                     LaunchedEffect(pid) { if (userViewModel.currentPlaylistMetadata?.id != pid) userViewModel.fetchPlaylistSongs(pid) }
                     val completedSongs by downloadViewModel.completedSongs.collectAsState()
-                    PlaylistDetailScreen(playlist = userViewModel.currentPlaylistMetadata ?: com.ncm.player.model.Playlist(pid, "Loading...", null, 0), songs = userViewModel.playlistSongs, favoriteSongs = userViewModel.favoriteSongs, allPlaylists = userViewModel.userPlaylists, isLoading = userViewModel.isLoading, onSongClick = { s -> playbackViewModel.playSong(s, userViewModel.playlistSongs); navController.navigate("player") { launchSingleTop = true } }, onPlayAllClick = { l -> if (l.isNotEmpty()) { playbackViewModel.playSong(l[0], l); navController.navigate("player") { launchSingleTop = true } } }, onQueueAllClick = { l -> l.forEach { playbackViewModel.addToQueue(it) } }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, onAddToPlaylist = { ids, targetPid -> userViewModel.addSongsToPlaylist(targetPid, ids, null) }, onRemoveFromPlaylist = { ids -> userViewModel.removeSongsFromPlaylist(pid, ids, null) }, onBatchDownload = { l -> downloadViewModel.batchDownload(l, null) }, completedSongs = completedSongs, onBackPressed = { navController.popBackStack() }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp))
+                    PlaylistDetailScreen(playlist = userViewModel.currentPlaylistMetadata ?: com.ncm.player.model.Playlist(pid, "Loading...", null, 0), songs = userViewModel.playlistSongs, favoriteSongs = userViewModel.favoriteSongs, allPlaylists = userViewModel.userPlaylists, isLoading = userViewModel.isLoading, onSongClick = { s -> playbackViewModel.playSong(s, userViewModel.playlistSongs); navController.navigate("player") { launchSingleTop = true } }, onPlayAllClick = { l -> if (l.isNotEmpty()) { playbackViewModel.playSong(l[0], l); navController.navigate("player") { launchSingleTop = true } } }, onQueueAllClick = { l -> l.forEach { playbackViewModel.addToQueue(it) } }, onLikeClick = { s -> userViewModel.toggleLike(s.id, !userViewModel.favoriteSongs.contains(s.id)) }, onAddToPlaylist = { ids, targetPid -> userViewModel.addSongsToPlaylist(targetPid, ids, null) }, onRemoveFromPlaylist = { ids -> userViewModel.removeSongsFromPlaylist(pid, ids, null) }, onBatchDownload = { l -> downloadViewModel.batchDownload(l, null) }, completedSongs = completedSongs, onBackPressed = { navController.popBackStack() }, bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp))
                 }
                 composable("downloads") {
                     val tasks by downloadViewModel.tasks.collectAsState()
@@ -199,7 +213,7 @@ fun AppMainContent(
                         tasks = tasks,
                         onCancelDownload = { downloadViewModel.cancelDownload(it) },
                         onDeleteLocalSong = { playbackViewModel.deleteLocalSong(it) },
-                        bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
+                        bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
                     )
                 }
                 composable("messages") { LaunchedEffect(Unit) { socialViewModel.fetchContacts() }; ContactListScreen(contacts = socialViewModel.contacts, onContactClick = { c -> navController.navigate("chat/${c.userId}/${c.nickname}") }, onAvatarClick = { uid -> userViewModel.fetchOtherUserProfile(uid); navController.navigate("user/$uid") }, onBackPressed = { navController.popBackStack() }) }
@@ -215,7 +229,39 @@ fun AppMainContent(
                     val viewState = userViewModel.otherUserViewState
                     UserProfileScreen(userProfile = viewState.profile, playlists = viewState.playlists, albums = viewState.albums, songs = viewState.songs, isArtist = viewState.isArtist, isLoading = viewState.isLoading, onPlaylistClick = { p -> userViewModel.fetchPlaylistSongs(p.id); navController.navigate("playlist/${p.id}") }, onSongClick = { s -> playbackViewModel.playSong(s, viewState.songs); navController.navigate("player") { launchSingleTop = true } }, onMessageClick = { u, n -> navController.navigate("chat/$u/$n") }, onBackPressed = { navController.popBackStack() })
                 }
-                composable("settings") { SettingsScreen(currentQualityWifi = settingsViewModel.qualityWifi, onQualityWifiChange = { settingsViewModel.updateQualityWifi(it) }, currentQualityCellular = settingsViewModel.qualityCellular, onQualityCellularChange = { settingsViewModel.updateQualityCellular(it) }, downloadQuality = downloadViewModel.downloadQuality, onDownloadQualityChange = { downloadViewModel.updateDownloadQuality(it) }, fadeDuration = settingsViewModel.fadeDuration, onFadeChange = { settingsViewModel.updateFade(it) }, cacheSize = settingsViewModel.cacheSize, onCacheSizeChange = { settingsViewModel.updateCache(it) }, useCellularCache = settingsViewModel.useCellularCache, onUseCellularCacheChange = { settingsViewModel.updateUseCellular(it) }, allowCellularDownload = downloadViewModel.allowCellularDownload, onAllowCellularDownloadChange = { downloadViewModel.updateAllowCellularDownload(it) }, pureBlackMode = settingsViewModel.pureBlackMode, onPureBlackModeChange = { settingsViewModel.updatePureBlackMode(it) }, downloadDir = settingsViewModel.downloadDir, onDownloadDirChange = { settingsViewModel.updateDownloadPath(it) }, onClearCache = { settingsViewModel.clearCache() }, onBackPressed = { navController.popBackStack() }, bottomContentPadding = PaddingValues(bottom = if (hasBottomBar) bottomBarHeight else 0.dp)) }
+                composable("settings") {
+                    SettingsScreen(
+                        currentQualityWifi = settingsViewModel.qualityWifi,
+                        onQualityWifiChange = { settingsViewModel.updateQualityWifi(it) },
+                        currentQualityCellular = settingsViewModel.qualityCellular,
+                        onQualityCellularChange = { settingsViewModel.updateQualityCellular(it) },
+                        downloadQuality = downloadViewModel.downloadQuality,
+                        onDownloadQualityChange = { downloadViewModel.updateDownloadQuality(it) },
+                        fadeDuration = settingsViewModel.fadeDuration,
+                        onFadeChange = { settingsViewModel.updateFade(it) },
+                        cacheSize = settingsViewModel.cacheSize,
+                        onCacheSizeChange = { settingsViewModel.updateCache(it) },
+                        useCellularCache = settingsViewModel.useCellularCache,
+                        onUseCellularCacheChange = { settingsViewModel.updateUseCellular(it) },
+                        allowCellularDownload = downloadViewModel.allowCellularDownload,
+                        onAllowCellularDownloadChange = { downloadViewModel.updateAllowCellularDownload(it) },
+                        pureBlackMode = settingsViewModel.pureBlackMode,
+                        onPureBlackModeChange = { settingsViewModel.updatePureBlackMode(it) },
+                        themeMode = settingsViewModel.themeMode,
+                        onThemeModeChange = { settingsViewModel.updateThemeMode(it) },
+                        followCoverApp = settingsViewModel.followCoverApp,
+                        onFollowCoverAppChange = { settingsViewModel.updateFollowCoverApp(it) },
+                        followCoverMini = settingsViewModel.followCoverMini,
+                        onFollowCoverMiniChange = { settingsViewModel.updateFollowCoverMini(it) },
+                        followCoverPlayer = settingsViewModel.followCoverPlayer,
+                        onFollowCoverPlayerChange = { settingsViewModel.updateFollowCoverPlayer(it) },
+                        downloadDir = settingsViewModel.downloadDir,
+                        onDownloadDirChange = { settingsViewModel.updateDownloadPath(it) },
+                        onClearCache = { settingsViewModel.clearCache() },
+                        onBackPressed = { navController.popBackStack() },
+                        bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
+                    )
+                }
                 composable("player", enterTransition = { slideInVertically(initialOffsetY = { it }, animationSpec = tween(500, easing = EaseOutQuart)) + fadeIn(animationSpec = tween(400)) }, exitTransition = { slideOutVertically(targetOffsetY = { it }, animationSpec = tween(500, easing = EaseInQuart)) + fadeOut(animationSpec = tween(400)) }) {
                     val s = playbackViewModel.currentSong
                     val completedSongs by downloadViewModel.completedSongs.collectAsState()
@@ -272,16 +318,38 @@ fun AppMainContent(
                         onLoadMoreFloor = { c -> s?.let { socialViewModel.fetchFloorComments(it.id, c.id, time = socialViewModel.floorCursor) } },
                         activeParentComment = socialViewModel.activeParentComment,
                         onDismissFloor = { socialViewModel.activeParentComment = null },
+                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
+                        coverColor = playbackViewModel.extractedColor,
                         onBackPressed = { navController.popBackStack() }
                     )
                 }
-                composable("lyrics") { LyricsScreen(lyrics = playbackViewModel.currentLyrics, songName = playbackViewModel.currentSong?.name ?: "Lyrics", currentPosition = playbackViewModel.currentPosition, onBackPressed = { navController.popBackStack() }) }
+                composable("lyrics") {
+                    LyricsScreen(
+                        lyrics = playbackViewModel.currentLyrics,
+                        songName = playbackViewModel.currentSong?.name ?: "Lyrics",
+                        currentPosition = playbackViewModel.currentPosition,
+                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
+                        coverColor = playbackViewModel.extractedColor,
+                        onBackPressed = { navController.popBackStack() }
+                    )
+                }
                 composable("logs") { LogViewerScreen(onBackPressed = { navController.popBackStack() }) }
             }
         }
         if (loginViewModel.isLogged && !isPlayerScreen && !useSideNav) {
             Column(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))) {
-                if (playbackViewModel.currentSong != null) { BottomPlaybackBar(song = playbackViewModel.currentSong, isPlaying = playbackViewModel.isPlaying, onPlayPause = { playbackViewModel.togglePlayPause() }, onSkipNext = { playbackViewModel.skipNext() }, onSkipPrevious = { playbackViewModel.skipPrevious() }, onClick = { navController.navigate("player") { launchSingleTop = true } }) }
+                if (playbackViewModel.currentSong != null) {
+                    BottomPlaybackBar(
+                        song = playbackViewModel.currentSong,
+                        isPlaying = playbackViewModel.isPlaying,
+                        onPlayPause = { playbackViewModel.togglePlayPause() },
+                        onSkipNext = { playbackViewModel.skipNext() },
+                        onSkipPrevious = { playbackViewModel.skipPrevious() },
+                        onClick = { navController.navigate("player") { launchSingleTop = true } },
+                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
+                        coverColor = playbackViewModel.extractedColor
+                    )
+                }
                 NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) { navItems.forEach { (route, label, icon) -> NavigationBarItem(icon = { Icon(icon, null) }, label = { Text(label) }, selected = currentDestination?.hierarchy?.any { it.route == route } == true, onClick = { navController.navigate(route) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } }) } }
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }

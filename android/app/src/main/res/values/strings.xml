@@ -65,6 +65,14 @@
     <string name="appearance">外观</string>
     <string name="pure_black_mode">纯黑模式</string>
     <string name="pure_black_desc">在深色模式下为 OLED 屏幕使用纯黑背景</string>
+    <string name="theme_mode">软件色调模式</string>
+    <string name="theme_mode_system">跟随系统</string>
+    <string name="theme_mode_cover">跟随封面取色</string>
+    <string name="theme_mode_fixed">固定色调</string>
+    <string name="follow_cover_granular">取色应用范围</string>
+    <string name="follow_cover_app">全局界面</string>
+    <string name="follow_cover_mini">底部播放条</string>
+    <string name="follow_cover_player">播放器界面</string>
     <string name="playback_quality_cat">播放音质</string>
     <string name="wifi_quality_label">Wi-Fi 音质</string>
     <string name="cellular_quality_label">移动网络音质</string>

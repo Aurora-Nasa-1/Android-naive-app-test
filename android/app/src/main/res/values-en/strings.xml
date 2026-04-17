@@ -65,6 +65,14 @@
     <string name="appearance">Appearance</string>
     <string name="pure_black_mode">Pure Black Mode</string>
     <string name="pure_black_desc">Use pitch black for OLED screens in dark mode</string>
+    <string name="theme_mode">Theme Mode</string>
+    <string name="theme_mode_system">Follow System</string>
+    <string name="theme_mode_cover">Follow Cover Art</string>
+    <string name="theme_mode_fixed">Fixed Color</string>
+    <string name="follow_cover_granular">Follow Cover Scope</string>
+    <string name="follow_cover_app">App-wide UI</string>
+    <string name="follow_cover_mini">Bottom Playback Bar</string>
+    <string name="follow_cover_player">Player Screen</string>
     <string name="playback_quality_cat">Playback Quality</string>
     <string name="wifi_quality_label">WiFi Quality</string>
     <string name="cellular_quality_label">Cellular Quality</string>

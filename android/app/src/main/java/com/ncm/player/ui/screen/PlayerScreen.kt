@@ -38,7 +38,9 @@ import com.ncm.player.model.Song
 import com.ncm.player.ui.component.QueueBottomSheet
 import com.ncm.player.ui.component.CommentBottomSheet
 import com.ncm.player.ui.component.SleepTimerBottomSheet
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.ncm.player.ui.component.LyricContent
+import com.ncm.player.ui.theme.createCustomColorScheme
 import com.ncm.player.viewmodel.PlaybackViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
@@ -96,6 +98,8 @@ fun PlayerScreen(
     activeParentComment: com.ncm.player.model.Comment? = null,
     sleepTimerRemaining: Long = 0L,
     onSetSleepTimer: (Int) -> Unit = {},
+    useCoverColor: Boolean = false,
+    coverColor: Int? = null,
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
@@ -228,6 +232,8 @@ fun PlayerScreen(
             onAvatarClick = onAvatarClick,
             onSortChange = onCommentSortChange,
             onViewFloorClick = onViewFloorClick,
+            useCoverColor = useCoverColor,
+            coverColor = coverColor,
             onDismiss = { showCommentBottomSheet = false }
         )
     }
@@ -244,6 +250,8 @@ fun PlayerScreen(
             onReplyClick = onReplyComment,
             onPostComment = { onPostComment(it) /* TODO: Support floor reply */ },
             onAvatarClick = onAvatarClick,
+            useCoverColor = useCoverColor,
+            coverColor = coverColor,
             onDismiss = onDismissFloor
         )
     }
@@ -256,36 +264,70 @@ fun PlayerScreen(
         )
     }
 
+    val playerColorScheme = if (useCoverColor && coverColor != null) {
+        createCustomColorScheme(coverColor, isSystemInDarkTheme())
+    } else {
+        MaterialTheme.colorScheme
+    }
+
+    MaterialTheme(colorScheme = playerColorScheme) {
+        val bgBrush = if (useCoverColor && coverColor != null) {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(coverColor).copy(alpha = 0.5f),
+                    MaterialTheme.colorScheme.surface
+                )
+            )
+        } else {
+            Brush.verticalGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    MaterialTheme.colorScheme.surface
+                )
+            )
+        }
+
+        val view = androidx.compose.ui.platform.LocalView.current
+        if (!view.isInEditMode) {
+            val isDarkTheme = isSystemInDarkTheme()
+            val luminance = coverColor?.let { androidx.core.graphics.ColorUtils.calculateLuminance(it) } ?: 0.0
+            val isAppearanceLightStatusBars = !isDarkTheme && (luminance > 0.5)
+
+            SideEffect {
+                val window = (view.context as android.app.Activity).window
+                androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = isAppearanceLightStatusBars
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(bgBrush)
+        ) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    scrolledContainerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 title = { Text(stringResource(R.string.playing)) },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
-                }
+                },
+                windowInsets = WindowInsets.statusBars
             )
         }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.surface
-                        )
-                    )
-                )
                 .padding(innerPadding)
         ) {
             if (isWideScreen) {
@@ -766,6 +808,8 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+    }
     }
 }
 

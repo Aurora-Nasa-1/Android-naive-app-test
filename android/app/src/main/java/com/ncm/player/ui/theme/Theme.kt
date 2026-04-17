@@ -18,24 +18,78 @@ import androidx.compose.ui.graphics.Color
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
+fun createCustomColorScheme(seedColor: Int, isDark: Boolean, pureBlack: Boolean = false): ColorScheme {
+    val color = Color(seedColor)
+    val luminance = androidx.core.graphics.ColorUtils.calculateLuminance(seedColor)
+    val isDarkSeed = luminance < 0.5
+
+    return if (isDark) {
+        darkColorScheme(
+            primary = color,
+            onPrimary = if (isDarkSeed) Color.White else Color.Black,
+            primaryContainer = color.copy(alpha = 0.3f),
+            onPrimaryContainer = Color.White,
+            secondary = color.copy(alpha = 0.5f),
+            onSecondary = Color.White,
+            secondaryContainer = color.copy(alpha = 0.2f),
+            onSecondaryContainer = Color.White,
+            surface = if (pureBlack) Color.Black else Color(0xFF121212),
+            onSurface = Color.White,
+            background = if (pureBlack) Color.Black else Color(0xFF121212),
+            onBackground = Color.White,
+            surfaceVariant = color.copy(alpha = 0.1f),
+            onSurfaceVariant = Color.White
+        )
+    } else {
+        lightColorScheme(
+            primary = color,
+            onPrimary = if (isDarkSeed) Color.White else Color.Black,
+            primaryContainer = color.copy(alpha = 0.2f),
+            onPrimaryContainer = color,
+            secondary = color.copy(alpha = 0.6f),
+            onSecondary = Color.White,
+            secondaryContainer = color.copy(alpha = 0.1f),
+            onSecondaryContainer = color,
+            surface = Color(0xFFFDFDFD),
+            onSurface = Color.Black,
+            background = Color(0xFFFDFDFD),
+            onBackground = Color.Black,
+            surfaceVariant = color.copy(alpha = 0.05f),
+            onSurfaceVariant = Color.Black
+        )
+    }
+}
+
 @Composable
 fun NCMPlayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     pureBlack: Boolean = false,
+    themeMode: Int = 0, // 0: System, 1: Follow Cover, 2: Fixed
+    followCoverApp: Boolean = false,
+    seedColor: Int? = null,
     content: @Composable () -> Unit
 ) {
-    var colorScheme = when {
+    val context = LocalContext.current
+
+    val colorScheme = when {
+        themeMode == 1 && followCoverApp && seedColor != null -> {
+            createCustomColorScheme(seedColor, darkTheme, pureBlack)
+        }
+        themeMode == 2 -> { // Fixed (Reddish/Monet)
+            createCustomColorScheme(0xFFB71C1C.toInt(), darkTheme, pureBlack)
+        }
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    if (darkTheme && pureBlack) {
-        colorScheme = colorScheme.copy(
+    var finalColorScheme = colorScheme
+
+    if (darkTheme && pureBlack && themeMode == 0) {
+        finalColorScheme = finalColorScheme.copy(
             surface = Color.Black,
             background = Color.Black,
             surfaceVariant = Color.Black,
@@ -79,7 +133,7 @@ fun NCMPlayerTheme(
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = finalColorScheme,
         shapes = expressiveShapes,
         typography = expressiveTypography,
         content = content

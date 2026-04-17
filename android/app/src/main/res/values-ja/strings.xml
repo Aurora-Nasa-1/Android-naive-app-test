@@ -65,6 +65,14 @@
     <string name="appearance">外観</string>
     <string name="pure_black_mode">ピュアブラックモード</string>
     <string name="pure_black_desc">ダークモードでOLEDスクリーン用に真っ黒な背景を使用する</string>
+    <string name="theme_mode">テーマカラーモード</string>
+    <string name="theme_mode_system">システムに従う</string>
+    <string name="theme_mode_cover">カバーアートに合わせる</string>
+    <string name="theme_mode_fixed">固定色</string>
+    <string name="follow_cover_granular">カバーアート適用の範囲</string>
+    <string name="follow_cover_app">アプリ全体のUI</string>
+    <string name="follow_cover_mini">ボトム再生バー</string>
+    <string name="follow_cover_player">プレイヤー画面</string>
     <string name="playback_quality_cat">再生音質</string>
     <string name="wifi_quality_label">Wi-Fi 音質</string>
     <string name="cellular_quality_label">モバイルデータ音質</string>

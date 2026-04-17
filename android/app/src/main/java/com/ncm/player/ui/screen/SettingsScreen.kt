@@ -48,6 +48,14 @@ fun SettingsScreen(
     onAllowCellularDownloadChange: (Boolean) -> Unit,
     pureBlackMode: Boolean,
     onPureBlackModeChange: (Boolean) -> Unit,
+    themeMode: Int,
+    onThemeModeChange: (Int) -> Unit,
+    followCoverApp: Boolean,
+    onFollowCoverAppChange: (Boolean) -> Unit,
+    followCoverMini: Boolean,
+    onFollowCoverMiniChange: (Boolean) -> Unit,
+    followCoverPlayer: Boolean,
+    onFollowCoverPlayerChange: (Boolean) -> Unit,
     downloadDir: String?,
     onDownloadDirChange: (String) -> Unit,
     onClearCache: () -> Unit,
@@ -94,6 +102,33 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SettingsCategory(stringResource(R.string.appearance)) {
+                ThemeModeSettingItem(
+                    themeMode = themeMode,
+                    onThemeModeChange = onThemeModeChange
+                )
+
+                if (themeMode == 1) { // Follow Cover
+                    Column(modifier = Modifier.padding(start = 56.dp, end = 16.dp, bottom = 8.dp)) {
+                        Text(
+                            text = stringResource(R.string.follow_cover_granular),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onFollowCoverAppChange(!followCoverApp) }.padding(vertical = 4.dp)) {
+                            Checkbox(checked = followCoverApp, onCheckedChange = onFollowCoverAppChange)
+                            Text(stringResource(R.string.follow_cover_app), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onFollowCoverMiniChange(!followCoverMini) }.padding(vertical = 4.dp)) {
+                            Checkbox(checked = followCoverMini, onCheckedChange = onFollowCoverMiniChange)
+                            Text(stringResource(R.string.follow_cover_mini), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onFollowCoverPlayerChange(!followCoverPlayer) }.padding(vertical = 4.dp)) {
+                            Checkbox(checked = followCoverPlayer, onCheckedChange = onFollowCoverPlayerChange)
+                            Text(stringResource(R.string.follow_cover_player), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
                 SwitchSettingItem(
                     icon = Icons.Default.Brightness4,
                     title = stringResource(R.string.pure_black_mode),
@@ -279,6 +314,57 @@ fun QualitySettingItem(
                             RadioButton(selected = quality == selectedQuality, onClick = null)
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(quality.replaceFirstChar { it.uppercase() })
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+}
+
+@Composable
+fun ThemeModeSettingItem(
+    themeMode: Int,
+    onThemeModeChange: (Int) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val modes = listOf(
+        stringResource(R.string.theme_mode_system),
+        stringResource(R.string.theme_mode_cover),
+        stringResource(R.string.theme_mode_fixed)
+    )
+
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.theme_mode)) },
+        supportingContent = { Text(modes.getOrElse(themeMode) { modes[0] }) },
+        leadingContent = { Icon(Icons.Default.Brightness4, null) },
+        modifier = Modifier.clickable { showDialog = true },
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+    )
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(stringResource(R.string.theme_mode)) },
+            text = {
+                Column {
+                    modes.forEachIndexed { index, mode ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onThemeModeChange(index)
+                                    showDialog = false
+                                }
+                                .padding(vertical = 12.dp)
+                        ) {
+                            RadioButton(selected = index == themeMode, onClick = null)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(mode)
                         }
                     }
                 }

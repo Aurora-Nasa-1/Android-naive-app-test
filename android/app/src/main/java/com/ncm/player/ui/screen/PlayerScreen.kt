@@ -232,6 +232,8 @@ fun PlayerScreen(
             onAvatarClick = onAvatarClick,
             onSortChange = onCommentSortChange,
             onViewFloorClick = onViewFloorClick,
+            useCoverColor = useCoverColor,
+            coverColor = coverColor,
             onDismiss = { showCommentBottomSheet = false }
         )
     }
@@ -248,6 +250,8 @@ fun PlayerScreen(
             onReplyClick = onReplyComment,
             onPostComment = { onPostComment(it) /* TODO: Support floor reply */ },
             onAvatarClick = onAvatarClick,
+            useCoverColor = useCoverColor,
+            coverColor = coverColor,
             onDismiss = onDismissFloor
         )
     }

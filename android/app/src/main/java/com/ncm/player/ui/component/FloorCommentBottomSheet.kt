@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ncm.player.R
 import com.ncm.player.model.Comment
+import com.ncm.player.ui.theme.createCustomColorScheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,8 +34,16 @@ fun FloorCommentBottomSheet(
     onReplyClick: (Comment) -> Unit,
     onPostComment: (String) -> Unit,
     onAvatarClick: (Long) -> Unit,
+    useCoverColor: Boolean = false,
+    coverColor: Int? = null,
     onDismiss: () -> Unit
 ) {
+    val floorColorScheme = if (useCoverColor && coverColor != null) {
+        createCustomColorScheme(coverColor, isSystemInDarkTheme())
+    } else {
+        MaterialTheme.colorScheme
+    }
+
     var commentText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
@@ -50,8 +60,9 @@ fun FloorCommentBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.fillMaxHeight(0.85f),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = floorColorScheme.surface
     ) {
+        MaterialTheme(colorScheme = floorColorScheme) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
                 text = stringResource(R.string.view_replies, totalCount),
@@ -128,6 +139,7 @@ fun FloorCommentBottomSheet(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -323,7 +323,16 @@ fun AppMainContent(
                         onBackPressed = { navController.popBackStack() }
                     )
                 }
-                composable("lyrics") { LyricsScreen(lyrics = playbackViewModel.currentLyrics, songName = playbackViewModel.currentSong?.name ?: "Lyrics", currentPosition = playbackViewModel.currentPosition, onBackPressed = { navController.popBackStack() }) }
+                composable("lyrics") {
+                    LyricsScreen(
+                        lyrics = playbackViewModel.currentLyrics,
+                        songName = playbackViewModel.currentSong?.name ?: "Lyrics",
+                        currentPosition = playbackViewModel.currentPosition,
+                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
+                        coverColor = playbackViewModel.extractedColor,
+                        onBackPressed = { navController.popBackStack() }
+                    )
+                }
                 composable("logs") { LogViewerScreen(onBackPressed = { navController.popBackStack() }) }
             }
         }

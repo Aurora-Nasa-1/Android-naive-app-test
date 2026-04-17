@@ -30,6 +30,8 @@ fun DockedToolbar(
     isPlaying: Boolean,
     isBuffering: Boolean = false,
     onPlayPause: () -> Unit,
+    onSkipNext: () -> Unit,
+    onSkipPrevious: () -> Unit,
     onClick: () -> Unit,
     navItems: List<Triple<String, String, ImageVector>>,
     currentRoute: String?,
@@ -89,6 +91,10 @@ fun DockedToolbar(
                             )
                         }
 
+                        IconButton(onClick = onSkipPrevious) {
+                            Icon(Icons.Default.SkipPrevious, null)
+                        }
+
                         IconButton(onClick = onPlayPause) {
                             if (isBuffering) {
                                 WavyCircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -98,6 +104,10 @@ fun DockedToolbar(
                                     contentDescription = null
                                 )
                             }
+                        }
+
+                        IconButton(onClick = onSkipNext) {
+                            Icon(Icons.Default.SkipNext, null)
                         }
                     }
                 } else {

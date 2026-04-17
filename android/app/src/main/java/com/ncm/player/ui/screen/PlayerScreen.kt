@@ -1,6 +1,7 @@
 package com.ncm.player.ui.screen
 
 import com.ncm.player.ui.component.WavyCircularProgressIndicator
+import com.ncm.player.ui.component.WavySlider
 import com.ncm.player.model.LyricLine
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -427,7 +428,8 @@ fun PlayerScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            Slider(
+                            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                            WavySlider(
                                 value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                                 onValueChange = { onSeek((it * duration).toLong()) },
                                 modifier = Modifier.fillMaxWidth(),
@@ -701,7 +703,8 @@ fun PlayerScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         // Progress Bar
-                        Slider(
+                        @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                        WavySlider(
                             value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                             onValueChange = { onSeek((it * duration).toLong()) },
                             modifier = Modifier.fillMaxWidth(),

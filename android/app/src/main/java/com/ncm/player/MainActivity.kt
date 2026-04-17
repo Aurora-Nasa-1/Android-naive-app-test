@@ -386,6 +386,8 @@ fun AppMainContent(
                     isPlaying = playbackViewModel.isPlaying,
                     isBuffering = playbackViewModel.isBuffering,
                     onPlayPause = { playbackViewModel.togglePlayPause() },
+                    onSkipNext = { playbackViewModel.skipNext() },
+                    onSkipPrevious = { playbackViewModel.skipPrevious() },
                     onClick = { navController.navigate("player") { launchSingleTop = true } },
                     navItems = navItems,
                     currentRoute = currentDestination?.route,

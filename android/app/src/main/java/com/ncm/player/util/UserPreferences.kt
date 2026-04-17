@@ -20,6 +20,7 @@ object UserPreferences {
     private const val KEY_FOLLOW_COVER_APP = "follow_cover_app"
     private const val KEY_FOLLOW_COVER_MINI = "follow_cover_mini"
     private const val KEY_FOLLOW_COVER_PLAYER = "follow_cover_player"
+    private const val KEY_USE_FLUID_BACKGROUND = "use_fluid_background"
     private const val KEY_USER_PROFILE_CACHE = "user_profile_cache"
     private const val KEY_AUDIO_FEATURES_CACHE = "audio_features_cache"
 
@@ -145,6 +146,14 @@ object UserPreferences {
 
     fun getFollowCoverPlayer(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_FOLLOW_COVER_PLAYER, true)
+    }
+
+    fun saveUseFluidBackground(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_USE_FLUID_BACKGROUND, enabled).apply()
+    }
+
+    fun getUseFluidBackground(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_USE_FLUID_BACKGROUND, false)
     }
 
     fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {

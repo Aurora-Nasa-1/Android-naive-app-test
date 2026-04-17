@@ -288,6 +288,8 @@ fun AppMainContent(
                         onFollowCoverMiniChange = { settingsViewModel.updateFollowCoverMini(it) },
                         followCoverPlayer = settingsViewModel.followCoverPlayer,
                         onFollowCoverPlayerChange = { settingsViewModel.updateFollowCoverPlayer(it) },
+                        useFluidBackground = settingsViewModel.useFluidBackground,
+                        onUseFluidBackgroundChange = { settingsViewModel.updateUseFluidBackground(it) },
                         downloadDir = settingsViewModel.downloadDir,
                         onDownloadDirChange = { settingsViewModel.updateDownloadPath(it) },
                         onClearCache = { settingsViewModel.clearCache() },
@@ -353,6 +355,7 @@ fun AppMainContent(
                         activeParentComment = socialViewModel.activeParentComment,
                         onDismissFloor = { socialViewModel.activeParentComment = null },
                         useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
+                        useFluidBackground = settingsViewModel.useFluidBackground,
                         coverColor = playbackViewModel.extractedColor,
                         onBackPressed = { navController.popBackStack() }
                     )

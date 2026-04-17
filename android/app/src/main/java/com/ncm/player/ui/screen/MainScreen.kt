@@ -169,6 +169,32 @@ fun MainScreen(
                 }
             }
 
+            item { Text(stringResource(R.string.made_for_you), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+
+            item {
+                if (widthClass != WindowWidthSizeClass.Compact) {
+                    val columns = if (widthClass == WindowWidthSizeClass.Expanded) 5 else 4
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        for (i in recommendedSongs.take(10).indices step columns) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                for (j in 0 until columns) {
+                                    val idx = i + j
+                                    if (idx < recommendedSongs.size && idx < 10) {
+                                        val s = recommendedSongs[idx]
+                                        SongCard(song = s, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f))
+                                    } else Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
+                        items(items = recommendedSongs.take(10), key = { "rec_${it.id}" }) { s -> SongCard(s, onClick = { onSongClick(s) }) }
+                    }
+                }
+            }
+
+
             item { Text(stringResource(R.string.recently_played), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
 
             item {

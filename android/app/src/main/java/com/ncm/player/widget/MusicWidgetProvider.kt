@@ -11,6 +11,7 @@ import android.widget.RemoteViews
 import com.ncm.player.MainActivity
 import com.ncm.player.R
 import com.ncm.player.service.MusicService
+import com.ncm.player.util.ImageUtils
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.toBitmap
@@ -19,13 +20,29 @@ class MusicWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
+            updateAppWidget(context, appWidgetManager, appWidgetId, null, null, null, false)
         }
     }
 
     companion object {
-        fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
+        fun updateAppWidget(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetId: Int,
+            songTitle: String?,
+            artistName: String?,
+            albumArtUrl: String?,
+            isPlaying: Boolean
+        ) {
             val views = RemoteViews(context.packageName, R.layout.music_widget)
+
+            // Content
+            views.setTextViewText(R.id.tv_title, songTitle ?: context.getString(R.string.app_name))
+            views.setTextViewText(R.id.tv_artist, artistName ?: "")
+            views.setImageViewResource(
+                R.id.btn_play_pause,
+                if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+            )
 
             // Open App
             val intent = Intent(context, MainActivity::class.java).apply {
@@ -39,6 +56,26 @@ class MusicWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.btn_prev, createServicePendingIntent(context, "ACTION_PREVIOUS", 1))
             views.setOnClickPendingIntent(R.id.btn_play_pause, createServicePendingIntent(context, "ACTION_TOGGLE_PLAY", 2))
             views.setOnClickPendingIntent(R.id.btn_next, createServicePendingIntent(context, "ACTION_NEXT", 3))
+
+            if (!albumArtUrl.isNullOrEmpty()) {
+                val loader = SingletonImageLoader.get(context)
+                val request = ImageRequest.Builder(context)
+                    .data(ImageUtils.getResizedImageUrl(albumArtUrl, 300))
+                    .target(
+                        onSuccess = { result ->
+                            views.setImageViewBitmap(R.id.iv_cover, result.toBitmap())
+                            appWidgetManager.updateAppWidget(appWidgetId, views)
+                        },
+                        onError = {
+                            views.setImageViewResource(R.id.iv_cover, R.mipmap.ic_launcher)
+                            appWidgetManager.updateAppWidget(appWidgetId, views)
+                        }
+                    )
+                    .build()
+                loader.enqueue(request)
+            } else {
+                views.setImageViewResource(R.id.iv_cover, R.mipmap.ic_launcher)
+            }
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -56,29 +93,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
             val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
 
             for (appWidgetId in appWidgetIds) {
-                val views = RemoteViews(context.packageName, R.layout.music_widget)
-                views.setTextViewText(R.id.tv_title, songTitle ?: context.getString(R.string.app_name))
-                views.setTextViewText(R.id.tv_artist, artistName ?: "")
-
-                views.setImageViewResource(
-                    R.id.btn_play_pause,
-                    if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
-                )
-
-                if (!albumArtUrl.isNullOrEmpty()) {
-                    val loader = SingletonImageLoader.get(context)
-                    val request = ImageRequest.Builder(context)
-                        .data(albumArtUrl)
-                        .target { result ->
-                            views.setImageViewBitmap(R.id.iv_cover, result.toBitmap())
-                            appWidgetManager.updateAppWidget(appWidgetId, views)
-                        }
-                        .build()
-                    loader.enqueue(request)
-                } else {
-                    views.setImageViewResource(R.id.iv_cover, R.mipmap.ic_launcher)
-                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                }
+                updateAppWidget(context, appWidgetManager, appWidgetId, songTitle, artistName, albumArtUrl, isPlaying)
             }
         }
     }

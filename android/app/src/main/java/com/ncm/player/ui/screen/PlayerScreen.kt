@@ -100,6 +100,7 @@ fun PlayerScreen(
     sleepTimerRemaining: Long = 0L,
     onSetSleepTimer: (Int) -> Unit = {},
     useCoverColor: Boolean = false,
+    useFluidBackground: Boolean = false,
     coverColor: Int? = null,
     onBackPressed: () -> Unit
 ) {
@@ -304,7 +305,7 @@ fun PlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            if (useCoverColor && coverColor != null) {
+            if (useCoverColor && coverColor != null && useFluidBackground) {
                 com.ncm.player.ui.component.FluidBackground(color = Color(coverColor))
             } else {
                 Box(modifier = Modifier.fillMaxSize().background(bgBrush))

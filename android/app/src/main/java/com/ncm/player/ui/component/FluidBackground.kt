@@ -49,18 +49,17 @@ private const val FLUID_SHADER = """
 
     half4 main(float2 fragCoord) {
         float2 uv = fragCoord / iResolution.xy;
-        float2 p = uv * 3.0;
+        float t = iTime * 0.1;
 
-        float t = iTime * 0.2;
-        float2 q = float2(fbm(p + t), fbm(p + 1.0));
-        float2 r = float2(fbm(p + 1.0 * q + float2(1.7, 9.2) + 0.15 * t), fbm(p + 1.0 * q + float2(8.3, 2.8) + 0.126 * t));
-        float f = fbm(p + r);
+        // Simplified flow
+        float n = noise(uv * 2.0 + t);
+        float n2 = noise(uv * 4.0 - t * 0.5);
 
-        float3 color = mix(iColor1, iColor2, clamp(f * f * 4.0, 0.0, 1.0));
-        color = mix(color, iColor3, clamp(length(q), 0.0, 1.0));
-        color = mix(color, iColor1, clamp(length(r.x), 0.0, 1.0));
+        float3 color = mix(iColor1, iColor2, n);
+        color = mix(color, iColor3, n2 * 0.5);
 
-        return half4(color * (f * f * f + 0.6 * f * f + 0.5 * f), 1.0);
+        // Soften and dim for background use
+        return half4(color * 0.6, 1.0);
     }
 """
 

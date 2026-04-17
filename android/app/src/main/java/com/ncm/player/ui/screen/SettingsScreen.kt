@@ -56,6 +56,8 @@ fun SettingsScreen(
     onFollowCoverMiniChange: (Boolean) -> Unit,
     followCoverPlayer: Boolean,
     onFollowCoverPlayerChange: (Boolean) -> Unit,
+    useFluidBackground: Boolean,
+    onUseFluidBackgroundChange: (Boolean) -> Unit,
     downloadDir: String?,
     onDownloadDirChange: (String) -> Unit,
     onClearCache: () -> Unit,
@@ -125,6 +127,10 @@ fun SettingsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onFollowCoverPlayerChange(!followCoverPlayer) }.padding(vertical = 4.dp)) {
                             Checkbox(checked = followCoverPlayer, onCheckedChange = onFollowCoverPlayerChange)
                             Text(stringResource(R.string.follow_cover_player), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onUseFluidBackgroundChange(!useFluidBackground) }.padding(vertical = 4.dp)) {
+                            Checkbox(checked = useFluidBackground, onCheckedChange = onUseFluidBackgroundChange)
+                            Text("Use Fluid Background", style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }

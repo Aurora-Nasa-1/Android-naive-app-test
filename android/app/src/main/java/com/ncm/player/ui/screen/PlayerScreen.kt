@@ -781,8 +781,9 @@ fun PlayerScreen(
                                     targetState = isPlaying,
                                     label = "PlayPauseAnimationMobile",
                                     transitionSpec = {
-                                        fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
-                                        fadeOut(animationSpec = tween(200)) + scaleOut()
+                                            // MD3E Spring based transition
+                                            (fadeIn(animationSpec = spring()) + scaleIn(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy))) togetherWith
+                                            (fadeOut(animationSpec = spring()) + scaleOut(animationSpec = spring()))
                                     }
                                 ) { targetPlaying ->
                                     Icon(

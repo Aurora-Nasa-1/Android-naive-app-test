@@ -92,7 +92,7 @@ fun AppNavigation(
     val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
     val showNav = loginViewModel.isLogged && !isPlayerScreen
     val hasBottomBar = showNav && !useSideNav
-    val bottomBarHeight = 144.dp
+    val bottomBarHeight = 96.dp // Reduced for DockedToolbar
     val density = LocalDensity.current
     val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
     val navBarHeightPx = with(density) { 80.dp.toPx() } // Standard M3 NavigationBar height is ~80dp
@@ -175,10 +175,10 @@ fun AppMainContent(
                 navController = navController,
                 startDestination = if (loginViewModel.isLogged) "main" else "login",
                 modifier = Modifier.fillMaxSize(),
-                enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(400, easing = EaseOutQuart)) + fadeIn(animationSpec = tween(400)) },
-                exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(400, easing = EaseOutQuart)) + fadeOut(animationSpec = tween(400)) },
-                popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(400, easing = EaseOutQuart)) + fadeIn(animationSpec = tween(400)) },
-                popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(400, easing = EaseOutQuart)) + fadeOut(animationSpec = tween(400)) }
+                enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeIn(animationSpec = spring()) },
+                exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeOut(animationSpec = spring()) },
+                popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeIn(animationSpec = spring()) },
+                popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeOut(animationSpec = spring()) }
             ) {
                 composable("login") { LoginScreen(loginViewModel, onLoginSuccess = { userViewModel.fetchUserData(); navController.navigate("main") { popUpTo("login") { inclusive = true } } }) }
                 composable("main") {
@@ -297,7 +297,7 @@ fun AppMainContent(
                         bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
                     )
                 }
-                composable("player", enterTransition = { slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(600, easing = EaseOutExpo)) + fadeIn(animationSpec = tween(400)) }, exitTransition = { slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(600, easing = EaseInExpo)) + fadeOut(animationSpec = tween(400)) }) {
+                composable("player", enterTransition = { slideInVertically(initialOffsetY = { it / 2 }, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeIn(animationSpec = spring()) }, exitTransition = { slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeOut(animationSpec = spring()) }) {
                     val s = playbackViewModel.currentSong
                     val completedSongs by downloadViewModel.completedSongs.collectAsState()
                     val isFav = s?.let { userViewModel.favoriteSongs.contains(it.id) } ?: false
@@ -374,22 +374,29 @@ fun AppMainContent(
             }
         }
         if (loginViewModel.isLogged && !isPlayerScreen && !useSideNav) {
-            Column(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))) {
-                if (playbackViewModel.currentSong != null) {
-                    BottomPlaybackBar(
-                        song = playbackViewModel.currentSong,
-                        isPlaying = playbackViewModel.isPlaying,
-                        isBuffering = playbackViewModel.isBuffering,
-                        onPlayPause = { playbackViewModel.togglePlayPause() },
-                        onSkipNext = { playbackViewModel.skipNext() },
-                        onSkipPrevious = { playbackViewModel.skipPrevious() },
-                        onClick = { navController.navigate("player") { launchSingleTop = true } },
-                        useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverMini,
-                        coverColor = playbackViewModel.extractedColor
-                    )
-                }
-                NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) { navItems.forEach { (route, label, icon) -> NavigationBarItem(icon = { Icon(icon, null) }, label = { Text(label) }, selected = currentDestination?.hierarchy?.any { it.route == route } == true, onClick = { navController.navigate(route) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } }) } }
-                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                DockedToolbar(
+                    song = playbackViewModel.currentSong,
+                    isPlaying = playbackViewModel.isPlaying,
+                    isBuffering = playbackViewModel.isBuffering,
+                    onPlayPause = { playbackViewModel.togglePlayPause() },
+                    onClick = { navController.navigate("player") { launchSingleTop = true } },
+                    navItems = navItems,
+                    currentRoute = currentDestination?.route,
+                    onNavItemClick = { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
         }
         downloadViewModel.showCellularDownloadDialog?.let { song ->

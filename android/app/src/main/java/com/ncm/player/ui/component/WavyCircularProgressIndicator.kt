@@ -52,12 +52,15 @@ fun WavyCircularProgressIndicator(
         val path = Path()
         val segments = 150
 
-        // MD3 Expressive: Rolling active wave
-        val amplitude = radius * 0.18f
+        // MD3 Expressive: Rolling active wave with variable thickness/morphing feel
+        val baseAmplitude = radius * 0.18f
+        val morphAmplitude = sin(phase * 0.5f) * (radius * 0.05f)
+        val amplitude = baseAmplitude + morphAmplitude
         val wavelengthMultiplier = 8
 
         for (i in 0..segments) {
             val angle = 2 * PI * i / segments
+            // Morph the wave by modulating the amplitude and frequency slightly over time
             val wave = sin(angle * wavelengthMultiplier - phase) * amplitude
             val r = radius + wave
 

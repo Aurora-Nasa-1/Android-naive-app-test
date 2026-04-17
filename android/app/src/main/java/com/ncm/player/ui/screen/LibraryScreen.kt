@@ -77,7 +77,8 @@ fun LibraryScreen(
                         Surface(
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = MaterialTheme.shapes.small
+                            shape = MaterialTheme.shapes.medium, // Upgraded from small
+                            shadowElevation = 2.dp
                         ) {
                             Icon(Icons.Default.DownloadDone, contentDescription = null, modifier = Modifier.padding(8.dp))
                         }
@@ -93,7 +94,8 @@ fun LibraryScreen(
                         Surface(
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.small
+                            shape = MaterialTheme.shapes.medium, // Upgraded from small
+                            shadowElevation = 2.dp
                         ) {
                             Icon(Icons.Default.CloudQueue, contentDescription = null, modifier = Modifier.padding(8.dp))
                         }
@@ -109,7 +111,8 @@ fun LibraryScreen(
                         Surface(
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.small
+                            shape = MaterialTheme.shapes.medium, // Upgraded from small
+                            shadowElevation = 2.dp
                         ) {
                             Icon(Icons.Default.AutoGraph, contentDescription = null, modifier = Modifier.padding(8.dp))
                         }

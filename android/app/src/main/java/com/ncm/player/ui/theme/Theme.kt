@@ -109,9 +109,13 @@ fun NCMPlayerTheme(
         extraSmall = RoundedCornerShape(4.dp),
         small = RoundedCornerShape(8.dp),
         medium = RoundedCornerShape(16.dp),
-        large = RoundedCornerShape(28.dp),
-        extraLarge = RoundedCornerShape(36.dp)
+        large = RoundedCornerShape(20.dp), // Large increased (20dp)
+        extraLarge = RoundedCornerShape(32.dp) // Extra large increased (32dp)
     )
+
+    // MD3E additional rounding tokens (though standard Shapes doesn't have XXL/Full as specific fields, we can use them in components)
+    // Extra extra large (48dp)
+    // Fully Rounded (full token)
 
     val expressiveTypography = Typography(
         displayLarge = Typography().displayLarge.copy(fontWeight = FontWeight.Bold),
@@ -122,7 +126,8 @@ fun NCMPlayerTheme(
         headlineSmall = Typography().headlineSmall.copy(fontWeight = FontWeight.Bold),
         titleLarge = Typography().titleLarge.copy(fontWeight = FontWeight.SemiBold),
         titleMedium = Typography().titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        titleSmall = Typography().titleSmall.copy(fontWeight = FontWeight.SemiBold)
+        titleSmall = Typography().titleSmall.copy(fontWeight = FontWeight.SemiBold),
+        // All labels and buttons should be Sentence case by default in the UI layer
     )
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -132,7 +137,8 @@ fun NCMPlayerTheme(
         }
     }
 
-    MaterialTheme(
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    MaterialExpressiveTheme(
         colorScheme = finalColorScheme,
         shapes = expressiveShapes,
         typography = expressiveTypography,

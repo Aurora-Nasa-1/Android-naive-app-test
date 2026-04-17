@@ -105,7 +105,8 @@ fun MainScreen(
                     IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
                     IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, null) }
                     IconButton(onClick = { showAccountDialog = true }) {
-                        Surface(modifier = Modifier.size(32.dp).clip(CircleShape), color = MaterialTheme.colorScheme.primaryContainer) {
+                        // Use a custom shape (extraLarge from updated theme is 32dp, which matches avatar)
+                        Surface(modifier = Modifier.size(32.dp).clip(MaterialTheme.shapes.extraLarge), color = MaterialTheme.colorScheme.primaryContainer) {
                             if (userProfile?.avatarUrl != null) {
                                 AsyncImage(model = userProfile.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
                             } else {

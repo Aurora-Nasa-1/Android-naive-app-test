@@ -28,6 +28,7 @@ import com.ncm.player.ui.theme.createCustomColorScheme
 fun BottomPlaybackBar(
     song: Song?,
     isPlaying: Boolean,
+    isBuffering: Boolean = false,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -101,10 +102,14 @@ fun BottomPlaybackBar(
                 }
 
                 IconButton(onClick = onPlayPause) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play"
-                    )
+                    if (isBuffering) {
+                        WavyCircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
+                    } else {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play"
+                        )
+                    }
                 }
 
                 IconButton(onClick = onSkipNext) {

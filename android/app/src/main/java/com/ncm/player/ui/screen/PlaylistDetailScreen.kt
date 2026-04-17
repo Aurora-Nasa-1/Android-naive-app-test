@@ -127,9 +127,22 @@ fun PlaylistDetailScreen(
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
                         }
+                        val context = androidx.compose.ui.platform.LocalContext.current
                         DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_name)) }, onClick = { onSortChange("name"); showSortMenu = false })
                             DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_artist)) }, onClick = { onSortChange("artist"); showSortMenu = false })
+                            DropdownMenuItem(
+                                text = { Text("Share Playlist") },
+                                onClick = {
+                                    val shareIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: ${playlist.name}\nhttps://music.163.com/playlist?id=${playlist.id}")
+                                        type = "text/plain"
+                                    }
+                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
+                                    showSortMenu = false
+                                }
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

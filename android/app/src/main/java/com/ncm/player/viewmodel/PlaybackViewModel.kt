@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.collectLatest
 class PlaybackViewModel(application: Application) : BaseViewModel(application) {
     var currentSong by mutableStateOf<Song?>(null)
     var isPlaying by mutableStateOf(false)
+    var isBuffering by mutableStateOf(false)
     var currentQueue by mutableStateOf<List<Song>>(emptyList())
     var currentPosition by mutableLongStateOf(0L)
     var duration by mutableLongStateOf(0L)
@@ -137,6 +138,7 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                         updateQueue()
                     }
                     override fun onPlaybackStateChanged(state: Int) {
+                        isBuffering = state == Player.STATE_BUFFERING
                         if (state == Player.STATE_READY || state == Player.STATE_BUFFERING) {
                             val d = controller.duration
                             if (d != C.TIME_UNSET) duration = d.coerceAtLeast(0L)

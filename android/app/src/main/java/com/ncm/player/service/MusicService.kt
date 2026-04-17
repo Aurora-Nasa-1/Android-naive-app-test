@@ -120,19 +120,23 @@ class MusicService : MediaSessionService() {
         player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 updateMediaSessionLayout()
+                updateWidget()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 updateMediaSessionLayout()
+                updateWidget()
             }
 
             override fun onEvents(player: Player, events: Player.Events) {
                 if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
                     updateMediaSessionLayout()
+                    updateWidget()
                 }
                 if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
                     val state = player.playbackState
                     updateMediaSessionLayout()
+                    updateWidget()
                     if (state == Player.STATE_READY) {
                         startPlaybackInfoLoop()
                     }
@@ -404,7 +408,30 @@ class MusicService : MediaSessionService() {
         }
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent != null) {
+            when (intent.action) {
+                "ACTION_PREVIOUS" -> player?.seekToPrevious()
+                "ACTION_NEXT" -> player?.seekToNext()
+                "ACTION_TOGGLE_PLAY" -> player?.let { if (it.isPlaying) it.pause() else it.play() }
+            }
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
+
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+
+    private fun updateWidget() {
+        val p = player ?: return
+        val item = p.currentMediaItem ?: return
+        com.ncm.player.widget.MusicWidgetProvider.updateAllWidgets(
+            this,
+            item.mediaMetadata.title?.toString(),
+            item.mediaMetadata.artist?.toString(),
+            item.mediaMetadata.artworkUri?.toString(),
+            p.isPlaying
+        )
+    }
 
     private fun updateMediaSessionLayout() {
         val session = mediaSession ?: return

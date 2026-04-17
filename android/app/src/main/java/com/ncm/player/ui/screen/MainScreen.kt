@@ -51,6 +51,7 @@ import com.ncm.player.ui.component.PlaylistItem
 @Composable
 fun MainScreen(
     recommendedSongs: List<Song>,
+    recommendedPlaylists: List<Playlist> = emptyList(),
     userPlaylists: List<Playlist>,
     userProfile: UserProfile?,
     versionName: String,
@@ -147,27 +148,23 @@ fun MainScreen(
                 }
             }
 
-            item { Text(stringResource(R.string.made_for_you), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            if (recommendedPlaylists.isNotEmpty()) {
+                item { Text("Recommended Playlists", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
 
-            item {
-                if (widthClass != WindowWidthSizeClass.Compact) {
-                    val columns = if (widthClass == WindowWidthSizeClass.Expanded) 5 else 4
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        for (i in recommendedSongs.take(10).indices step columns) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                for (j in 0 until columns) {
-                                    val idx = i + j
-                                    if (idx < recommendedSongs.size && idx < 10) {
-                                        val s = recommendedSongs[idx]
-                                        SongCard(song = s, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f))
-                                    } else Spacer(Modifier.weight(1f))
-                                }
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
+                        items(items = recommendedPlaylists, key = { "rec_pl_${it.id}" }) { p ->
+                            Column(modifier = Modifier.width(160.dp).clickable { onPlaylistClick(p) }) {
+                                AsyncImage(
+                                    model = ImageUtils.getResizedImageUrl(p.coverImgUrl ?: "", 400),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(160.dp).clip(MaterialTheme.shapes.large),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
                         }
-                    }
-                } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
-                        items(items = recommendedSongs.take(10), key = { "rec_${it.id}" }) { s -> SongCard(s, onClick = { onSongClick(s) }) }
                     }
                 }
             }

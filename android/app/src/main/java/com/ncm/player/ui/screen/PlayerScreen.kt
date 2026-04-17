@@ -49,6 +49,7 @@ fun PlayerScreen(
     song: Song?,
     lyrics: List<LyricLine> = emptyList(),
     isPlaying: Boolean,
+    isBuffering: Boolean = false,
     currentPosition: Long = 0L,
     duration: Long = 0L,
     onPlayPause: () -> Unit,
@@ -302,8 +303,12 @@ fun PlayerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(bgBrush)
         ) {
+            if (useCoverColor && coverColor != null) {
+                com.ncm.player.ui.component.FluidBackground(color = Color(coverColor))
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(bgBrush))
+            }
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -440,6 +445,32 @@ fun PlayerScreen(
                                 Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
                             }
 
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(top = 4.dp).clickable { showQualityInfoDialog = true }
+                        ) {
+                            if (bitrate > 0) {
+                                Surface(
+                                    color = if (bitrate > 800000) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = MaterialTheme.shapes.extraSmall
+                                ) {
+                                    Text(
+                                        text = if (bitrate > 800000) "HI-RES" else "LOSSLESS",
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (bitrate > 800000) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                                Text(
+                                    text = "${bitrate / 1000} kbps" + (if (sampleRate > 0) " / ${sampleRate / 1000} kHz" else ""),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Row(
@@ -465,11 +496,15 @@ fun PlayerScreen(
                                     containerColor = Color.White,
                                     contentColor = Color.Black
                                 ) {
-                                    Icon(
-                                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Play/Pause",
-                                        modifier = Modifier.size(36.dp)
-                                    )
+                                    if (isBuffering) {
+                                        WavyCircularProgressIndicator(modifier = Modifier.size(32.dp), color = Color.Black)
+                                    } else {
+                                        Icon(
+                                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = "Play/Pause",
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
                                 }
                                 IconButton(onClick = onSkipNext, modifier = Modifier.requiredSize(56.dp)) {
                                     Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(36.dp))
@@ -542,6 +577,19 @@ fun PlayerScreen(
                                             leadingIcon = { Icon(Icons.Default.HighQuality, null) },
                                             onClick = {
                                                 showQualityInfoDialog = true
+                                                showMoreMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Share Song") },
+                                            leadingIcon = { Icon(Icons.Default.Share, null) },
+                                            onClick = {
+                                                val shareIntent = android.content.Intent().apply {
+                                                    action = android.content.Intent.ACTION_SEND
+                                                    putExtra(android.content.Intent.EXTRA_TEXT, "Check out this song: ${song.name} by ${song.artist}\nhttps://music.163.com/song?id=${song.id}")
+                                                    type = "text/plain"
+                                                }
+                                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Song"))
                                                 showMoreMenu = false
                                             }
                                         )
@@ -670,6 +718,32 @@ fun PlayerScreen(
                             Text(formatTime(currentPosition), style = MaterialTheme.typography.labelSmall)
                             Text(formatTime(duration), style = MaterialTheme.typography.labelSmall)
                         }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(top = 4.dp).clickable { showQualityInfoDialog = true }
+                        ) {
+                            if (bitrate > 0) {
+                                Surface(
+                                    color = if (bitrate > 800000) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = MaterialTheme.shapes.extraSmall
+                                ) {
+                                    Text(
+                                        text = if (bitrate > 800000) "HI-RES" else "LOSSLESS",
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (bitrate > 800000) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                                Text(
+                                    text = "${bitrate / 1000} kbps",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                     }
 
                     Row(
@@ -699,19 +773,23 @@ fun PlayerScreen(
                             containerColor = Color.White,
                             contentColor = Color.Black
                         ) {
-                            AnimatedContent(
-                                targetState = isPlaying,
-                                label = "PlayPauseAnimationMobile",
-                                transitionSpec = {
-                                    fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
-                                    fadeOut(animationSpec = tween(200)) + scaleOut()
+                            if (isBuffering) {
+                                WavyCircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.Black)
+                            } else {
+                                AnimatedContent(
+                                    targetState = isPlaying,
+                                    label = "PlayPauseAnimationMobile",
+                                    transitionSpec = {
+                                        fadeIn(animationSpec = tween(200)) + scaleIn() togetherWith
+                                        fadeOut(animationSpec = tween(200)) + scaleOut()
+                                    }
+                                ) { targetPlaying ->
+                                    Icon(
+                                        if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = "Play/Pause",
+                                        modifier = Modifier.size(40.dp)
+                                    )
                                 }
-                            ) { targetPlaying ->
-                                Icon(
-                                    if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Play/Pause",
-                                    modifier = Modifier.size(40.dp)
-                                )
                             }
                         }
                         IconButton(onClick = onSkipNext) {
@@ -791,6 +869,19 @@ fun PlayerScreen(
                                     leadingIcon = { Icon(Icons.Default.HighQuality, null) },
                                     onClick = {
                                         showQualityInfoDialog = true
+                                        showMoreMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Share Song") },
+                                    leadingIcon = { Icon(Icons.Default.Share, null) },
+                                    onClick = {
+                                        val shareIntent = android.content.Intent().apply {
+                                            action = android.content.Intent.ACTION_SEND
+                                            putExtra(android.content.Intent.EXTRA_TEXT, "Check out this song: ${song.name} by ${song.artist}\nhttps://music.163.com/song?id=${song.id}")
+                                            type = "text/plain"
+                                        }
+                                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Song"))
                                         showMoreMenu = false
                                     }
                                 )

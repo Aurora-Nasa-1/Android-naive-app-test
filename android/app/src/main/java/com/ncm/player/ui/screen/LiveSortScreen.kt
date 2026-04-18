@@ -4,6 +4,7 @@ import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -148,7 +149,10 @@ fun LiveSortScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         items(state.sortedSongs) { item ->
                             ListItem(
                                 headlineContent = { Text(item.song.name, maxLines = 1) },
@@ -158,7 +162,13 @@ fun LiveSortScreen(
                                         Text("BPM: ${"%.0f".format(item.bpm)}", style = MaterialTheme.typography.bodySmall)
                                         Text("Energy: ${"%.2f".format(item.energy)}", style = MaterialTheme.typography.bodySmall)
                                     }
-                                }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
+                                colors = ListItemDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                )
                             )
                         }
                     }

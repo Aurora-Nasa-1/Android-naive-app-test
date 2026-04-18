@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DownloadDone
@@ -16,6 +17,7 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +28,8 @@ import com.ncm.player.R
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
 import com.ncm.player.ui.component.PlaylistItem
+import com.ncm.player.ui.component.ExpressiveShapes
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -62,12 +66,19 @@ fun LibraryScreen(
         }
     ) { innerPadding ->
         val columns = if (isWideScreen) 2 else 1
+        val topItemsCount = 3
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = bottomContentPadding.calculateBottomPadding())
+            contentPadding = PaddingValues(
+                start = 0.dp,
+                end = 0.dp,
+                bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
                 ListItem(
@@ -77,13 +88,17 @@ fun LibraryScreen(
                         Surface(
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = MaterialTheme.shapes.medium, // Upgraded from small
+                            shape = MaterialTheme.shapes.medium,
                             shadowElevation = 2.dp
                         ) {
                             Icon(Icons.Default.DownloadDone, contentDescription = null, modifier = Modifier.padding(8.dp))
                         }
                     },
-                    modifier = Modifier.clickable { onNavigateToDownloads() }
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(ExpressiveShapes.calculateShape(0, topItemsCount))
+                        .clickable { onNavigateToDownloads() },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 )
             }
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
@@ -94,13 +109,17 @@ fun LibraryScreen(
                         Surface(
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.medium, // Upgraded from small
+                            shape = MaterialTheme.shapes.medium,
                             shadowElevation = 2.dp
                         ) {
                             Icon(Icons.Default.CloudQueue, contentDescription = null, modifier = Modifier.padding(8.dp))
                         }
                     },
-                    modifier = Modifier.clickable { onNavigateToCloud() }
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(ExpressiveShapes.calculateShape(1, topItemsCount))
+                        .clickable { onNavigateToCloud() },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 )
             }
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
@@ -111,21 +130,35 @@ fun LibraryScreen(
                         Surface(
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.medium, // Upgraded from small
+                            shape = MaterialTheme.shapes.medium,
                             shadowElevation = 2.dp
                         ) {
                             Icon(Icons.Default.AutoGraph, contentDescription = null, modifier = Modifier.padding(8.dp))
                         }
                     },
-                    modifier = Modifier.clickable { onNavigateToLiveSort() }
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(ExpressiveShapes.calculateShape(2, topItemsCount))
+                        .clickable { onNavigateToLiveSort() },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 )
             }
-            items(
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(columns) }) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            itemsIndexed(
                 items = userPlaylists,
-                key = { it.id },
-                contentType = { "playlist" }
-            ) { playlist ->
-                PlaylistItem(playlist, { onPlaylistClick(playlist) })
+                key = { _, it -> it.id },
+                contentType = { _, _ -> "playlist" }
+            ) { index, playlist ->
+                PlaylistItem(
+                    playlist = playlist,
+                    onClick = { onPlaylistClick(playlist) },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(ExpressiveShapes.calculateShape(index, userPlaylists.size)),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
             }
         }
     }

@@ -27,6 +27,8 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var useFluidBackground by mutableStateOf(UserPreferences.getUseFluidBackground(application))
         private set
+    var useWavyProgress by mutableStateOf(UserPreferences.getUseWavyProgress(application))
+        private set
     var downloadDir by mutableStateOf(UserPreferences.getDownloadDir(application))
         private set
 
@@ -83,6 +85,11 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updateUseFluidBackground(e: Boolean) {
         useFluidBackground = e
         UserPreferences.saveUseFluidBackground(getApplication(), e)
+    }
+
+    fun updateUseWavyProgress(e: Boolean) {
+        useWavyProgress = e
+        UserPreferences.saveUseWavyProgress(getApplication(), e)
     }
 
     fun updateDownloadPath(p: String) {

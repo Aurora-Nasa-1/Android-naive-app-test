@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class DownloadedSongMetadata(
     val song: Song,
-    val filePath: String,
+    val filePath: String?,
     val downloadTime: Long = System.currentTimeMillis()
 )
 

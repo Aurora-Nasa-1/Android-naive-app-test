@@ -16,11 +16,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.ncm.player.model.Song
+import com.ncm.player.ui.component.ExpressiveShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +55,8 @@ fun QueueBottomSheet(
 
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                state = listState
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 itemsIndexed(items) { index, song ->
                     QueueItem(
@@ -60,7 +64,8 @@ fun QueueBottomSheet(
                         isCurrent = song.id == currentSongId,
                         onRemove = { onRemove(index) },
                         onMoveUp = { if (index > 0) onMove(index, index - 1) },
-                        onMoveDown = { if (index < items.size - 1) onMove(index, index + 1) }
+                        onMoveDown = { if (index < items.size - 1) onMove(index, index + 1) },
+                        shape = ExpressiveShapes.calculateShape(index, items.size)
                     )
                 }
             }
@@ -75,10 +80,11 @@ fun QueueItem(
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(6.dp),
 ) {
     ListItem(
-        modifier = modifier,
+        modifier = modifier.clip(shape),
         headlineContent = {
             Text(
                 song.name,
@@ -104,7 +110,10 @@ fun QueueItem(
             Icon(Icons.Default.DragHandle, contentDescription = "Drag")
         },
         colors = ListItemDefaults.colors(
-            containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
+            containerColor = if (isCurrent) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) 
+            else 
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     )
 }

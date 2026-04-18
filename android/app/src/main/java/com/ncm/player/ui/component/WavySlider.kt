@@ -1,9 +1,10 @@
 package com.ncm.player.ui.component
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -12,15 +13,40 @@ fun WavySlider(
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    colors: SliderColors = SliderDefaults.colors()
+    isWavy: Boolean = true,
+    onValueChangeFinished: (() -> Unit)? = null,
+    colors: SliderColors = SliderDefaults.colors(),
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 ) {
-    // Current M3 1.5.0-alpha17 seems to have changed name or it's temporarily missing.
-    // We'll use a standard Slider for now to allow the build to pass.
     Slider(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
         enabled = enabled,
-        colors = colors
+        onValueChangeFinished = onValueChangeFinished,
+        colors = colors,
+        interactionSource = interactionSource,
+        track = { sliderState ->
+            if (isWavy) {
+                LinearWavyProgressIndicator(
+                    progress = { sliderState.value },
+                    modifier = Modifier,
+                    color = colors.activeTrackColor,
+                    trackColor = colors.inactiveTrackColor,
+                    gapSize = 0.dp,
+                    stopSize = 0.dp
+                )
+            } else {
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    modifier = Modifier,
+                    colors = colors,
+                    enabled = enabled,
+                    drawStopIndicator = null,
+                    thumbTrackGapSize = 0.dp,
+                    trackInsideCornerSize = 0.dp
+                )
+            }
+        }
     )
 }

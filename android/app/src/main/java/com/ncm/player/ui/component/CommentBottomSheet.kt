@@ -87,7 +87,8 @@ fun CommentBottomSheet(
 
             LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 if (hotComments.isNotEmpty()) {
                     item {

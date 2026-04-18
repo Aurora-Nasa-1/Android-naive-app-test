@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,7 @@ import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
+import com.ncm.player.ui.component.ExpressiveShapes
 import com.ncm.player.ui.component.SongItem
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -164,28 +166,34 @@ fun PlaylistDetailScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
+                    start = 0.dp,
+                    end = 0.dp,
                     top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp
-                )
+                ),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 if (!isSelectionMode) {
                     item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }
                 }
 
-                itemsIndexed(items = songs, key = { _, s -> s.id }) { index, song ->
+                itemsIndexed(items = songs, key = { _, song -> song.id }) { index, song ->
                     val isSelected = selectedSongs.contains(song.id)
+                    val itemShape = ExpressiveShapes.calculateShape(index, songs.size)
                     SongItem(
                         song = song,
                         isFavorite = favoriteSongs.contains(song.id),
                         isDownloaded = completedSongs.contains(song.id),
                         onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
                         onClick = null,
+                        shape = itemShape,
                         leadingContent = if (isSelectionMode) {
                             { Checkbox(checked = isSelected, onCheckedChange = {
                                 selectedSongs = if (it) selectedSongs + song.id else selectedSongs - song.id
                             }) }
                         } else null,
                         modifier = Modifier
+                            .padding(horizontal = 16.dp)
                             .combinedClickable(
                                 onClick = {
                                     if (isSelectionMode) {
@@ -201,8 +209,7 @@ fun PlaylistDetailScreen(
                                     }
                                 }
                             ),
-                        showDivider = index < songs.size - 1,
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
                 }
             }

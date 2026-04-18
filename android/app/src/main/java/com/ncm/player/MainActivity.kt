@@ -92,10 +92,10 @@ fun AppNavigation(
     val isPlayerScreen = currentDestination?.route == "player" || currentDestination?.route == "lyrics"
     val showNav = loginViewModel.isLogged && !isPlayerScreen
     val hasBottomBar = showNav // Show bottom bar (Nav or Docked) if logged and not in player
-    val bottomBarHeight = 140.dp // Space for Nav + Capsule or Docked
+    val bottomBarHeight = 150.dp // Space for Nav + Capsule or Docked
     val density = LocalDensity.current
     val bottomBarOffsetHeightPx = remember { mutableStateOf(0f) }
-    val navBarHeightPx = with(density) { 80.dp.toPx() } // Standard M3 NavigationBar height is ~80dp
+    val navBarHeightPx = with(density) { 90.dp.toPx() } // Standard M3 NavigationBar height is ~80dp
     val maxOffset = navBarHeightPx + WindowInsets.navigationBars.getBottom(density)
 
     val nestedScrollConnection = remember {
@@ -114,11 +114,14 @@ fun AppNavigation(
         containerColor = Color.Transparent,
         bottomBar = {
             if (showNav && !useSideNav) {
-                NavigationBar(
-                    modifier = Modifier.offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
+                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                ShortNavigationBar(
+                    modifier = Modifier
+                        .height(90.dp)
+                        .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
                 ) {
                     navItems.forEach { (route, label, icon) ->
-                        NavigationBarItem(
+                        ShortNavigationBarItem(
                             icon = { Icon(icon, contentDescription = label) },
                             label = { Text(label) },
                             selected = currentDestination?.hierarchy?.any { it.route == route } == true,
@@ -282,6 +285,8 @@ fun AppMainContent(
                         onFollowCoverPlayerChange = { settingsViewModel.updateFollowCoverPlayer(it) },
                         useFluidBackground = settingsViewModel.useFluidBackground,
                         onUseFluidBackgroundChange = { settingsViewModel.updateUseFluidBackground(it) },
+                        useWavyProgress = settingsViewModel.useWavyProgress,
+                        onUseWavyProgressChange = { settingsViewModel.updateUseWavyProgress(it) },
                         downloadDir = settingsViewModel.downloadDir,
                         onDownloadDirChange = { settingsViewModel.updateDownloadPath(it) },
                         onClearCache = { settingsViewModel.clearCache() },
@@ -348,6 +353,7 @@ fun AppMainContent(
                         onDismissFloor = { socialViewModel.activeParentComment = null },
                         useCoverColor = settingsViewModel.themeMode == 1 && settingsViewModel.followCoverPlayer,
                         useFluidBackground = settingsViewModel.useFluidBackground,
+                        useWavyProgress = settingsViewModel.useWavyProgress,
                         coverColor = playbackViewModel.extractedColor,
                         onBackPressed = { navController.popBackStack() }
                     )
@@ -399,7 +405,7 @@ fun AppMainContent(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 96.dp) // Positioned above the Bottom Nav
+                            .padding(end = 16.dp, bottom = 98.dp) // Positioned above the Bottom Nav
                             .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
                     ) {
                         BottomPlaybackBar(

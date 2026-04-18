@@ -55,13 +55,16 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
         viewModelScope.launch {
             DownloadRegistry.downloadedSongsFlow.collectLatest { list ->
-                localSongs = list.map { metadata ->
-                    val uri = if (metadata.filePath.startsWith("content://")) {
+                localSongs = list.mapNotNull { metadata ->
+                    @Suppress("SENSELESS_COMPARISON")
+                    val song = metadata.song
+                    if (song == null) return@mapNotNull null
+                    val uri = if (metadata.filePath?.startsWith("content://") == true) {
                         android.net.Uri.parse(metadata.filePath)
                     } else {
-                        android.net.Uri.fromFile(java.io.File(metadata.filePath))
+                        android.net.Uri.fromFile(java.io.File(metadata.filePath ?: ""))
                     }
-                    metadata.song to uri
+                    song to uri
                 }
             }
         }
@@ -238,21 +241,24 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    fun playSong(song: Song, playlist: List<Song> = emptyList()) {
+    fun playSong(song: Song?, playlist: List<Song?> = emptyList()) {
+        if (song == null) return
         isFmMode = false
-        val target = if (playlist.isNotEmpty()) playlist else listOf(song)
+        val target = (if (playlist.isNotEmpty()) playlist else listOf(song)).filterNotNull()
         val startIndex = target.indexOf(song).coerceAtLeast(0)
 
         runWithController { controller ->
             controller.stop()
             controller.clearMediaItems()
-            controller.setMediaItems(target.map { createMediaItem(it) }, startIndex, 0L)
+            val items = target.mapNotNull { createMediaItem(it) }
+            controller.setMediaItems(items, startIndex.coerceAtMost(items.size - 1), 0L)
             controller.prepare()
             controller.play()
         }
     }
 
-    private fun createMediaItem(song: Song): MediaItem {
+    private fun createMediaItem(song: Song?): MediaItem? {
+        if (song == null) return null
         val metadata = MediaMetadata.Builder()
             .setTitle(song.name)
             .setArtist(song.artist)
@@ -261,7 +267,10 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
             .setExtras(Bundle().apply { putString("artistId", song.artistId) })
             .build()
 
-        val localUri = localSongs.find { it.first.id == song.id }?.second
+        val localUri = localSongs.find { (s, _) -> 
+            @Suppress("SENSELESS_COMPARISON")
+            s != null && s.id == song.id 
+        }?.second
         val mediaUri = if (localUri != null) {
             localUri
         } else {
@@ -297,7 +306,11 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
 
     fun toggleShuffleMode() = runWithController { it.shuffleModeEnabled = !it.shuffleModeEnabled }
 
-    fun addToQueue(song: Song) = runWithController { it.addMediaItem(createMediaItem(song)) }
+    fun addToQueue(song: Song?) = runWithController { controller ->
+        if (song != null) {
+            createMediaItem(song)?.let { controller.addMediaItem(it) }
+        }
+    }
     fun moveQueueItem(f: Int, t: Int) = runWithController { it.moveMediaItem(f, t); updateQueue() }
     fun removeQueueItem(i: Int) = runWithController { it.removeMediaItem(i); updateQueue() }
     fun clearQueue() = runWithController { it.clearMediaItems(); updateQueue() }
@@ -353,7 +366,11 @@ class PlaybackViewModel(application: Application) : BaseViewModel(application) {
                 val body = withContext(Dispatchers.IO) { callApi("personal_fm") }
                 val songs = (body.get("data")?.asJsonArray ?: body.get("result")?.asJsonArray)
                     ?.mapNotNull { JsonUtils.parseSong(it) } ?: emptyList()
-                runWithController { controller -> songs.forEach { controller.addMediaItem(createMediaItem(it)) } }
+                runWithController { controller ->
+                    songs.filterNotNull().forEach { song ->
+                        createMediaItem(song)?.let { controller.addMediaItem(it) }
+                    }
+                }
             } finally { isFetchingMoreFm = false }
         }
     }

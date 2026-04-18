@@ -46,6 +46,7 @@ import com.ncm.player.ui.component.UserAccountDialog
 import com.ncm.player.ui.component.SongItem
 import com.ncm.player.ui.component.SongCard
 import com.ncm.player.ui.component.PlaylistItem
+import com.ncm.player.ui.component.ExpressiveShapes
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -138,14 +139,13 @@ fun MainScreen(
                     itemsToRender.add { m -> QuickAccessCard(stringResource(R.string.live_sort), { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.tertiary) }, onLiveSortClick, m) }
                     displayPlaylists.forEach { p -> itemsToRender.add { m -> PlaylistQuickCard(p, { onPlaylistClick(p) }, m) } }
 
-                    for (i in itemsToRender.indices step gridColumns) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            for (j in 0 until gridColumns) {
-                                if (i + j < itemsToRender.size) itemsToRender[i + j](Modifier.weight(1f)) else Spacer(Modifier.weight(1f))
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
+                    com.ncm.player.ui.component.VerticalGrid(
+                        items = itemsToRender,
+                        columns = gridColumns,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) { item -> item(Modifier.weight(1f)) }
                 }
             }
 
@@ -175,19 +175,12 @@ fun MainScreen(
             item {
                 if (widthClass != WindowWidthSizeClass.Compact) {
                     val columns = if (widthClass == WindowWidthSizeClass.Expanded) 5 else 4
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        for (i in recommendedSongs.take(10).indices step columns) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                for (j in 0 until columns) {
-                                    val idx = i + j
-                                    if (idx < recommendedSongs.size && idx < 10) {
-                                        val s = recommendedSongs[idx]
-                                        SongCard(song = s, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f))
-                                    } else Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                    }
+                    com.ncm.player.ui.component.VerticalGrid(
+                        items = recommendedSongs.take(10),
+                        columns = columns,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) { s -> SongCard(song = s, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f)) }
                 } else {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
                         items(items = recommendedSongs.take(10), key = { "rec_${it.id}" }) { s -> SongCard(s, onClick = { onSongClick(s) }) }
@@ -202,28 +195,21 @@ fun MainScreen(
                 val columns = if (widthClass != WindowWidthSizeClass.Compact) 2 else 1
                 val items = recommendedSongs.drop(10).take(if (columns > 1) 10 else 5)
 
-                Column {
-                    for (i in items.indices step columns) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            for (j in 0 until columns) {
-                                val idx = i + j
-                                if (idx < items.size) {
-                                    val s = items[idx]
-                                    SongItem(
-                                        song = s,
-                                        isFavorite = favoriteSongs.contains(s.id),
-                                        isDownloaded = completedSongs.contains(s.id),
-                                        onLikeClick = { onLikeClick(s) },
-                                        onClick = { onSongClick(s) },
-                                        showDivider = if (columns == 1) idx < items.size - 1 else false,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                } else if (columns > 1) {
-                                    Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                    }
+                com.ncm.player.ui.component.IndexedVerticalGrid(
+                    items = items,
+                    columns = columns,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) { _, s, rowIndex, totalRows ->
+                    SongItem(
+                        song = s,
+                        isFavorite = favoriteSongs.contains(s.id),
+                        isDownloaded = completedSongs.contains(s.id),
+                        onLikeClick = { onLikeClick(s) },
+                        onClick = { onSongClick(s) },
+                        modifier = Modifier.weight(1f),
+                        shape = ExpressiveShapes.calculateShape(rowIndex, totalRows)
+                    )
                 }
             }
         }

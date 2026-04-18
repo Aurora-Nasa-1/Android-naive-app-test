@@ -5,9 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.draw.clip
+import com.ncm.player.ui.component.ExpressiveShapes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -97,11 +101,11 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(8.dp)
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        items(logs) { entry ->
-                            LogEntryItem(entry)
-                            HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+                        itemsIndexed(logs) { index, entry ->
+                            LogEntryItem(entry, ExpressiveShapes.calculateShape(index, logs.size))
                         }
                         if (logs.isEmpty()) {
                             item {
@@ -116,7 +120,7 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
 }
 
 @Composable
-fun LogEntryItem(entry: LogManager.LogEntry) {
+fun LogEntryItem(entry: LogManager.LogEntry, shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(6.dp)) {
     val color = when (entry.level) {
         "E" -> Color.Red
         "W" -> Color.Yellow
@@ -124,7 +128,13 @@ fun LogEntryItem(entry: LogManager.LogEntry) {
         else -> Color.LightGray
     }
 
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(12.dp)
+    ) {
         Row {
             Text(
                 text = entry.time,

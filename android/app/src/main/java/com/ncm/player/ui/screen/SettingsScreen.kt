@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import com.ncm.player.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +60,8 @@ fun SettingsScreen(
     onFollowCoverPlayerChange: (Boolean) -> Unit,
     useFluidBackground: Boolean,
     onUseFluidBackgroundChange: (Boolean) -> Unit,
+    useWavyProgress: Boolean,
+    onUseWavyProgressChange: (Boolean) -> Unit,
     downloadDir: String?,
     onDownloadDirChange: (String) -> Unit,
     onClearCache: () -> Unit,
@@ -136,6 +140,14 @@ fun SettingsScreen(
                 }
 
                 SwitchSettingItem(
+                    icon = Icons.Default.GraphicEq,
+                    title = "Wavy Progress Bar",
+                    subtitle = "Toggle between wavy and straight progress bar in player screen",
+                    checked = useWavyProgress,
+                    onCheckedChange = onUseWavyProgressChange
+                )
+
+                SwitchSettingItem(
                     icon = Icons.Default.Brightness4,
                     title = stringResource(R.string.pure_black_mode),
                     subtitle = stringResource(R.string.pure_black_desc),
@@ -179,7 +191,9 @@ fun SettingsScreen(
                     headlineContent = { Text(stringResource(R.string.download_dir)) },
                     supportingContent = { Text(downloadDir?.substringAfterLast("%2F") ?: "System Music folder") },
                     leadingContent = { Icon(Icons.Default.Folder, null) },
-                    modifier = Modifier.clickable { dirPicker.launch(null) },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable { dirPicker.launch(null) },
                     colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
                 )
             }
@@ -267,15 +281,16 @@ fun SettingsCategory(title: String, content: @Composable ColumnScope.() -> Unit)
             text = title,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)
+            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
         )
         Surface(
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(vertical = 8.dp),
+                modifier = Modifier.padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
                 content = content
             )
         }
@@ -296,7 +311,9 @@ fun QualitySettingItem(
         headlineContent = { Text(label) },
         supportingContent = { Text(selectedQuality.replaceFirstChar { it.uppercase() }) },
         leadingContent = { Icon(icon, null) },
-        modifier = Modifier.clickable { showDialog = true },
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .clickable { showDialog = true },
         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
     )
 
@@ -347,7 +364,9 @@ fun ThemeModeSettingItem(
         headlineContent = { Text(stringResource(R.string.theme_mode)) },
         supportingContent = { Text(modes.getOrElse(themeMode) { modes[0] }) },
         leadingContent = { Icon(Icons.Default.Brightness4, null) },
-        modifier = Modifier.clickable { showDialog = true },
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .clickable { showDialog = true },
         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
     )
 
@@ -397,6 +416,7 @@ fun SwitchSettingItem(
         trailingContent = {
             Switch(checked = checked, onCheckedChange = onCheckedChange)
         },
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)),
         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
     )
 }

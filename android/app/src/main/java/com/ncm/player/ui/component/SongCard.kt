@@ -7,6 +7,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -19,16 +21,17 @@ fun SongCard(song: Song, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .then(if (modifier == Modifier) Modifier.width(160.dp) else Modifier)
+            .clip(RoundedCornerShape(6.dp))
             .clickable { onClick() }
+            .padding(8.dp)
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
-            shape = MaterialTheme.shapes.large, // 20dp from our updated theme
+            shape = RoundedCornerShape(6.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
-            shadowElevation = 4.dp, // 2.5D visual effect
-            tonalElevation = 2.dp
+            shadowElevation = 2.dp
         ) {
             if (song.albumArtUrl != null) {
                 AsyncImage(

@@ -27,7 +27,7 @@ fun LyricContent(
     currentPosition: Long,
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,
-    contentPadding: PaddingValues = PaddingValues(vertical = 200.dp, horizontal = 24.dp)
+    contentPadding: PaddingValues = PaddingValues(top = 100.dp, bottom = 600.dp, start = 24.dp, end = 24.dp)
 ) {
     val listState = rememberLazyListState()
 
@@ -42,12 +42,10 @@ fun LyricContent(
 
     LaunchedEffect(activeIndex) {
         if (lyrics.isNotEmpty() && activeIndex >= 0) {
-            // MD3 Expressive: Precise centering of active lyric
-            // The goal is to align the item's top to (screenHeight/2 - itemHeight/2)
-            // Since we don't know itemHeight easily, we approximate with a 1/3 offset
+            // Move active lyric to the upper part of the screen (around 1/5 from top for better visibility)
             listState.animateScrollToItem(
                 index = activeIndex,
-                scrollOffset = -(screenHeightPx / 2.2).toInt()
+                scrollOffset = -(screenHeightPx / 5.0).toInt()
             )
         }
     }

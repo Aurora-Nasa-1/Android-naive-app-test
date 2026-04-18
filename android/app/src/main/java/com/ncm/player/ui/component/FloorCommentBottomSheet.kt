@@ -75,7 +75,8 @@ fun FloorCommentBottomSheet(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp)
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     item {
                         CommentItem(
@@ -84,7 +85,12 @@ fun FloorCommentBottomSheet(
                             onReplyClick = { onReplyClick(parentComment) },
                             onAvatarClick = { onAvatarClick(parentComment.userId) }
                         )
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "All Replies",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
 
                     items(replies, key = { it.id }) { comment ->

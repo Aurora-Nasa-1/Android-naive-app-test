@@ -16,7 +16,12 @@ import com.ncm.player.model.Playlist
 import com.ncm.player.util.ImageUtils
 
 @Composable
-fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
+fun PlaylistItem(
+    playlist: Playlist,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color.Transparent
+) {
     ListItem(
         headlineContent = { Text(playlist.name, style = MaterialTheme.typography.titleMedium) },
         supportingContent = { Text("${playlist.trackCount} songs", style = MaterialTheme.typography.bodyMedium) },
@@ -41,9 +46,9 @@ fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
                 }
             }
         },
-        modifier = Modifier
-            .clip(MaterialTheme.shapes.medium)
+        modifier = modifier
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
             .clickable { onClick() },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        colors = ListItemDefaults.colors(containerColor = containerColor)
     )
 }

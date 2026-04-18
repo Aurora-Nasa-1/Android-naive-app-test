@@ -17,6 +17,8 @@ import com.ncm.player.R
 import com.ncm.player.model.Song
 import com.ncm.player.ui.component.SongItem
 import com.ncm.player.ui.component.WavyCircularProgressIndicator
+import com.ncm.player.ui.component.ExpressiveShapes
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,16 +57,21 @@ fun CloudMusicScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
+                        start = 0.dp,
+                        end = 0.dp,
+                        top = 8.dp,
                         bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
-                    )
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    itemsIndexed(songs, key = { _, s -> s.id }) { index, song ->
+                    itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
                         SongItem(
                             song = song,
                             isFavorite = favoriteSongs.contains(song.id),
                             onClick = { onSongClick(song) },
                             onLikeClick = { onLikeClick(song) },
-                            showDivider = index < songs.size - 1
+                            shape = ExpressiveShapes.calculateShape(index, songs.size),
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
                 }

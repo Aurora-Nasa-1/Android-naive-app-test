@@ -82,9 +82,12 @@ fun UserProfileScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
+                    start = 8.dp,
+                    end = 8.dp,
                     top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding() + 16.dp
-                )
+                ),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 item {
                     Column(
@@ -155,7 +158,8 @@ fun UserProfileScreen(
                     ) { song ->
                         SongItem(
                             song = song,
-                            onClick = { onSongClick(song) }
+                            onClick = { onSongClick(song) },
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )
                     }
 
@@ -189,7 +193,8 @@ fun UserProfileScreen(
                     ) { album ->
                         PlaylistItem(
                             playlist = album,
-                            onClick = { onPlaylistClick(album) }
+                            onClick = { onPlaylistClick(album) },
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )
                     }
 
@@ -223,7 +228,8 @@ fun UserProfileScreen(
                     ) { playlist ->
                         PlaylistItem(
                             playlist = playlist,
-                            onClick = { onPlaylistClick(playlist) }
+                            onClick = { onPlaylistClick(playlist) },
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )
                     }
 

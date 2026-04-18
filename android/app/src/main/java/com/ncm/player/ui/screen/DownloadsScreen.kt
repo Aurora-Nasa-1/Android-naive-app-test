@@ -15,8 +15,11 @@ import com.ncm.player.ui.component.WavyLinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.ncm.player.ui.component.ExpressiveShapes
 import com.ncm.player.model.Song
 import com.ncm.player.model.DownloadTask
 import com.ncm.player.model.DownloadStatus
@@ -50,44 +53,40 @@ fun DownloadsScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
+                start = 0.dp,
+                end = 0.dp,
                 bottom = bottomContentPadding.calculateBottomPadding() + 16.dp
-            )
+            ),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             val downloadingTasks = tasks.values.filter { it.status != DownloadStatus.COMPLETED }.toList()
             if (downloadingTasks.isNotEmpty()) {
-                item { Text("Downloading", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 16.dp)) }
-                itemsIndexed(downloadingTasks, key = { _, t -> t.song.id }) { index, task ->
-                    Column {
-                        ListItem(
-                            headlineContent = { Text(task.song.name) },
-                            supportingContent = {
-                                Column {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                        Text(task.song.artist, style = MaterialTheme.typography.bodySmall)
-                                        Text(if (task.progress >= 0f) "${(task.progress * 100).toInt()}%" else "Connecting...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                    }
-                                    WavyLinearProgressIndicator(
-                                        progress = { if (task.progress >= 0f) task.progress else 0f },
-                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                                    )
+                item { Text("Downloading", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 16.dp)) }
+                itemsIndexed(downloadingTasks) { index, task ->
+                    ListItem(
+                        headlineContent = { Text(task.song.name) },
+                        supportingContent = {
+                            Column {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text(task.song.artist, style = MaterialTheme.typography.bodySmall)
+                                    Text(if (task.progress >= 0f) "${(task.progress * 100).toInt()}%" else "Connecting...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
-                            },
-                            trailingContent = {
-                                IconButton(onClick = { onCancelDownload(task.song.id) }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cancel")
-                                }
+                                WavyLinearProgressIndicator(
+                                    progress = { if (task.progress >= 0f) task.progress else 0f },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                )
                             }
-                        )
-                        if (index < downloadingTasks.size - 1) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 16.dp, end = 16.dp),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                            )
-                        }
-                    }
+                        },
+                        trailingContent = {
+                            IconButton(onClick = { onCancelDownload(task.song.id) }) {
+                                Icon(Icons.Default.Close, contentDescription = "Cancel")
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .clip(ExpressiveShapes.calculateShape(index, downloadingTasks.size)),
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    )
                 }
             }
 
@@ -98,36 +97,32 @@ fun DownloadsScreen(
                     }
                 }
             } else if (downloadedSongs.isNotEmpty()) {
-                item { Text("Downloaded", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 16.dp)) }
-                itemsIndexed(downloadedSongs, key = { _, m -> m.song.id }) { index, metadata ->
-                    val uri = if (metadata.filePath.startsWith("content://")) {
+                item { Text("Downloaded", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 16.dp)) }
+                itemsIndexed(downloadedSongs) { index, metadata ->
+                    val uri = if (metadata.filePath?.startsWith("content://") == true) {
                         android.net.Uri.parse(metadata.filePath)
                     } else {
-                        android.net.Uri.fromFile(java.io.File(metadata.filePath))
+                        android.net.Uri.fromFile(java.io.File(metadata.filePath ?: ""))
                     }
-                    Column(modifier = Modifier.clickable { onPlayLocalSong(metadata.song, uri) }) {
-                        ListItem(
-                            headlineContent = { Text(metadata.song.name) },
-                            supportingContent = { Text(metadata.song.artist) },
-                            leadingContent = {
-                                Surface(modifier = Modifier.size(56.dp), color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.large) {
-                                    Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(12.dp))
-                                }
-                            },
-                            trailingContent = {
-                                IconButton(onClick = { onDeleteLocalSong(uri) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete")
-                                }
+                    ListItem(
+                        headlineContent = { Text(metadata.song.name) },
+                        supportingContent = { Text(metadata.song.artist) },
+                        leadingContent = {
+                            Surface(modifier = Modifier.size(56.dp), color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.large) {
+                                Icon(Icons.Default.MusicNote, contentDescription = null, modifier = Modifier.padding(12.dp))
                             }
-                        )
-                        if (index < downloadedSongs.size - 1) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 88.dp, end = 16.dp),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                            )
-                        }
-                    }
+                        },
+                        trailingContent = {
+                            IconButton(onClick = { onDeleteLocalSong(uri) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .clip(ExpressiveShapes.calculateShape(index, downloadedSongs.size))
+                            .clickable { onPlayLocalSong(metadata.song, uri) },
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    )
                 }
             }
         }

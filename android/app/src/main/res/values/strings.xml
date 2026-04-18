@@ -27,6 +27,7 @@
     <string name="add_to_playlist">添加到歌单</string>
     <string name="sleep_timer">睡眠定时</string>
     <string name="playing">正在播放</string>
+    <string name="now_playing">正在播放</string>
     <string name="app_logs">应用日志</string>
     <string name="no_logs">暂无应用日志</string>
     <string name="download_dir">下载目录</string>

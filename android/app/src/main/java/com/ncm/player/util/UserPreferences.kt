@@ -21,6 +21,7 @@ object UserPreferences {
     private const val KEY_FOLLOW_COVER_MINI = "follow_cover_mini"
     private const val KEY_FOLLOW_COVER_PLAYER = "follow_cover_player"
     private const val KEY_USE_FLUID_BACKGROUND = "use_fluid_background"
+    private const val KEY_USE_WAVY_PROGRESS = "use_wavy_progress"
     private const val KEY_USER_PROFILE_CACHE = "user_profile_cache"
     private const val KEY_AUDIO_FEATURES_CACHE = "audio_features_cache"
 
@@ -154,6 +155,14 @@ object UserPreferences {
 
     fun getUseFluidBackground(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_USE_FLUID_BACKGROUND, false)
+    }
+
+    fun saveUseWavyProgress(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_USE_WAVY_PROGRESS, enabled).apply()
+    }
+
+    fun getUseWavyProgress(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_USE_WAVY_PROGRESS, true)
     }
 
     fun savePlaylistSort(context: Context, playlistId: Long, sortOrder: String) {

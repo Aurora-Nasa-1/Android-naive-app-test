@@ -7,10 +7,13 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id == 'com.android.application') {
-                useModule("com.android.tools.build:gradle:${requested.version}")
+                useModule("com.android.tools.build:gradle:8.9.1")
             }
             if (requested.id.id == 'org.jetbrains.kotlin.android') {
-                useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+                useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
+            }
+            if (requested.id.id == 'org.jetbrains.kotlin.plugin.compose') {
+                useModule("org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.1.0")
             }
         }
     }

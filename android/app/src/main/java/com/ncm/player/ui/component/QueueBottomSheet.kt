@@ -88,8 +88,7 @@ fun QueueItem(
         headlineContent = {
             Text(
                 song.name,
-                color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified
             )
         },
         supportingContent = { Text(song.artist) },
@@ -113,7 +112,7 @@ fun QueueItem(
             containerColor = if (isCurrent) 
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) 
             else 
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                MaterialTheme.colorScheme.surface
         )
     )
 }

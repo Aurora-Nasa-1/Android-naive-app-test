@@ -38,7 +38,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
         UserPreferences.getUserPlaylistsCache(getApplication())?.let {
             userPlaylists = JsonParser.parseString(it).asJsonArray.map { p ->
                 val obj = p.asJsonObject
-                Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt)
+                Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt, null, null)
             }
             likedSongsPlaylistId = userPlaylists.find { it.name.contains("喜欢的音乐") }?.id ?: userPlaylists.firstOrNull()?.id ?: 0L
         }
@@ -69,7 +69,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         val plBody = withContext(Dispatchers.IO) { callApi("user/playlist", mapOf("uid" to uid.toString())) }
                         userPlaylists = plBody.get("playlist")?.asJsonArray?.map {
                             val obj = it.asJsonObject
-                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt)
+                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt, null, null)
                         } ?: emptyList()
 
                         val favBody = withContext(Dispatchers.IO) { callApi("likelist", mapOf("uid" to uid.toString())) }
@@ -89,7 +89,9 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                                 obj.get("id").asLong,
                                 obj.get("name").asString,
                                 obj.get("picUrl")?.asString ?: obj.get("coverImgUrl")?.asString,
-                                obj.get("trackCount")?.asInt ?: 0
+                                obj.get("trackCount")?.asInt ?: 0,
+                                null,
+                                null
                             )
                         } ?: emptyList()
                 }
@@ -115,7 +117,9 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                             plObj.get("id").asLong,
                             plObj.get("name").asString,
                             plObj.get("coverImgUrl").asString,
-                            plObj.get("trackCount").asInt
+                            plObj.get("trackCount").asInt,
+                            null,
+                            null
                         )
                     }
 
@@ -228,7 +232,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         val plBody = callApi("user/playlist", mapOf("uid" to uid.toString()))
                         playlists = plBody.get("playlist")?.asJsonArray?.map {
                             val obj = it.asJsonObject
-                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt)
+                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt, null, null)
                         } ?: emptyList()
                     }
 
@@ -261,7 +265,7 @@ class UserViewModel(application: Application) : BaseViewModel(application) {
                         val albumBody = callApi("artist/album", mapOf("id" to uid.toString(), "limit" to "20"))
                         albums = albumBody.get("hotAlbums")?.asJsonArray?.map {
                             val obj = it.asJsonObject
-                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("picUrl").asString, obj.get("size").asInt)
+                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("picUrl").asString, obj.get("size").asInt, null, null)
                         } ?: emptyList()
                     }
 

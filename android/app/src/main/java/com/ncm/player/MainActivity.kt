@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
                 followCoverApp = settingsViewModel.followCoverApp,
                 seedColor = playbackViewModel.extractedColor
             ) {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                     val context = LocalContext.current
                     LaunchedEffect(Unit) { playbackViewModel.initController(context) }
                     AppNavigation(loginViewModel, playbackViewModel, userViewModel, searchViewModel, socialViewModel, downloadViewModel, settingsViewModel, liveSortViewModel, useSideNav, intent)
@@ -117,8 +117,8 @@ fun AppNavigation(
                 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
                 ShortNavigationBar(
                     modifier = Modifier
-                        .height(90.dp)
-                        .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
+                        .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) },
+                    windowInsets = WindowInsets.navigationBars
                 ) {
                     navItems.forEach { (route, label, icon) ->
                         ShortNavigationBarItem(
@@ -170,10 +170,10 @@ fun AppMainContent(
                 navController = navController,
                 startDestination = if (loginViewModel.isLogged) "main" else "login",
                 modifier = Modifier.fillMaxSize(),
-                enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeIn(animationSpec = spring()) },
-                exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeOut(animationSpec = spring()) },
-                popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeIn(animationSpec = spring()) },
-                popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeOut(animationSpec = spring()) }
+                enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(300, easing = LinearOutSlowInEasing)) + fadeIn(animationSpec = tween(300)) },
+                exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = tween(300, easing = FastOutLinearInEasing)) + fadeOut(animationSpec = tween(300)) },
+                popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(300, easing = LinearOutSlowInEasing)) + fadeIn(animationSpec = tween(300)) },
+                popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = tween(300, easing = FastOutLinearInEasing)) + fadeOut(animationSpec = tween(300)) }
             ) {
                 composable("login") { LoginScreen(loginViewModel, onLoginSuccess = { userViewModel.fetchUserData(); navController.navigate("main") { popUpTo("login") { inclusive = true } } }) }
                 composable("main") {
@@ -294,7 +294,7 @@ fun AppMainContent(
                         bottomContentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = if (hasBottomBar) bottomBarHeight else 0.dp)
                     )
                 }
-                composable("player", enterTransition = { slideInVertically(initialOffsetY = { it / 2 }, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeIn(animationSpec = spring()) }, exitTransition = { slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)) + fadeOut(animationSpec = spring()) }) {
+                composable("player", enterTransition = { slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(400, easing = LinearOutSlowInEasing)) + fadeIn(animationSpec = tween(400)) }, exitTransition = { slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(400, easing = FastOutLinearInEasing)) + fadeOut(animationSpec = tween(400)) }) {
                     val s = playbackViewModel.currentSong
                     val completedSongs by downloadViewModel.completedSongs.collectAsState()
                     val isFav = s?.let { userViewModel.favoriteSongs.contains(it.id) } ?: false
@@ -405,7 +405,7 @@ fun AppMainContent(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 98.dp) // Positioned above the Bottom Nav
+                            .padding(end = 16.dp, bottom = 80.dp) // Positioned above the Bottom Nav
                             .offset { IntOffset(0, -bottomBarOffsetHeightPx.value.toInt()) }
                     ) {
                         BottomPlaybackBar(

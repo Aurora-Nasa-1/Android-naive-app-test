@@ -1,31 +1,35 @@
 package com.ncm.player.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
-import com.ncm.player.ui.component.WavyLinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.ncm.player.R
+import com.ncm.player.ui.component.AppScaffold
+import com.ncm.player.ui.component.WavyLinearProgressIndicator
 import com.ncm.player.ui.component.ExpressiveShapes
 import com.ncm.player.model.Song
 import com.ncm.player.model.DownloadTask
 import com.ncm.player.model.DownloadStatus
 import com.ncm.player.manager.DownloadedSongMetadata
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadsScreen(
     onBackPressed: () -> Unit,
@@ -36,22 +40,12 @@ fun DownloadsScreen(
     onDeleteLocalSong: (android.net.Uri) -> Unit = {},
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            LargeTopAppBar(
-                title = { Text("Downloads") },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                windowInsets = WindowInsets.statusBars
-            )
-        }
-    ) { innerPadding ->
+    AppScaffold(
+        title = stringResource(R.string.downloads),
+        onBackPressed = onBackPressed
+    ) { _ ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = 0.dp,
                 end = 0.dp,
@@ -59,7 +53,7 @@ fun DownloadsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            val downloadingTasks = tasks.values.filter { it.status != DownloadStatus.COMPLETED }.toList()
+            val downloadingTasks = tasks.values.filter { it.status != DownloadStatus.COMPLETED && it.song != null }.toList()
             if (downloadingTasks.isNotEmpty()) {
                 item { Text("Downloading", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 16.dp)) }
                 itemsIndexed(downloadingTasks) { index, task ->
@@ -85,7 +79,7 @@ fun DownloadsScreen(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .clip(ExpressiveShapes.calculateShape(index, downloadingTasks.size)),
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
                     )
                 }
             }
@@ -97,8 +91,9 @@ fun DownloadsScreen(
                     }
                 }
             } else if (downloadedSongs.isNotEmpty()) {
+                val validDownloadedSongs = downloadedSongs.filter { it.song != null }
                 item { Text("Downloaded", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 16.dp)) }
-                itemsIndexed(downloadedSongs) { index, metadata ->
+                itemsIndexed(validDownloadedSongs) { index, metadata ->
                     val uri = if (metadata.filePath?.startsWith("content://") == true) {
                         android.net.Uri.parse(metadata.filePath)
                     } else {
@@ -119,9 +114,9 @@ fun DownloadsScreen(
                         },
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
-                            .clip(ExpressiveShapes.calculateShape(index, downloadedSongs.size))
+                            .clip(ExpressiveShapes.calculateShape(index, validDownloadedSongs.size))
                             .clickable { onPlayLocalSong(metadata.song, uri) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
                     )
                 }
             }

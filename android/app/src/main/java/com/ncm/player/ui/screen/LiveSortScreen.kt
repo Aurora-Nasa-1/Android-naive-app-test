@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.ncm.player.viewmodel.LiveSortState
 import com.ncm.player.viewmodel.LiveSortViewModel
 import com.ncm.player.viewmodel.PlaybackViewModel
+import com.ncm.player.ui.component.AppScaffold
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveSortScreen(
     liveSortViewModel: LiveSortViewModel,
@@ -30,22 +30,13 @@ fun LiveSortScreen(
     val currentQueue = playbackViewModel.currentQueue
     val localSongs = playbackViewModel.localSongs
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("LiveSort") },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+    AppScaffold(
+        title = "LiveSort",
+        onBackPressed = onBackPressed
+    ) { _ ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -59,8 +50,7 @@ fun LiveSortScreen(
                     )
                     Text(
                         "Smart Playlist Reordering",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -128,7 +118,6 @@ fun LiveSortScreen(
                     Text(
                         "Sorting Completed!",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -167,7 +156,7 @@ fun LiveSortScreen(
                                     .fillMaxWidth()
                                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
                                 colors = ListItemDefaults.colors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    containerColor = MaterialTheme.colorScheme.surface
                                 )
                             )
                         }

@@ -1,0 +1,9 @@
+multi_replace_file_content(
+    absolutePath="/home/auroranasa/VIBECODING/Android-naive-app-test/android/build.gradle",
+    replacementChunks=[
+        {
+            "targetContent": "    id 'com.android.application' version '8.2.1' apply false\n    id 'com.android.library' version '8.2.1' apply false\n    id 'org.jetbrains.kotlin.android' version '2.0.0' apply false\n    id 'org.jetbrains.kotlin.plugin.compose' version '2.0.0' apply false",
+            "replacementContent": "    id 'com.android.application' version '8.7.3' apply false\n    id 'com.android.library' version '8.7.3' apply false\n    id 'org.jetbrains.kotlin.android' version '2.1.0' apply false\n    id 'org.jetbrains.kotlin.plugin.compose' version '2.1.0' apply false"
+        }
+    ]
+)

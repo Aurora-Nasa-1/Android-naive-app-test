@@ -30,7 +30,7 @@ fun SongCard(song: Song, onClick: () -> Unit, modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .aspectRatio(1f),
             shape = RoundedCornerShape(6.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 2.dp
         ) {
             if (song.albumArtUrl != null) {

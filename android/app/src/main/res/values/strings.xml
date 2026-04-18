@@ -61,6 +61,7 @@
     <string name="downloaded">已下载</string>
     <string name="type_message">输入消息...</string>
     <string name="back">返回</string>
+    <string name="playlist">歌单</string>
     <string name="your_library">音乐库</string>
     <string name="settings">设置</string>
     <string name="appearance">外观</string>
@@ -100,4 +101,6 @@
     <string name="no_cloud_songs">云盘空空如也</string>
     <string name="not_interested">不感兴趣</string>
     <string name="reply">回复</string>
+    <string name="fluid_background">流体背景</string>
+    <string name="fluid_background_desc">在播放页和全局使用流体背景效果</string>
 </resources>

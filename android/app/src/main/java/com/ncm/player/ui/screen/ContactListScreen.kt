@@ -19,12 +19,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.ncm.player.R
+import com.ncm.player.ui.component.AppScaffold
 import com.ncm.player.model.Contact
 import com.ncm.player.util.ImageUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactListScreen(
     contacts: List<Contact>,
@@ -32,26 +32,18 @@ fun ContactListScreen(
     onAvatarClick: (Long) -> Unit,
     onBackPressed: () -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.messages)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+    AppScaffold(
+        title = stringResource(R.string.messages),
+        onBackPressed = onBackPressed
+    ) { _ ->
         if (contacts.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.no_recent_contacts), style = MaterialTheme.typography.bodyLarge)
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding,
+                contentPadding = PaddingValues(0.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(
@@ -132,7 +124,7 @@ fun ContactItem(
             .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() },
         colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     )
 }

@@ -41,7 +41,6 @@ fun SleepTimerBottomSheet(
             Text(
                 text = "Sleep Timer",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(16.dp)
             )
 
@@ -67,7 +66,7 @@ fun SleepTimerBottomSheet(
                             onDismiss()
                         },
                     colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
             }

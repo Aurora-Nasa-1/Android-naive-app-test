@@ -59,8 +59,7 @@ fun UserAccountDialog(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = userProfile.nickname,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge
                     )
                     Text(
                         text = "ID: ${userProfile.userId}",
@@ -86,8 +85,7 @@ fun UserAccountDialog(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Not Logged In",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge
                     )
                 }
 
@@ -104,8 +102,7 @@ fun UserAccountDialog(
                     Column {
                         Text(
                             text = stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium
                         )
                         Text(
                             text = "Version $versionName",

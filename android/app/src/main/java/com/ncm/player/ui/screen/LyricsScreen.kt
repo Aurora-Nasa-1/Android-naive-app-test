@@ -4,15 +4,22 @@ import com.ncm.player.model.LyricLine
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.ncm.player.viewmodel.PlaybackViewModel
 import com.ncm.player.ui.component.LyricContent
+import com.ncm.player.ui.component.CommonBackButton
 import com.ncm.player.ui.theme.createCustomColorScheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,11 +82,20 @@ fun LyricsScreen(
                         titleContentColor = Color.White,
                         navigationIconContentColor = Color.White
                     ),
-                    title = { Text(songName, style = MaterialTheme.typography.titleMedium) },
+                    title = { 
+                        Text(
+                            songName, 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(start = 4.dp)
+                        ) 
+                    },
                     navigationIcon = {
-                        IconButton(onClick = onBackPressed) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
+                        CommonBackButton(
+                            onClick = onBackPressed,
+                            containerColor = Color.White.copy(alpha = 0.12f),
+                            iconColor = Color.White
+                        )
                     },
                     windowInsets = WindowInsets.statusBars
                 )

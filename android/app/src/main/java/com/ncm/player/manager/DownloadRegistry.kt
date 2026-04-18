@@ -33,9 +33,15 @@ object DownloadRegistry {
                 val data: Map<String, DownloadedSongMetadata>? = gson.fromJson(json, type)
                 if (data != null) {
                     cachedMetadata.clear()
-                    cachedMetadata.putAll(data)
+                    // Filter out entries with null song to prevent crashes
+                    val validData = data.filter { it.value.song != null }
+                    cachedMetadata.putAll(validData)
                     _downloadedSongsFlow.value = cachedMetadata.values.toList().sortedByDescending { it.downloadTime }
                     Log.i(TAG, "Loaded ${cachedMetadata.size} downloaded songs")
+                    if (validData.size != data.size) {
+                        Log.w(TAG, "Filtered out ${data.size - validData.size} invalid download entries")
+                        save(context) // Save the cleaned registry
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load registry", e)

@@ -114,7 +114,7 @@ fun SearchScreen(
                                     active = false
                                 },
                             colors = ListItemDefaults.colors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                containerColor = MaterialTheme.colorScheme.surface
                             )
                         )
                     }
@@ -135,7 +135,7 @@ fun SearchScreen(
                                 active = false
                             },
                         colors = ListItemDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     )
                 }
@@ -194,7 +194,6 @@ fun SearchScreen(
                         Text(
                             "Hot Searches",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(vertical = 16.dp)
                         )
                     }
@@ -208,18 +207,18 @@ fun SearchScreen(
                                 Text(
                                     "${index + 1}",
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = if (index < 3) MaterialTheme.colorScheme.primary else Color.Gray,
+                                    color = if (index < 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.width(24.dp)
                                 )
                             },
-                            trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = Color.Red.copy(alpha = 0.7f)) },
+                            trailingContent = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)) },
                             modifier = Modifier
                                 .clip(shape)
                                 .clickable {
                                     query = hot.first
                                     onSearch(hot.first, searchType)
                                 },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
                         )
                     }
                 } else {
@@ -233,7 +232,27 @@ fun SearchScreen(
                                 onClick = { onSongClick(song) },
                                 showDivider = false,
                                 shape = shape,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        }
+                    } else if (searchType == 10) {
+                        itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
+                            val shape = ExpressiveShapes.calculateShape(index, searchPlaylists.size)
+                            PlaylistItem(
+                                playlist = playlist,
+                                onClick = { onPlaylistClick(playlist) },
+                                shape = shape,
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        }
+                    } else if (searchType == 100) {
+                        itemsIndexed(searchPlaylists, key = { _, playlist -> playlist.id }) { index, playlist ->
+                            val shape = ExpressiveShapes.calculateShape(index, searchPlaylists.size)
+                            PlaylistItem(
+                                playlist = playlist,
+                                onClick = { onPlaylistClick(playlist) },
+                                shape = shape,
+                                containerColor = MaterialTheme.colorScheme.surface
                             )
                         }
                     } else if (searchType == 1000) {
@@ -242,8 +261,8 @@ fun SearchScreen(
                             PlaylistItem(
                                 playlist = playlist,
                                 onClick = { onPlaylistClick(playlist) },
-                                modifier = Modifier.clip(shape),
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                shape = shape,
+                                containerColor = MaterialTheme.colorScheme.surface
                             )
                         }
                     }

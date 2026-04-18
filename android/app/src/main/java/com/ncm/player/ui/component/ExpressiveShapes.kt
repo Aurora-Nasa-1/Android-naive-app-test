@@ -6,8 +6,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
 object ExpressiveShapes {
-    val OuterCornerSize = 26.dp
-    val InnerCornerSize = 6.dp
+    val OuterCornerSize = 24.dp
+    val InnerCornerSize = 4.dp
 
     @Composable
     fun calculateShape(index: Int, totalCount: Int): Shape {

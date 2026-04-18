@@ -43,7 +43,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application) {
                     1000 -> {
                         searchPlaylists = resultObj?.get("playlists")?.asJsonArray?.map {
                             val obj = it.asJsonObject
-                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt)
+                            Playlist(obj.get("id").asLong, obj.get("name").asString, obj.get("coverImgUrl").asString, obj.get("trackCount").asInt, null, null)
                         } ?: emptyList()
                         searchResults = emptyList()
                     }

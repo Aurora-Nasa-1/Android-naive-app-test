@@ -1,6 +1,6 @@
 package com.ncm.player.ui.screen
 
-import com.ncm.player.ui.component.WavyCircularProgressIndicator
+import com.ncm.player.ui.component.ContainedLoadingIndicator
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,8 +41,10 @@ import coil3.compose.AsyncImage
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
 import com.ncm.player.model.Song
+import androidx.compose.foundation.shape.CircleShape
 import com.ncm.player.ui.component.ExpressiveShapes
 import com.ncm.player.ui.component.SongItem
+import com.ncm.player.ui.component.CommonBackButton
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -82,6 +84,7 @@ fun PlaylistDetailScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = Color.Transparent,
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
@@ -118,13 +121,22 @@ fun PlaylistDetailScreen(
             } else {
                 TopAppBar(
                     title = {
-                        if (!isLoading || playlist.name != "Loading...") {
-                            Text(playlist.name)
-                        }
+                        Text(
+                            text = "",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBackPressed) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CommonBackButton(onClick = onBackPressed)
+                            Text(
+                                text = stringResource(R.string.playlist),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Normal
+                            )
                         }
                     },
                     actions = {
@@ -151,7 +163,7 @@ fun PlaylistDetailScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surface
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                     ),
                     scrollBehavior = scrollBehavior
                 )
@@ -159,8 +171,8 @@ fun PlaylistDetailScreen(
         }
     ) { innerPadding ->
         if (isLoading && songs.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                 WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                 ContainedLoadingIndicator()
             }
         } else {
             LazyColumn(
@@ -209,7 +221,7 @@ fun PlaylistDetailScreen(
                                     }
                                 }
                             ),
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
                     )
                 }
             }
@@ -220,7 +232,7 @@ fun PlaylistDetailScreen(
 @Composable
 fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(colors = listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface))).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(colors = listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surfaceContainerLow))).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(modifier = Modifier.size(200.dp), shape = MaterialTheme.shapes.medium, shadowElevation = 8.dp) {
@@ -233,7 +245,7 @@ fun PlaylistHeader(playlist: Playlist, onPlayAllClick: () -> Unit) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = playlist.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(text = playlist.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Normal)
         Spacer(modifier = Modifier.height(16.dp))
 
         // MD3E Containment for main actions

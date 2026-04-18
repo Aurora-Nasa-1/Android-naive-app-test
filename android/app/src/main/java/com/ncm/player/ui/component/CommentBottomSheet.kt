@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.ncm.player.R
 import com.ncm.player.model.Comment
 import com.ncm.player.ui.theme.createCustomColorScheme
+import com.ncm.player.ui.component.ExpressiveShapes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,11 +41,7 @@ fun CommentBottomSheet(
     coverColor: Int? = null,
     onDismiss: () -> Unit
 ) {
-    val commentColorScheme = if (useCoverColor && coverColor != null) {
-        createCustomColorScheme(coverColor, isSystemInDarkTheme())
-    } else {
-        MaterialTheme.colorScheme
-    }
+    val commentColorScheme = MaterialTheme.colorScheme
 
     var commentText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -79,8 +76,7 @@ fun CommentBottomSheet(
             ) {
                 Text(
                     text = stringResource(R.string.comments_count, totalCount),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleLarge
                 )
 
             }
@@ -88,7 +84,7 @@ fun CommentBottomSheet(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 if (hotComments.isNotEmpty()) {
                     item {
@@ -99,13 +95,14 @@ fun CommentBottomSheet(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    itemsIndexed(hotComments, key = { _, c -> "hot_${c.id}" }) { _, comment ->
+                    itemsIndexed(hotComments, key = { _, c -> "hot_${c.id}" }) { index, comment ->
                         CommentItem(
                             comment = comment,
                             onLikeClick = { onLikeClick(comment) },
                             onReplyClick = { onReplyClick(comment) },
                             onAvatarClick = { onAvatarClick(comment.userId) },
-                            onViewFloorClick = { onViewFloorClick(comment) }
+                            onViewFloorClick = { onViewFloorClick(comment) },
+                            shape = ExpressiveShapes.calculateShape(index, hotComments.size)
                         )
                     }
                 }
@@ -119,13 +116,14 @@ fun CommentBottomSheet(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    itemsIndexed(newestComments, key = { _, c -> "new_${c.id}" }) { _, comment ->
+                    itemsIndexed(newestComments, key = { _, c -> "new_${c.id}" }) { index, comment ->
                         CommentItem(
                             comment = comment,
                             onLikeClick = { onLikeClick(comment) },
                             onReplyClick = { onReplyClick(comment) },
                             onAvatarClick = { onAvatarClick(comment.userId) },
-                            onViewFloorClick = { onViewFloorClick(comment) }
+                            onViewFloorClick = { onViewFloorClick(comment) },
+                            shape = ExpressiveShapes.calculateShape(index, newestComments.size)
                         )
                     }
                 }

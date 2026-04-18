@@ -14,6 +14,8 @@ fun WavySlider(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isWavy: Boolean = true,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
     onValueChangeFinished: (() -> Unit)? = null,
     colors: SliderColors = SliderDefaults.colors(),
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
@@ -23,6 +25,8 @@ fun WavySlider(
         onValueChange = onValueChange,
         modifier = modifier,
         enabled = enabled,
+        valueRange = valueRange,
+        steps = steps,
         onValueChangeFinished = onValueChangeFinished,
         colors = colors,
         interactionSource = interactionSource,

@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,11 +19,11 @@ import androidx.compose.ui.unit.dp
 import com.ncm.player.R
 import com.ncm.player.model.Song
 import com.ncm.player.ui.component.SongItem
+import com.ncm.player.ui.component.AppScaffold
 import com.ncm.player.ui.component.WavyCircularProgressIndicator
 import com.ncm.player.ui.component.ExpressiveShapes
 import androidx.compose.foundation.shape.RoundedCornerShape
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CloudMusicScreen(
     songs: List<Song>,
@@ -31,19 +34,11 @@ fun CloudMusicScreen(
     onBackPressed: () -> Unit,
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.cloud_music)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+    AppScaffold(
+        title = stringResource(R.string.cloud_music),
+        onBackPressed = onBackPressed
+    ) { _ ->
+        Box(modifier = Modifier.fillMaxSize()) {
             if (isLoading && songs.isEmpty()) {
                 WavyCircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (songs.isEmpty()) {

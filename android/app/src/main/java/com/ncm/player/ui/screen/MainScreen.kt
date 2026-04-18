@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -98,9 +99,10 @@ fun MainScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.good_day), fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.good_day), fontWeight = FontWeight.Normal) },
                 actions = {
                     actions()
                     IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
@@ -116,7 +118,11 @@ fun MainScreen(
                         }
                     }
                 },
-                windowInsets = WindowInsets.statusBars
+                windowInsets = WindowInsets.statusBars,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
             )
         }
     ) { innerPadding ->
@@ -150,7 +156,7 @@ fun MainScreen(
             }
 
             if (recommendedPlaylists.isNotEmpty()) {
-                item { Text("Recommended Playlists", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+                item { Text("Recommended Playlists", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Normal) }
 
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
@@ -170,7 +176,7 @@ fun MainScreen(
                 }
             }
 
-            item { Text(stringResource(R.string.made_for_you), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            item { Text(stringResource(R.string.made_for_you), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Normal) }
 
             item {
                 if (widthClass != WindowWidthSizeClass.Compact) {
@@ -189,7 +195,7 @@ fun MainScreen(
             }
 
 
-            item { Text(stringResource(R.string.recently_played), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            item { Text(stringResource(R.string.recently_played), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Normal) }
 
             item {
                 val columns = if (widthClass != WindowWidthSizeClass.Compact) 2 else 1
@@ -218,7 +224,7 @@ fun MainScreen(
 
 @Composable
 fun QuickAccessCard(title: String, icon: @Composable () -> Unit, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), modifier = modifier.height(56.dp)) {
+    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, modifier = modifier.height(56.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
             icon()
             Spacer(Modifier.width(12.dp))
@@ -229,7 +235,7 @@ fun QuickAccessCard(title: String, icon: @Composable () -> Unit, onClick: () -> 
 
 @Composable
 fun PlaylistQuickCard(playlist: Playlist, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), modifier = modifier.height(56.dp)) {
+    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, modifier = modifier.height(56.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl ?: "", 120), contentDescription = null, modifier = Modifier.fillMaxHeight().aspectRatio(1f).clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
             Spacer(Modifier.width(12.dp))

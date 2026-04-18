@@ -8,10 +8,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import com.ncm.player.R
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.draw.clip
 import com.ncm.player.ui.component.ExpressiveShapes
+import com.ncm.player.ui.component.AppScaffold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -24,13 +29,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ncm.player.util.LogManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogViewerScreen(onBackPressed: () -> Unit) {
     val logs by LogManager.logs.collectAsState()
@@ -52,40 +57,32 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("App Logs") },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        showSystemLogs = !showSystemLogs
-                    }) {
-                        Icon(if (showSystemLogs) Icons.Default.ViewList else Icons.Default.Terminal, contentDescription = "Toggle System Logs")
-                    }
-                    IconButton(onClick = {
-                        val text = if (showSystemLogs) systemLogs else logs.joinToString("\n") { "${it.time} [${it.level}] ${it.message}" }
-                        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TEXT, text)
-                        }
-                        context.startActivity(android.content.Intent.createChooser(intent, "Share Logs"))
-                    }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
-                    }
-                    IconButton(onClick = { LogManager.clear() }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear")
-                    }
+    AppScaffold(
+        title = stringResource(R.string.app_logs),
+        onBackPressed = onBackPressed,
+        actions = {
+            IconButton(onClick = {
+                showSystemLogs = !showSystemLogs
+            }) {
+                Icon(if (showSystemLogs) Icons.Default.ViewList else Icons.Default.Terminal, contentDescription = "Toggle System Logs")
+            }
+            IconButton(onClick = {
+                val text = if (showSystemLogs) systemLogs else logs.joinToString("\n") { "${it.time} [${it.level}] ${it.message}" }
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, text)
                 }
-            )
+                context.startActivity(android.content.Intent.createChooser(intent, "Share Logs"))
+            }) {
+                Icon(Icons.Default.Share, contentDescription = "Share")
+            }
+            IconButton(onClick = { LogManager.clear() }) {
+                Icon(Icons.Default.Delete, contentDescription = "Clear")
+            }
         }
-    ) { innerPadding ->
+    ) { _ ->
         SelectionContainer {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding).background(Color.Black)) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                 if (showSystemLogs) {
                     val scrollState = rememberScrollState()
                     Text(
@@ -109,7 +106,7 @@ fun LogViewerScreen(onBackPressed: () -> Unit) {
                         }
                         if (logs.isEmpty()) {
                             item {
-                                Text("No app logs recorded yet.", color = Color.Gray, modifier = Modifier.padding(16.dp))
+                                Text("No app logs recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
                             }
                         }
                     }
@@ -132,13 +129,13 @@ fun LogEntryItem(entry: LogManager.LogEntry, shape: androidx.compose.ui.graphics
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(MaterialTheme.colorScheme.surface)
             .padding(12.dp)
     ) {
         Row {
             Text(
                 text = entry.time,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -147,7 +144,6 @@ fun LogEntryItem(entry: LogManager.LogEntry, shape: androidx.compose.ui.graphics
                 text = "[${entry.level}]",
                 color = color,
                 fontSize = 10.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
         }

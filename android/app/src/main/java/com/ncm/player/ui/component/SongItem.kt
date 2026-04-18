@@ -34,7 +34,7 @@ fun SongItem(
     trailingContent: (@Composable () -> Unit)? = null,
     showDivider: Boolean = false,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp),
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    containerColor: Color = MaterialTheme.colorScheme.surface
 ) {
     ListItem(
         headlineContent = {

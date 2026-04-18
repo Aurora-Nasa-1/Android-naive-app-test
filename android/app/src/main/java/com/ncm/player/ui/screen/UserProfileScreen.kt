@@ -1,10 +1,12 @@
 package com.ncm.player.ui.screen
 
-import com.ncm.player.ui.component.WavyCircularProgressIndicator
+import com.ncm.player.ui.component.ContainedLoadingIndicator
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,9 +26,10 @@ import com.ncm.player.model.Song
 import com.ncm.player.model.UserProfile
 import com.ncm.player.ui.component.SongItem
 import com.ncm.player.ui.component.PlaylistItem
+import com.ncm.player.ui.component.AppScaffold
+import com.ncm.player.ui.component.ExpressiveShapes
 import com.ncm.player.util.ImageUtils
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserProfileScreen(
     userProfile: UserProfile?,
@@ -42,35 +45,25 @@ fun UserProfileScreen(
 ) {
     if (userProfile != null && userProfile?.userId == 0L) {
          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-
-             WavyCircularProgressIndicator()
+             ContainedLoadingIndicator()
          }
          return
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(userProfile?.nickname ?: "Profile") },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    userProfile?.let {
-                        IconButton(onClick = { onMessageClick(it.userId, it.nickname) }) {
-                            Icon(Icons.Default.Email, contentDescription = "Message")
-                        }
-                    }
+    AppScaffold(
+        title = userProfile?.nickname ?: "Profile",
+        onBackPressed = onBackPressed,
+        actions = {
+            userProfile?.let {
+                IconButton(onClick = { onMessageClick(it.userId, it.nickname) }) {
+                    Icon(Icons.Default.Email, contentDescription = "Message")
                 }
-            )
+            }
         }
     ) { innerPadding ->
         if (isLoading || userProfile == null) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-
-                WavyCircularProgressIndicator()
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                ContainedLoadingIndicator()
             }
         } else {
             var isSongsExpanded by remember(userProfile?.userId) { mutableStateOf(false) }
@@ -107,8 +100,7 @@ fun UserProfileScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             userProfile.nickname,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineMedium
                         )
                         userProfile.signature?.let {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -147,19 +139,19 @@ fun UserProfileScreen(
                         Text(
                             "Songs (${songs.size})",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
-                    items(
+                    itemsIndexed(
                         items = displaySongs,
-                        key = { "user_${userProfile?.userId}_song_${it.id}" },
-                        contentType = { "song" }
-                    ) { song ->
+                        key = { _, song -> "user_${userProfile?.userId}_song_${song.id}" },
+                        contentType = { _, _ -> "song" }
+                    ) { index, song ->
                         SongItem(
                             song = song,
                             onClick = { onSongClick(song) },
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            shape = ExpressiveShapes.calculateShape(index, displaySongs.size),
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     }
 
@@ -182,19 +174,19 @@ fun UserProfileScreen(
                         Text(
                             "Albums (${albums.size})",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
-                    items(
+                    itemsIndexed(
                         items = displayAlbums,
-                        key = { "user_${userProfile?.userId}_album_${it.id}" },
-                        contentType = { "playlist" }
-                    ) { album ->
+                        key = { _, albumItem -> "user_${userProfile?.userId}_album_${albumItem.id}" },
+                        contentType = { _, _ -> "playlist" }
+                    ) { index, album ->
                         PlaylistItem(
                             playlist = album,
                             onClick = { onPlaylistClick(album) },
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            shape = ExpressiveShapes.calculateShape(index, displayAlbums.size),
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     }
 
@@ -217,19 +209,19 @@ fun UserProfileScreen(
                         Text(
                             "Playlists (${playlists.size})",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                         )
                     }
-                    items(
+                    itemsIndexed(
                         items = displayPlaylists,
-                        key = { "user_${userProfile?.userId}_playlist_${it.id}" },
-                        contentType = { "playlist" }
-                    ) { playlist ->
+                        key = { _, playlistItem -> "user_${userProfile?.userId}_playlist_${playlistItem.id}" },
+                        contentType = { _, _ -> "playlist" }
+                    ) { index, playlist ->
                         PlaylistItem(
                             playlist = playlist,
                             onClick = { onPlaylistClick(playlist) },
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            shape = ExpressiveShapes.calculateShape(index, displayPlaylists.size),
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     }
 
@@ -254,8 +246,7 @@ fun UserStatItem(count: Int, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             count.toString(),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.titleLarge
         )
         Text(
             label,

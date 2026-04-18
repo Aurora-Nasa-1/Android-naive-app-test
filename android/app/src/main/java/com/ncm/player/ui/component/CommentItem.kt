@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.ncm.player.R
 import com.ncm.player.model.Comment
+import androidx.compose.foundation.background
 
 @Composable
 fun CommentItem(
@@ -27,105 +28,101 @@ fun CommentItem(
     onLikeClick: () -> Unit,
     onReplyClick: () -> Unit,
     onAvatarClick: () -> Unit = {},
-    onViewFloorClick: () -> Unit = {}
+    onViewFloorClick: () -> Unit = {},
+    shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.medium
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
+            .clip(shape)
             .clickable { onReplyClick() },
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        shape = MaterialTheme.shapes.medium
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = shape
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 AsyncImage(
                     model = comment.avatarUrl,
-                    contentDescription = null,
+                    contentDescription = "Avatar",
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .clickable { onAvatarClick() },
                     contentScale = ContentScale.Crop
                 )
-
                 Spacer(modifier = Modifier.width(12.dp))
-
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = comment.nickname,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = comment.timeStr,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { onLikeClick() }
-                        ) {
-                            Text(
-                                text = if (comment.likedCount > 0) comment.likedCount.toString() else "",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = if (comment.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                                contentDescription = "Like",
-                                modifier = Modifier.size(14.dp),
-                                tint = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
                     Text(
-                        text = comment.content,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = 20.sp
+                        text = comment.nickname,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1
                     )
-
-                    comment.beReplied?.forEach { reply ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                text = "${reply.nickname}: ${reply.content}",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
-                    }
-
-                    if (comment.replyCount > 0) {
+                    Text(
+                        text = comment.timeStr,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        maxLines = 1
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onLikeClick() }
+                ) {
+                    Text(
+                        text = if (comment.likedCount > 0) comment.likedCount.toString() else "",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = if (comment.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                        contentDescription = "Like",
+                        modifier = Modifier.size(14.dp),
+                        tint = if (comment.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = comment.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 48.dp)
+            )
+            
+            if (comment.replyCount > 0) {
+                Text(
+                    text = stringResource(R.string.view_replies, comment.replyCount),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(top = 8.dp, start = 48.dp)
+                        .clickable { onViewFloorClick() }
+                )
+            }
+            
+            if (!comment.beReplied.isNullOrEmpty()) {
+                comment.beReplied.forEach { reply ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, start = 48.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.small
+                    ) {
                         Text(
-                            text = stringResource(R.string.view_replies, comment.replyCount),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 4.dp).clickable { onViewFloorClick() }
+                            text = "${reply.nickname}: ${reply.content}",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

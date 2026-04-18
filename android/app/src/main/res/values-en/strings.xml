@@ -60,6 +60,7 @@
     <string name="downloaded">Downloaded</string>
     <string name="type_message">Type a message...</string>
     <string name="back">Back</string>
+    <string name="playlist">Playlist</string>
     <string name="your_library">Your Library</string>
     <string name="settings">Settings</string>
     <string name="appearance">Appearance</string>
@@ -98,4 +99,6 @@
     <string name="cloud_music">Cloud Music</string>
     <string name="no_cloud_songs">Cloud library is empty</string>
     <string name="not_interested">Not Interested</string>
+    <string name="fluid_background">Fluid Background</string>
+    <string name="fluid_background_desc">Enable fluid background effect globally and in player screen</string>
 </resources>

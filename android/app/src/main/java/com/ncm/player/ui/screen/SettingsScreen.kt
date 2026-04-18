@@ -1,35 +1,37 @@
 package com.ncm.player.ui.screen
 
-import com.ncm.player.util.LogManager
 import android.content.ClipData
 import android.content.ClipboardManager
-
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Brightness4
-import androidx.compose.material.icons.filled.Cached
-import androidx.compose.material.icons.filled.CellTower
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.HighQuality
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ncm.player.R
+import com.ncm.player.ui.component.ExpressiveShapes
+import com.ncm.player.ui.component.AppScaffold
+import com.ncm.player.util.LogManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +71,8 @@ fun SettingsScreen(
     bottomContentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    
     val dirPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -81,190 +85,189 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.settings),
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                windowInsets = WindowInsets.statusBars
-            )
-        }
+    AppScaffold(
+        title = stringResource(R.string.settings),
+        onBackPressed = onBackPressed,
+        scrollBehavior = scrollBehavior
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            SettingsCategory(stringResource(R.string.appearance)) {
-                ThemeModeSettingItem(
-                    themeMode = themeMode,
-                    onThemeModeChange = onThemeModeChange
+            // Appearance Section
+            SettingsSection(title = stringResource(R.string.appearance)) {
+                val themeOptions = listOf(
+                    stringResource(R.string.theme_mode_system),
+                    stringResource(R.string.theme_mode_cover),
+                    stringResource(R.string.theme_mode_fixed)
+                )
+                
+                val appearanceItemsCount = if (themeMode == 1) 7 else 3
+
+                ExpressiveDropdownItem(
+                    title = stringResource(R.string.theme_mode),
+                    subtitle = themeOptions.getOrElse(themeMode) { themeOptions[0] },
+                    options = themeOptions,
+                    selectedIndex = themeMode,
+                    onSelect = onThemeModeChange,
+                    shape = ExpressiveShapes.calculateShape(0, appearanceItemsCount)
                 )
 
-                if (themeMode == 1) { // Follow Cover
-                    Column(modifier = Modifier.padding(start = 56.dp, end = 16.dp, bottom = 8.dp)) {
-                        Text(
-                            text = stringResource(R.string.follow_cover_granular),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onFollowCoverAppChange(!followCoverApp) }.padding(vertical = 4.dp)) {
-                            Checkbox(checked = followCoverApp, onCheckedChange = onFollowCoverAppChange)
-                            Text(stringResource(R.string.follow_cover_app), style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onFollowCoverMiniChange(!followCoverMini) }.padding(vertical = 4.dp)) {
-                            Checkbox(checked = followCoverMini, onCheckedChange = onFollowCoverMiniChange)
-                            Text(stringResource(R.string.follow_cover_mini), style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onFollowCoverPlayerChange(!followCoverPlayer) }.padding(vertical = 4.dp)) {
-                            Checkbox(checked = followCoverPlayer, onCheckedChange = onFollowCoverPlayerChange)
-                            Text(stringResource(R.string.follow_cover_player), style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onUseFluidBackgroundChange(!useFluidBackground) }.padding(vertical = 4.dp)) {
-                            Checkbox(checked = useFluidBackground, onCheckedChange = onUseFluidBackgroundChange)
-                            Text("Use Fluid Background", style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
+                if (themeMode == 1) {
+                    ExpressiveSwitchItem(
+                        title = stringResource(R.string.follow_cover_app),
+                        subtitle = "Apply cover colors to the entire app",
+                        checked = followCoverApp,
+                        onCheckedChange = onFollowCoverAppChange,
+                        shape = ExpressiveShapes.calculateShape(1, appearanceItemsCount)
+                    )
+                    ExpressiveSwitchItem(
+                        title = stringResource(R.string.follow_cover_mini),
+                        subtitle = "Mini player follows cover art colors",
+                        checked = followCoverMini,
+                        onCheckedChange = onFollowCoverMiniChange,
+                        shape = ExpressiveShapes.calculateShape(2, appearanceItemsCount)
+                    )
+                    ExpressiveSwitchItem(
+                        title = stringResource(R.string.follow_cover_player),
+                        subtitle = "Full player follows cover art colors",
+                        checked = followCoverPlayer,
+                        onCheckedChange = onFollowCoverPlayerChange,
+                        shape = ExpressiveShapes.calculateShape(3, appearanceItemsCount)
+                    )
+                    ExpressiveSwitchItem(
+                        title = stringResource(R.string.fluid_background),
+                        subtitle = stringResource(R.string.fluid_background_desc),
+                        checked = useFluidBackground,
+                        onCheckedChange = onUseFluidBackgroundChange,
+                        shape = ExpressiveShapes.calculateShape(4, appearanceItemsCount)
+                    )
                 }
-
-                SwitchSettingItem(
-                    icon = Icons.Default.GraphicEq,
-                    title = "Wavy Progress Bar",
-                    subtitle = "Toggle between wavy and straight progress bar in player screen",
-                    checked = useWavyProgress,
-                    onCheckedChange = onUseWavyProgressChange
-                )
-
-                SwitchSettingItem(
-                    icon = Icons.Default.Brightness4,
+                
+                ExpressiveSwitchItem(
                     title = stringResource(R.string.pure_black_mode),
                     subtitle = stringResource(R.string.pure_black_desc),
                     checked = pureBlackMode,
-                    onCheckedChange = onPureBlackModeChange
+                    onCheckedChange = onPureBlackModeChange,
+                    shape = ExpressiveShapes.calculateShape(if (themeMode == 1) 5 else 1, appearanceItemsCount)
+                )
+                ExpressiveSwitchItem(
+                    title = "Wavy Progress Bar",
+                    subtitle = "Toggle wavy progress bar in player screen",
+                    checked = useWavyProgress,
+                    onCheckedChange = onUseWavyProgressChange,
+                    shape = ExpressiveShapes.calculateShape(if (themeMode == 1) 6 else 2, appearanceItemsCount)
                 )
             }
 
-            SettingsCategory(stringResource(R.string.playback_quality_cat)) {
-                QualitySettingItem(
-                    icon = Icons.Default.Wifi,
-                    label = stringResource(R.string.wifi_quality_label),
-                    selectedQuality = currentQualityWifi,
-                    onQualityChange = onQualityWifiChange
+            // Audio Quality Section
+            SettingsSection(title = stringResource(R.string.playback_quality_cat)) {
+                val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
+                
+                ExpressiveDropdownItem(
+                    title = stringResource(R.string.wifi_quality_label),
+                    subtitle = currentQualityWifi.replaceFirstChar { it.uppercase() },
+                    options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                    selectedIndex = qualities.indexOf(currentQualityWifi).coerceAtLeast(0),
+                    onSelect = { onQualityWifiChange(qualities[it]) },
+                    shape = ExpressiveShapes.calculateShape(0, 2)
                 )
-                QualitySettingItem(
-                    icon = Icons.Default.CellTower,
-                    label = stringResource(R.string.cellular_quality_label),
-                    selectedQuality = currentQualityCellular,
-                    onQualityChange = onQualityCellularChange
+                
+                ExpressiveDropdownItem(
+                    title = stringResource(R.string.cellular_quality_label),
+                    subtitle = currentQualityCellular.replaceFirstChar { it.uppercase() },
+                    options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                    selectedIndex = qualities.indexOf(currentQualityCellular).coerceAtLeast(0),
+                    onSelect = { onQualityCellularChange(qualities[it]) },
+                    shape = ExpressiveShapes.calculateShape(1, 2)
                 )
             }
 
-            SettingsCategory(stringResource(R.string.download_settings)) {
-                QualitySettingItem(
-                    icon = Icons.Default.HighQuality,
-                    label = stringResource(R.string.download_quality_label),
-                    selectedQuality = downloadQuality,
-                    onQualityChange = onDownloadQualityChange
+            // Download Section
+            SettingsSection(title = stringResource(R.string.download_settings)) {
+                val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
+                
+                ExpressiveDropdownItem(
+                    title = stringResource(R.string.download_quality_label),
+                    subtitle = downloadQuality.replaceFirstChar { it.uppercase() },
+                    options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                    selectedIndex = qualities.indexOf(downloadQuality).coerceAtLeast(0),
+                    onSelect = { onDownloadQualityChange(qualities[it]) },
+                    shape = ExpressiveShapes.calculateShape(0, 3)
                 )
 
-                SwitchSettingItem(
-                    icon = Icons.Default.Download,
+                ExpressiveSwitchItem(
                     title = stringResource(R.string.allow_cellular_download),
                     subtitle = stringResource(R.string.allow_cellular_download_desc),
                     checked = allowCellularDownload,
-                    onCheckedChange = onAllowCellularDownloadChange
+                    onCheckedChange = onAllowCellularDownloadChange,
+                    shape = ExpressiveShapes.calculateShape(1, 3)
                 )
 
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.download_dir)) },
-                    supportingContent = { Text(downloadDir?.substringAfterLast("%2F") ?: "System Music folder") },
-                    leadingContent = { Icon(Icons.Default.Folder, null) },
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .clickable { dirPicker.launch(null) },
-                    colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                ExpressiveClickItem(
+                    title = stringResource(R.string.download_dir),
+                    subtitle = downloadDir?.substringAfterLast("%2F") ?: "System Music folder",
+                    onClick = { dirPicker.launch(null) },
+                    shape = ExpressiveShapes.calculateShape(2, 3)
                 )
             }
 
-            SettingsCategory(stringResource(R.string.audio_effects)) {
-                Text(
-                    stringResource(R.string.crossfade_duration, fadeDuration.toInt()),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 56.dp)
+            // Audio Effects (Crossfade)
+            SettingsSection(title = stringResource(R.string.audio_effects)) {
+                ExpressiveSliderItem(
+                    title = stringResource(R.string.crossfade_duration, fadeDuration.toInt()),
+                    value = fadeDuration,
+                    onValueChange = onFadeChange,
+                    valueRange = 0f..10f,
+                    steps = 10,
+                    shape = ExpressiveShapes.calculateShape(0, 1)
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.GraphicEq, null, modifier = Modifier.padding(start = 16.dp, end = 24.dp))
-                    Slider(
-                        value = fadeDuration,
-                        onValueChange = onFadeChange,
-                        valueRange = 0f..10f,
-                        steps = 10,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
             }
 
-            SettingsCategory(stringResource(R.string.storage_cache)) {
-                SwitchSettingItem(
-                    icon = Icons.Default.Cached,
+            // Storage & Cache
+            SettingsSection(title = stringResource(R.string.storage_cache)) {
+                ExpressiveSwitchItem(
                     title = stringResource(R.string.cellular_caching),
                     subtitle = stringResource(R.string.cellular_caching_desc),
                     checked = useCellularCache,
-                    onCheckedChange = onUseCellularCacheChange
+                    onCheckedChange = onUseCellularCacheChange,
+                    shape = ExpressiveShapes.calculateShape(0, 3)
                 )
 
-                Text(
-                    stringResource(R.string.max_cache_size, cacheSize),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 56.dp)
+                ExpressiveSliderItem(
+                    title = stringResource(R.string.max_cache_size, cacheSize),
+                    value = cacheSize.toFloat(),
+                    onValueChange = { onCacheSizeChange(it.toInt()) },
+                    valueRange = 100f..2048f,
+                    steps = 19,
+                    shape = ExpressiveShapes.calculateShape(1, 3)
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Cached, null, modifier = Modifier.padding(start = 16.dp, end = 24.dp))
-                    Slider(
-                        value = cacheSize.toFloat(),
-                        onValueChange = { onCacheSizeChange(it.toInt()) },
-                        valueRange = 100f..2048f,
-                        steps = 19,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
 
-                Button(
+                ExpressiveButtonItem(
+                    text = stringResource(R.string.clear_cache),
                     onClick = onClearCache,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
-                ) {
-                    Text(stringResource(R.string.clear_cache))
-                }
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = ExpressiveShapes.calculateShape(2, 3)
+                )
             }
 
-
-            SettingsCategory(stringResource(R.string.debug)) {
-                val context = androidx.compose.ui.platform.LocalContext.current
+            // Debug
+            SettingsSection(title = stringResource(R.string.debug)) {
                 val logsCopiedMsg = stringResource(R.string.logs_copied)
-                Button(
+                ExpressiveButtonItem(
+                    text = stringResource(R.string.copy_debug_logs),
                     onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val clip = android.content.ClipData.newPlainText("NCM Player Logs", LogManager.getAllLogsString())
+                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                        val clip = ClipData.newPlainText("NCM Player Logs", LogManager.getAllLogsString())
                         clipboard.setPrimaryClip(clip)
                         android.widget.Toast.makeText(context, logsCopiedMsg, android.widget.Toast.LENGTH_SHORT).show()
                     },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(stringResource(R.string.copy_debug_logs))
-                }
+                    shape = ExpressiveShapes.calculateShape(0, 1)
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))
@@ -273,150 +276,192 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsCategory(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
             style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 20.dp),
+            letterSpacing = 0.5.sp
         )
-        Surface(
-            shape = RoundedCornerShape(26.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(4.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                content = content
-            )
-        }
+        
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            content = content
+        )
     }
 }
 
 @Composable
-fun QualitySettingItem(
-    icon: ImageVector,
-    label: String,
-    selectedQuality: String,
-    onQualityChange: (String) -> Unit
+fun ExpressiveClickItem(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    shape: androidx.compose.ui.graphics.Shape
 ) {
-    var showDialog by remember { mutableStateOf(false) }
-    val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
-
     ListItem(
-        headlineContent = { Text(label) },
-        supportingContent = { Text(selectedQuality.replaceFirstChar { it.uppercase() }) },
-        leadingContent = { Icon(icon, null) },
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable { showDialog = true },
-        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
-    )
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(label) },
-            text = {
-                Column {
-                    qualities.forEach { quality ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onQualityChange(quality)
-                                    showDialog = false
-                                }
-                                .padding(vertical = 12.dp)
-                        ) {
-                            RadioButton(selected = quality == selectedQuality, onClick = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(quality.replaceFirstChar { it.uppercase() })
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.cancel)) }
+        headlineContent = { Text(title, fontWeight = FontWeight.Medium, fontSize = 16.sp) },
+        supportingContent = { Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Normal) },
+        trailingContent = { 
+            Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
             }
-        )
-    }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clip(shape)
+            .clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+    )
 }
 
 @Composable
-fun ThemeModeSettingItem(
-    themeMode: Int,
-    onThemeModeChange: (Int) -> Unit
-) {
-    var showDialog by remember { mutableStateOf(false) }
-    val modes = listOf(
-        stringResource(R.string.theme_mode_system),
-        stringResource(R.string.theme_mode_cover),
-        stringResource(R.string.theme_mode_fixed)
-    )
-
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.theme_mode)) },
-        supportingContent = { Text(modes.getOrElse(themeMode) { modes[0] }) },
-        leadingContent = { Icon(Icons.Default.Brightness4, null) },
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable { showDialog = true },
-        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
-    )
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(stringResource(R.string.theme_mode)) },
-            text = {
-                Column {
-                    modes.forEachIndexed { index, mode ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onThemeModeChange(index)
-                                    showDialog = false
-                                }
-                                .padding(vertical = 12.dp)
-                        ) {
-                            RadioButton(selected = index == themeMode, onClick = null)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(mode)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
-    }
-}
-
-@Composable
-fun SwitchSettingItem(
-    icon: ImageVector,
+fun ExpressiveSwitchItem(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    shape: androidx.compose.ui.graphics.Shape
 ) {
     ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        leadingContent = { Icon(icon, null) },
+        headlineContent = { Text(title, fontWeight = FontWeight.Medium, fontSize = 16.sp) },
+        supportingContent = { Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Normal) },
         trailingContent = {
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
+                Switch(
+                    checked = checked, 
+                    onCheckedChange = onCheckedChange,
+                    thumbContent = if (checked) {
+                        { Icon(Icons.Default.Check, null, Modifier.size(SwitchDefaults.IconSize)) }
+                    } else null
+                )
+            }
         },
-        modifier = Modifier.clip(RoundedCornerShape(6.dp)),
-        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clip(shape)
+            .clickable { onCheckedChange(!checked) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+    )
+}
+
+@Composable
+fun ExpressiveDropdownItem(
+    title: String,
+    subtitle: String,
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    shape: androidx.compose.ui.graphics.Shape
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    
+    ListItem(
+        headlineContent = { Text(title, fontWeight = FontWeight.Medium, fontSize = 16.sp) },
+        supportingContent = { Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Normal) },
+        trailingContent = { 
+            Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clip(shape)
+            .clickable { showDialog = true },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+    )
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(title) },
+            text = {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    options.forEachIndexed { index, option ->
+                        val isSelected = index == selectedIndex
+                        Surface(
+                            onClick = {
+                                onSelect(index)
+                                showDialog = false
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                RadioButton(selected = isSelected, onClick = null)
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    option, 
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+}
+
+@Composable
+fun ExpressiveSliderItem(
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    shape: androidx.compose.ui.graphics.Shape
+) {
+    ListItem(
+        headlineContent = { Text(title, fontWeight = FontWeight.Medium, fontSize = 16.sp) },
+        supportingContent = {
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                steps = steps,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            )
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clip(shape),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+    )
+}
+
+@Composable
+fun ExpressiveButtonItem(
+    text: String,
+    onClick: () -> Unit,
+    containerColor: Color = Color.Unspecified, 
+    contentColor: Color = Color.Unspecified,
+    shape: androidx.compose.ui.graphics.Shape
+) {
+    val finalContainerColor = if (containerColor == Color.Unspecified) MaterialTheme.colorScheme.surface else containerColor
+    val finalContentColor = if (contentColor == Color.Unspecified) MaterialTheme.colorScheme.onSurface else contentColor
+
+    ListItem(
+        headlineContent = { Text(text, color = finalContentColor, fontWeight = FontWeight.Medium, fontSize = 16.sp) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clip(shape)
+            .clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = finalContainerColor)
     )
 }

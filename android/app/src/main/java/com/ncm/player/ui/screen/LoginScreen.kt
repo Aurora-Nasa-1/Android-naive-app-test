@@ -1,6 +1,6 @@
 package com.ncm.player.ui.screen
 
-import com.ncm.player.ui.component.WavyCircularProgressIndicator
+import com.ncm.player.ui.component.ContainedLoadingIndicator
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -53,8 +53,7 @@ fun LoginScreen(viewModel: LoginViewModel, onLoginSuccess: () -> Unit) {
                 )
             }
             else -> {
-
-                WavyCircularProgressIndicator()
+                ContainedLoadingIndicator()
             }
         }
 

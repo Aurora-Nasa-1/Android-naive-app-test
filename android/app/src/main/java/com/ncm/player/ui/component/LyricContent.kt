@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun LyricContent(
     lyrics: List<LyricLine>,
@@ -88,10 +89,9 @@ fun LyricContent(
                     horizontalAlignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
                 ) {
                     if (line.words != null && isActive) {
-                        Row(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (textAlign == TextAlign.Center) Arrangement.Center else Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = if (textAlign == TextAlign.Center) Arrangement.Center else Arrangement.Start
                         ) {
                             line.words.forEach { word ->
                                 val isWordActive = currentPosition >= word.beginTime
@@ -102,7 +102,6 @@ fun LyricContent(
                                 Text(
                                     text = word.text,
                                     style = MaterialTheme.typography.headlineMedium.copy(
-                                        fontWeight = FontWeight.Bold,
                                         lineHeight = 36.sp,
                                         fontSize = 28.sp
                                     ),
@@ -115,7 +114,6 @@ fun LyricContent(
                         Text(
                             text = line.text,
                             style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold,
                                 lineHeight = 36.sp,
                                 fontSize = 28.sp
                             ),

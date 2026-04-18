@@ -51,25 +51,25 @@ fun BottomPlaybackBar(
         // Floating Capsule Mini Player (Phone/Vertical mode)
         Surface(
             modifier = modifier
-                .height(56.dp)
-                .width(280.dp)
+                .height(64.dp)
+                .width(300.dp)
                 .clickable { onClick() },
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = MaterialTheme.colorScheme.surfaceContainer,
             shape = CircleShape,
-            tonalElevation = 8.dp,
+            tonalElevation = 6.dp,
             shadowElevation = 4.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 4.dp, end = 8.dp),
+                    .padding(start = 6.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 100),
+                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 120),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(52.dp)
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
@@ -81,7 +81,7 @@ fun BottomPlaybackBar(
                 ) {
                     Text(
                         text = song.name,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.labelLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

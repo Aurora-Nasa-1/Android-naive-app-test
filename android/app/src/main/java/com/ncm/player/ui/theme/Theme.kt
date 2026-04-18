@@ -118,15 +118,15 @@ fun NCMPlayerTheme(
     // Fully Rounded (full token)
 
     val expressiveTypography = Typography(
-        displayLarge = Typography().displayLarge.copy(fontWeight = FontWeight.Bold),
-        displayMedium = Typography().displayMedium.copy(fontWeight = FontWeight.Bold),
-        displaySmall = Typography().displaySmall.copy(fontWeight = FontWeight.Bold),
-        headlineLarge = Typography().headlineLarge.copy(fontWeight = FontWeight.Bold),
-        headlineMedium = Typography().headlineMedium.copy(fontWeight = FontWeight.Bold),
-        headlineSmall = Typography().headlineSmall.copy(fontWeight = FontWeight.Bold),
-        titleLarge = Typography().titleLarge.copy(fontWeight = FontWeight.SemiBold),
-        titleMedium = Typography().titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        titleSmall = Typography().titleSmall.copy(fontWeight = FontWeight.SemiBold),
+        displayLarge = Typography().displayLarge.copy(fontWeight = FontWeight.Normal),
+        displayMedium = Typography().displayMedium.copy(fontWeight = FontWeight.Normal),
+        displaySmall = Typography().displaySmall.copy(fontWeight = FontWeight.Normal),
+        headlineLarge = Typography().headlineLarge.copy(fontWeight = FontWeight.Normal),
+        headlineMedium = Typography().headlineMedium.copy(fontWeight = FontWeight.Normal),
+        headlineSmall = Typography().headlineSmall.copy(fontWeight = FontWeight.Normal),
+        titleLarge = Typography().titleLarge.copy(fontWeight = FontWeight.Normal),
+        titleMedium = Typography().titleMedium.copy(fontWeight = FontWeight.Normal),
+        titleSmall = Typography().titleSmall.copy(fontWeight = FontWeight.Normal),
         // All labels and buttons should be Sentence case by default in the UI layer
     )
     val view = LocalView.current

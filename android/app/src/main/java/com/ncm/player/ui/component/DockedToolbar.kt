@@ -82,7 +82,7 @@ fun DockedToolbar(
                         ) {
                             Text(
                                 text = song.name,
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -148,8 +148,7 @@ fun DockedToolbar(
                     Text(
                         "CNMDPlayer",
                         modifier = Modifier.padding(start = 16.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }

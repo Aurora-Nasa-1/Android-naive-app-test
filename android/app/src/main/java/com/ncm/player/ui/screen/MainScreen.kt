@@ -5,21 +5,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoGraph
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,10 +27,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
-import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.PlayArrow
 import coil3.compose.AsyncImage
 import com.ncm.player.R
 import com.ncm.player.util.ImageUtils
@@ -46,7 +41,6 @@ import com.ncm.player.model.UserProfile
 import com.ncm.player.ui.component.UserAccountDialog
 import com.ncm.player.ui.component.SongItem
 import com.ncm.player.ui.component.SongCard
-import com.ncm.player.ui.component.PlaylistItem
 import com.ncm.player.ui.component.ExpressiveShapes
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
@@ -83,6 +77,7 @@ fun MainScreen(
     }
     val windowSizeClass = if (activity != null) calculateWindowSizeClass(activity) else null
     val widthClass = windowSizeClass?.widthSizeClass ?: WindowWidthSizeClass.Compact
+    val isLandscape = widthClass != WindowWidthSizeClass.Compact
 
     var showAccountDialog by remember { mutableStateOf(false) }
 
@@ -102,14 +97,15 @@ fun MainScreen(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.good_day), fontWeight = FontWeight.Normal) },
+                title = { 
+                    Text(stringResource(R.string.good_day), fontWeight = FontWeight.Normal)
+                },
                 actions = {
                     actions()
                     IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
                     IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, null) }
                     IconButton(onClick = { showAccountDialog = true }) {
-                        // Use a custom shape (extraLarge from updated theme is 32dp, which matches avatar)
-                        Surface(modifier = Modifier.size(32.dp).clip(MaterialTheme.shapes.extraLarge), color = MaterialTheme.colorScheme.primaryContainer) {
+                        Surface(modifier = Modifier.size(32.dp).clip(CircleShape), color = MaterialTheme.colorScheme.surfaceVariant) {
                             if (userProfile?.avatarUrl != null) {
                                 AsyncImage(model = userProfile.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
                             } else {
@@ -127,31 +123,53 @@ fun MainScreen(
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = innerPadding.calculateTopPadding(), bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding() + 8.dp, 
+                bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 80.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(32.dp) // Large M3 expressive spacing
         ) {
+            // "Favorites" Section - Circular items
             item {
-                val gridColumns = when (widthClass) {
-                    WindowWidthSizeClass.Expanded -> 4
-                    WindowWidthSizeClass.Medium -> 3
-                    else -> 2
-                }
                 Column {
-                    val displayPlaylists = userPlaylists.take(gridColumns * 3)
-                    val itemsToRender = mutableListOf<@Composable (Modifier) -> Unit>()
-                    itemsToRender.add { m -> QuickAccessCard("Private FM", { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) }, onPersonalFmClick, m) }
-                    itemsToRender.add { m -> QuickAccessCard("Heartbeat", { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) }, onHeartbeatClick, m) }
-                    itemsToRender.add { m -> QuickAccessCard(stringResource(R.string.live_sort), { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.tertiary) }, onLiveSortClick, m) }
-                    displayPlaylists.forEach { p -> itemsToRender.add { m -> PlaylistQuickCard(p, { onPlaylistClick(p) }, m) } }
-
-                    com.ncm.player.ui.component.VerticalGrid(
-                        items = itemsToRender,
-                        columns = gridColumns,
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) { item -> item(Modifier.weight(1f)) }
+                    Text("Favorites", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, modifier = Modifier.padding(start = 8.dp, bottom = 16.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        item {
+                            FavoriteCircleItem(
+                                title = "Private FM",
+                                icon = { Icon(Icons.Default.Radio, null, tint = MaterialTheme.colorScheme.primary) },
+                                onClick = onPersonalFmClick
+                            )
+                        }
+                        item {
+                            FavoriteCircleItem(
+                                title = "Heartbeat",
+                                icon = { Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary) },
+                                onClick = onHeartbeatClick
+                            )
+                        }
+                        item {
+                            FavoriteCircleItem(
+                                title = stringResource(R.string.live_sort),
+                                icon = { Icon(Icons.Default.SwapVert, null, tint = MaterialTheme.colorScheme.tertiary) },
+                                onClick = onLiveSortClick
+                            )
+                        }
+                        val displayPlaylists = userPlaylists.take(5)
+                        items(displayPlaylists) { p ->
+                            FavoriteCircleItem(
+                                title = p.name,
+                                icon = { AsyncImage(model = ImageUtils.getResizedImageUrl(p.coverImgUrl ?: "", 150), contentDescription = null, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop) },
+                                onClick = { onPlaylistClick(p) }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -176,24 +194,62 @@ fun MainScreen(
                 }
             }
 
-            item { Text(stringResource(R.string.made_for_you), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Normal) }
+            if (recommendedSongs.isNotEmpty()) {
+                item {
+                    // Intuitive Daily Recommended Songs Banner
+                    Surface(
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.fillMaxWidth().clickable { onSongClick(recommendedSongs.first()) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "每日推荐歌曲",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "符合你口味的新鲜好歌",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                            FilledIconButton(
+                                onClick = { onSongClick(recommendedSongs.first()) },
+                                modifier = Modifier.size(56.dp),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Play All", modifier = Modifier.size(32.dp))
+                            }
+                        }
+                    }
+                }
 
-            item {
-                if (widthClass != WindowWidthSizeClass.Compact) {
-                    val columns = if (widthClass == WindowWidthSizeClass.Expanded) 5 else 4
-                    com.ncm.player.ui.component.VerticalGrid(
-                        items = recommendedSongs.take(10),
-                        columns = columns,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) { s -> SongCard(song = s, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f)) }
-                } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
-                        items(items = recommendedSongs.take(10), key = { "rec_${it.id}" }) { s -> SongCard(s, onClick = { onSongClick(s) }) }
+                item {
+                    if (widthClass != WindowWidthSizeClass.Compact) {
+                        val columns = if (widthClass == WindowWidthSizeClass.Expanded) 5 else 4
+                        com.ncm.player.ui.component.VerticalGrid(
+                            items = recommendedSongs.take(10),
+                            columns = columns,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) { s -> SongCard(song = s, onClick = { onSongClick(s) }, modifier = Modifier.weight(1f)) }
+                    } else {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(end = 16.dp)) {
+                            items(items = recommendedSongs.take(10), key = { "rec_${it.id}" }) { s -> SongCard(s, onClick = { onSongClick(s) }) }
+                        }
                     }
                 }
             }
-
 
             item { Text(stringResource(R.string.recently_played), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Normal) }
 
@@ -223,23 +279,56 @@ fun MainScreen(
 }
 
 @Composable
-fun QuickAccessCard(title: String, icon: @Composable () -> Unit, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, modifier = modifier.height(56.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
-            icon()
-            Spacer(Modifier.width(12.dp))
-            Text(text = title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+fun FavoriteCircleItem(title: String, icon: @Composable () -> Unit, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(80.dp).clickable(onClick = onClick)
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.size(72.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                icon()
+            }
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = title, 
+            style = MaterialTheme.typography.labelLarge, 
+            maxLines = 1, 
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
 @Composable
-fun PlaylistQuickCard(playlist: Playlist, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, modifier = modifier.height(56.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(model = ImageUtils.getResizedImageUrl(playlist.coverImgUrl ?: "", 120), contentDescription = null, modifier = Modifier.fillMaxHeight().aspectRatio(1f).clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
-            Spacer(Modifier.width(12.dp))
-            Text(text = playlist.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(end = 8.dp))
+fun ExpressiveListCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge, // Large 32dp+ rounded corners
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(modifier = Modifier.padding(bottom = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Icon(Icons.Default.SwapVert, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            content()
         }
     }
 }

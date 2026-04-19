@@ -133,7 +133,11 @@ fun PlaylistDetailScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CommonBackButton(onClick = onBackPressed)
                             Text(
-                                text = stringResource(R.string.playlist),
+                                text = stringResource(R.string.
+
+
+
+                                playlist),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Normal
                             )

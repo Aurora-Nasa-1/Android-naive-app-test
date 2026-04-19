@@ -37,7 +37,7 @@ fun WavySlider(
                     modifier = Modifier,
                     color = colors.activeTrackColor,
                     trackColor = colors.inactiveTrackColor,
-                    gapSize = 0.dp,
+                    gapSize = 4.dp,
                     stopSize = 0.dp
                 )
             } else {
@@ -47,7 +47,7 @@ fun WavySlider(
                     colors = colors,
                     enabled = enabled,
                     drawStopIndicator = null,
-                    thumbTrackGapSize = 0.dp,
+                    thumbTrackGapSize = 4.dp,
                     trackInsideCornerSize = 0.dp
                 )
             }

@@ -23,7 +23,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Song
 import com.ncm.player.ui.theme.createCustomColorScheme
-
 import androidx.compose.foundation.shape.CircleShape
 
 @Composable
@@ -48,28 +47,29 @@ fun BottomPlaybackBar(
     }
 
     MaterialTheme(colorScheme = barColorScheme) {
-        // Floating Capsule Mini Player (Phone/Vertical mode)
+        // MD3 Expressive Floating Pill-shaped Mini Player
         Surface(
             modifier = modifier
-                .height(64.dp)
-                .width(300.dp)
+                .height(72.dp)
+                .fillMaxWidth(0.9f)
+                .padding(bottom = 8.dp) // Lift it up slightly
                 .clickable { onClick() },
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
             shape = CircleShape,
-            tonalElevation = 6.dp,
-            shadowElevation = 4.dp
+            shadowElevation = 8.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 6.dp, end = 12.dp),
+                    .padding(start = 8.dp, end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Circular Avatar for Expressive feel
                 AsyncImage(
                     model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 120),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(48.dp)
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
@@ -77,17 +77,19 @@ fun BottomPlaybackBar(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 8.dp)
+                        .padding(horizontal = 12.dp)
                 ) {
                     Text(
                         text = song.name,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = song.artist,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -96,14 +98,20 @@ fun BottomPlaybackBar(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IconButton(
+                    // Play/Pause Button
+                    FilledIconButton(
                         onClick = onPlayPause,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     ) {
                         if (isBuffering) {
-                            WavyCircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.primary)
+                            WavyCircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
                         } else {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -113,14 +121,18 @@ fun BottomPlaybackBar(
                         }
                     }
 
+                    // Skip Next Button (Optional in mini player, but keeping for utility)
                     IconButton(
                         onClick = onSkipNext,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }

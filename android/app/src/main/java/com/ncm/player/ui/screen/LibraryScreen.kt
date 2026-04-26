@@ -30,6 +30,7 @@ import com.ncm.player.util.ImageUtils
 import com.ncm.player.model.Playlist
 import com.ncm.player.ui.component.PlaylistItem
 import com.ncm.player.ui.component.ExpressiveShapes
+import com.ncm.player.ui.component.AppScaffold
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
@@ -47,28 +48,18 @@ fun LibraryScreen(
     val windowSizeClass = calculateWindowSizeClass(context as android.app.Activity)
     val isWideScreen = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.your_library),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Normal
-                    )
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
-                    }
-                },
-                windowInsets = WindowInsets.statusBars,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
+    AppScaffold(
+        title = {
+            Text(
+                stringResource(R.string.your_library),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Normal
             )
+        },
+        actions = {
+            IconButton(onClick = onNavigateToSettings) {
+                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+            }
         }
     ) { innerPadding ->
         val columns = if (isWideScreen) 2 else 1

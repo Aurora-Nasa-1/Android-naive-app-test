@@ -29,6 +29,12 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
         private set
     var useWavyProgress by mutableStateOf(UserPreferences.getUseWavyProgress(application))
         private set
+    var audioFocusMode by mutableIntStateOf(UserPreferences.getAudioFocusMode(application))
+        private set
+    var allowDucking by mutableStateOf(UserPreferences.getAllowDucking(application))
+        private set
+    var pauseOnNoisy by mutableStateOf(UserPreferences.getPauseOnNoisy(application))
+        private set
     var downloadDir by mutableStateOf(UserPreferences.getDownloadDir(application))
         private set
 
@@ -90,6 +96,21 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
     fun updateUseWavyProgress(e: Boolean) {
         useWavyProgress = e
         UserPreferences.saveUseWavyProgress(getApplication(), e)
+    }
+
+    fun updateAudioFocusMode(m: Int) {
+        audioFocusMode = m
+        UserPreferences.saveAudioFocusMode(getApplication(), m)
+    }
+
+    fun updateAllowDucking(a: Boolean) {
+        allowDucking = a
+        UserPreferences.saveAllowDucking(getApplication(), a)
+    }
+
+    fun updatePauseOnNoisy(p: Boolean) {
+        pauseOnNoisy = p
+        UserPreferences.savePauseOnNoisy(getApplication(), p)
     }
 
     fun updateDownloadPath(p: String) {

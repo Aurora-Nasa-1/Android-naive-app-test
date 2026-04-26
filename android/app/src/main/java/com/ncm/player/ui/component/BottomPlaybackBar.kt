@@ -15,6 +15,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +27,7 @@ import com.ncm.player.model.Song
 import com.ncm.player.ui.theme.createCustomColorScheme
 import androidx.compose.foundation.shape.CircleShape
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun BottomPlaybackBar(
     song: Song?,
@@ -36,7 +39,9 @@ fun BottomPlaybackBar(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     useCoverColor: Boolean = false,
-    coverColor: Int? = null
+    coverColor: Int? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     if (song == null) return
 
@@ -50,9 +55,18 @@ fun BottomPlaybackBar(
         // MD3 Expressive Floating Pill-shaped Mini Player
         Surface(
             modifier = modifier
-                .height(72.dp)
                 .fillMaxWidth(0.9f)
                 .padding(bottom = 8.dp) // Lift it up slightly
+                .then(
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            Modifier.sharedBounds(
+                                sharedContentState = rememberSharedContentState(key = "player_container"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        }
+                    } else Modifier
+                )
                 .clickable { onClick() },
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
             shape = CircleShape,
@@ -60,16 +74,27 @@ fun BottomPlaybackBar(
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 8.dp, end = 16.dp),
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Circular Avatar for Expressive feel
                 AsyncImage(
-                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 120),
+                    model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
                     contentDescription = null,
                     modifier = Modifier
                         .size(48.dp)
+                        .then(
+                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedBounds(
+                                        sharedContentState = rememberSharedContentState(key = "player_cover"),
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        clipInOverlayDuringTransition = OverlayClip(CircleShape)
+                                    )
+                                }
+                            } else Modifier
+                        )
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
@@ -121,7 +146,7 @@ fun BottomPlaybackBar(
                         }
                     }
 
-                    // Skip Next Button (Optional in mini player, but keeping for utility)
+                    // Skip Next Button
                     IconButton(
                         onClick = onSkipNext,
                         modifier = Modifier.size(40.dp),

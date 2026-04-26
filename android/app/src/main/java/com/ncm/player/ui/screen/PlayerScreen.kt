@@ -48,6 +48,7 @@ import com.ncm.player.ui.theme.createCustomColorScheme
 import com.ncm.player.ui.component.CommonBackButton
 import com.ncm.player.util.ImageUtils
 import com.ncm.player.viewmodel.PlaybackViewModel
+import com.ncm.player.ui.component.AppScaffold
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -113,9 +114,12 @@ fun PlayerScreen(
     useFluidBackground: Boolean = false,
     useWavyProgress: Boolean = true,
     coverColor: Int? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
+    val backDispatcher = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val activity = remember(context) {
         var c = context
         while (c is ContextWrapper) {
@@ -325,7 +329,18 @@ fun PlayerScreen(
         }
 
         Surface(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            Modifier.sharedBounds(
+                                sharedContentState = rememberSharedContentState(key = "player_container"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        }
+                    } else Modifier
+                ),
             color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface
         ) {
@@ -338,29 +353,14 @@ fun PlayerScreen(
                 } else {
                     Box(modifier = Modifier.fillMaxSize().background(bgBrush))
                 }
-                Scaffold(
-                    containerColor = Color.Transparent,
-                    topBar = {
-                        CenterAlignedTopAppBar(
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color.Transparent,
-                                scrolledContainerColor = Color.Transparent,
-                                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                                navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                                actionIconContentColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            title = {
-                                // Title removed from top bar as per request
-                            },
-                            navigationIcon = {
-                                CommonBackButton(
-                                    onClick = onBackPressed,
-                                    icon = Icons.Default.KeyboardArrowDown,
-                                    containerColor = Color.Transparent,
-                                    iconColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            windowInsets = WindowInsets.statusBars
+                AppScaffold(
+                    title = { },
+                    navigationIcon = {
+                        CommonBackButton(
+                            onClick = { backDispatcher?.onBackPressed() ?: onBackPressed() },
+                            icon = Icons.Default.KeyboardArrowDown,
+                            containerColor = Color.Transparent,
+                            iconColor = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 ) { innerPadding ->
@@ -370,8 +370,10 @@ fun PlayerScreen(
                             .padding(innerPadding)
                     ) {
                         if (isWideScreen) {
-                            PlayerWideLayout(
-                                song = song,
+                                PlayerWideLayout(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    song = song,
                                 lyrics = lyrics,
                                 isPlaying = isPlaying,
                                 isBuffering = isBuffering,
@@ -408,8 +410,10 @@ fun PlayerScreen(
                                 onDislikeClick = onDislikeClick
                             )
                         } else {
-                            PlayerMobileLayout(
-                                song = song,
+                                PlayerMobileLayout(
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    song = song,
                                 lyrics = lyrics,
                                 isPlaying = isPlaying,
                                 isBuffering = isBuffering,
@@ -453,9 +457,11 @@ fun PlayerScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun PlayerWideLayout(
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
     song: Song,
     lyrics: List<LyricLine>,
     isPlaying: Boolean,
@@ -524,7 +530,19 @@ private fun PlayerWideLayout(
                             model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                        with(sharedTransitionScope) {
+                                            Modifier.sharedBounds(
+                                                sharedContentState = rememberSharedContentState(key = "player_cover"),
+                                                animatedVisibilityScope = animatedVisibilityScope,
+                                                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(32.dp))
+                                            )
+                                        }
+                                    } else Modifier
+                                )
                         )
                     } else {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -783,9 +801,11 @@ private fun PlayerWideLayout(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun PlayerMobileLayout(
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
     song: Song,
     lyrics: List<LyricLine>,
     isPlaying: Boolean,
@@ -851,7 +871,19 @@ private fun PlayerMobileLayout(
                         AsyncImage(
                             model = ImageUtils.getResizedImageUrl(song.albumArtUrl, 800),
                             contentDescription = null,
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .then(
+                                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                        with(sharedTransitionScope) {
+                                            Modifier.sharedBounds(
+                                                sharedContentState = rememberSharedContentState(key = "player_cover"),
+                                                animatedVisibilityScope = animatedVisibilityScope,
+                                                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(32.dp))
+                                            )
+                                        }
+                                    } else Modifier
+                                )
                         )
                     } else {
                         Box(contentAlignment = Alignment.Center) {

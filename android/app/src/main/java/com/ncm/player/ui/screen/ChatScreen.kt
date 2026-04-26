@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.ncm.player.model.Message
 import com.ncm.player.util.ImageUtils
+import com.ncm.player.ui.component.AppScaffold
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,20 +38,9 @@ fun ChatScreen(
 ) {
     var textState by remember { mutableStateOf("") }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = { Text(recipientName) },
-                navigationIcon = {
-                    com.ncm.player.ui.component.CommonBackButton(onClick = onBackPressed)
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            )
-        },
+    AppScaffold(
+        title = recipientName,
+        onBackPressed = onBackPressed,
         bottomBar = {
             BottomAppBar(
                 modifier = Modifier.windowInsetsPadding(WindowInsets.ime),

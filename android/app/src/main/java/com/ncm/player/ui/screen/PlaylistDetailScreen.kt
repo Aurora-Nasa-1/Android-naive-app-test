@@ -45,6 +45,7 @@ import androidx.compose.foundation.shape.CircleShape
 import com.ncm.player.ui.component.ExpressiveShapes
 import com.ncm.player.ui.component.SongItem
 import com.ncm.player.ui.component.CommonBackButton
+import com.ncm.player.ui.component.AppScaffold
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -82,152 +83,184 @@ fun PlaylistDetailScreen(
         selectedSongs = emptySet()
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = Color.Transparent,
-        topBar = {
-            if (isSelectionMode) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.selected_count, selectedSongs.size)) },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            isSelectionMode = false
-                            selectedSongs = emptySet()
-                        }) {
-                            Icon(Icons.Default.Close, contentDescription = "Cancel")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            val selectedList = songs.filter { selectedSongs.contains(it.id) }
-                            onQueueAllClick(selectedList)
-                            isSelectionMode = false
-                            selectedSongs = emptySet()
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Queue")
-                        }
-                        IconButton(onClick = { showAddToPlaylistDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "Add to Playlist")
-                        }
-                        IconButton(onClick = {
-                            onRemoveFromPlaylist(selectedSongs.toList())
-                            isSelectionMode = false
-                            selectedSongs = emptySet()
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Remove from Playlist")
-                        }
-                    }
-                )
-            } else {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                    },
-                    navigationIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CommonBackButton(onClick = onBackPressed)
-                            Text(
-                                text = stringResource(R.string.
-
-
-
-                                playlist),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Normal
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
-                        }
-                        val context = androidx.compose.ui.platform.LocalContext.current
-                        DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_name)) }, onClick = { onSortChange("name"); showSortMenu = false })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_artist)) }, onClick = { onSortChange("artist"); showSortMenu = false })
-                            DropdownMenuItem(
-                                text = { Text("Share Playlist") },
-                                onClick = {
-                                    val shareIntent = android.content.Intent().apply {
-                                        action = android.content.Intent.ACTION_SEND
-                                        putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: ${playlist.name}\nhttps://music.163.com/playlist?id=${playlist.id}")
-                                        type = "text/plain"
-                                    }
-                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
-                                    showSortMenu = false
-                                }
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    scrollBehavior = scrollBehavior
-                )
-            }
-        }
-    ) { innerPadding ->
-        if (isLoading && songs.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                 ContainedLoadingIndicator()
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 0.dp,
-                    end = 0.dp,
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                if (!isSelectionMode) {
-                    item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }
+    if (isSelectionMode) {
+        AppScaffold(
+            title = stringResource(R.string.selected_count, selectedSongs.size),
+            navigationIcon = {
+                IconButton(onClick = {
+                    isSelectionMode = false
+                    selectedSongs = emptySet()
+                }) {
+                    Icon(Icons.Default.Close, contentDescription = "Cancel")
                 }
-
-                itemsIndexed(items = songs, key = { _, song -> song.id }) { index, song ->
-                    val isSelected = selectedSongs.contains(song.id)
-                    val itemShape = ExpressiveShapes.calculateShape(index, songs.size)
-                    SongItem(
-                        song = song,
-                        isFavorite = favoriteSongs.contains(song.id),
-                        isDownloaded = completedSongs.contains(song.id),
-                        onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
-                        onClick = null,
-                        shape = itemShape,
-                        leadingContent = if (isSelectionMode) {
-                            { Checkbox(checked = isSelected, onCheckedChange = {
-                                selectedSongs = if (it) selectedSongs + song.id else selectedSongs - song.id
-                            }) }
-                        } else null,
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .combinedClickable(
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        selectedSongs = if (isSelected) selectedSongs - song.id else selectedSongs + song.id
-                                    } else {
-                                        onSongClick(song)
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!isSelectionMode) {
-                                        isSelectionMode = true
-                                        selectedSongs = setOf(song.id)
-                                    }
-                                }
-                            ),
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+            },
+            actions = {
+                IconButton(onClick = {
+                    val selectedList = songs.filter { selectedSongs.contains(it.id) }
+                    onQueueAllClick(selectedList)
+                    isSelectionMode = false
+                    selectedSongs = emptySet()
+                }) {
+                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to Queue")
+                }
+                IconButton(onClick = { showAddToPlaylistDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add to Playlist")
+                }
+                IconButton(onClick = {
+                    onRemoveFromPlaylist(selectedSongs.toList())
+                    isSelectionMode = false
+                    selectedSongs = emptySet()
+                }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove from Playlist")
+                }
+            }
+        ) { innerPadding ->
+            PlaylistDetailContent(
+                innerPadding = innerPadding,
+                bottomContentPadding = bottomContentPadding,
+                isLoading = isLoading,
+                songs = songs,
+                playlist = playlist,
+                isSelectionMode = isSelectionMode,
+                selectedSongs = selectedSongs,
+                favoriteSongs = favoriteSongs,
+                completedSongs = completedSongs,
+                onPlayAllClick = onPlayAllClick,
+                onLikeClick = onLikeClick,
+                onSongClick = onSongClick,
+                onSelectionChange = { id, selected ->
+                    selectedSongs = if (selected) selectedSongs + id else selectedSongs - id
+                },
+                onToggleSelectionMode = {
+                    isSelectionMode = it
+                    if (!it) selectedSongs = emptySet()
+                }
+            )
+        }
+    } else {
+        AppScaffold(
+            title = stringResource(R.string.playlist),
+            onBackPressed = onBackPressed,
+            actions = {
+                IconButton(onClick = { showSortMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+                }
+                val context = androidx.compose.ui.platform.LocalContext.current
+                DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_name)) }, onClick = { onSortChange("name"); showSortMenu = false })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.sort_by_artist)) }, onClick = { onSortChange("artist"); showSortMenu = false })
+                    DropdownMenuItem(
+                        text = { Text("Share Playlist") },
+                        onClick = {
+                            val shareIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(android.content.Intent.EXTRA_TEXT, "Check out this playlist: ${playlist.name}\nhttps://music.163.com/playlist?id=${playlist.id}")
+                                type = "text/plain"
+                            }
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Playlist"))
+                            showSortMenu = false
+                        }
                     )
                 }
+            },
+            scrollBehavior = scrollBehavior
+        ) { innerPadding ->
+            PlaylistDetailContent(
+                innerPadding = innerPadding,
+                bottomContentPadding = bottomContentPadding,
+                isLoading = isLoading,
+                songs = songs,
+                playlist = playlist,
+                isSelectionMode = isSelectionMode,
+                selectedSongs = selectedSongs,
+                favoriteSongs = favoriteSongs,
+                completedSongs = completedSongs,
+                onPlayAllClick = onPlayAllClick,
+                onLikeClick = onLikeClick,
+                onSongClick = onSongClick,
+                onSelectionChange = { id, selected ->
+                    selectedSongs = if (selected) selectedSongs + id else selectedSongs - id
+                },
+                onToggleSelectionMode = {
+                    isSelectionMode = it
+                    if (!it) selectedSongs = emptySet()
+                }
+            )
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun PlaylistDetailContent(
+    innerPadding: PaddingValues,
+    bottomContentPadding: PaddingValues,
+    isLoading: Boolean,
+    songs: List<Song>,
+    playlist: Playlist,
+    isSelectionMode: Boolean,
+    selectedSongs: Set<String>,
+    favoriteSongs: List<String>,
+    completedSongs: Set<String>,
+    onPlayAllClick: (List<Song>) -> Unit,
+    onLikeClick: (Song) -> Unit,
+    onSongClick: (Song) -> Unit,
+    onSelectionChange: (String, Boolean) -> Unit,
+    onToggleSelectionMode: (Boolean) -> Unit
+) {
+    if (isLoading && songs.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+             ContainedLoadingIndicator()
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 0.dp,
+                end = 0.dp,
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding() + bottomContentPadding.calculateBottomPadding() + 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (!isSelectionMode) {
+                item { PlaylistHeader(playlist, onPlayAllClick = { onPlayAllClick(songs) }) }
+            }
+
+            itemsIndexed(items = songs, key = { _, song -> song.id }) { index, song ->
+                val isSelected = selectedSongs.contains(song.id)
+                val itemShape = ExpressiveShapes.calculateShape(index, songs.size)
+                SongItem(
+                    song = song,
+                    isFavorite = favoriteSongs.contains(song.id),
+                    isDownloaded = completedSongs.contains(song.id),
+                    onLikeClick = if (!isSelectionMode) { { onLikeClick(song) } } else null,
+                    onClick = null,
+                    shape = itemShape,
+                    leadingContent = if (isSelectionMode) {
+                        { Checkbox(checked = isSelected, onCheckedChange = {
+                            onSelectionChange(song.id, it)
+                        }) }
+                    } else null,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .combinedClickable(
+                            onClick = {
+                                if (isSelectionMode) {
+                                    onSelectionChange(song.id, !isSelected)
+                                } else {
+                                    onSongClick(song)
+                                }
+                            },
+                            onLongClick = {
+                                if (!isSelectionMode) {
+                                    onToggleSelectionMode(true)
+                                    onSelectionChange(song.id, true)
+                                }
+                            }
+                        ),
+                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+                )
             }
         }
     }

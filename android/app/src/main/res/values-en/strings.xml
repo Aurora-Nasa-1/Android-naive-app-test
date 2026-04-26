@@ -101,4 +101,23 @@
     <string name="not_interested">Not Interested</string>
     <string name="fluid_background">Fluid Background</string>
     <string name="fluid_background_desc">Enable fluid background effect globally and in player screen</string>
+    <string name="settings_appearance_desc">Theme, appearance, pure black mode...</string>
+    <string name="settings_audio_desc">Playback quality, audio effects...</string>
+    <string name="settings_download_desc">Download quality, cellular data, directory...</string>
+    <string name="settings_storage_desc">Cellular cache, cache size...</string>
+    <string name="settings_debug_desc">Copy debug logs...</string>
+    <string name="wavy_progress_bar">Wavy Progress Bar</string>
+    <string name="wavy_progress_bar_desc">Toggle wavy progress bar in player screen</string>
+    <string name="system_music_folder">System Music folder</string>
+    <string name="follow_cover_app_desc">Apply cover colors to the entire app</string>
+    <string name="follow_cover_mini_desc">Mini player follows cover art colors</string>
+    <string name="follow_cover_player_desc">Full player follows cover art colors</string>
+    <string name="audio_focus_management">Audio Focus Management</string>
+    <string name="transient_focus_loss_behavior">When other apps play audio</string>
+    <string name="focus_mode_duck">Duck Volume</string>
+    <string name="focus_mode_pause">Pause Playback</string>
+    <string name="allow_ducking">Allow notifications to lower volume</string>
+    <string name="allow_ducking_desc">Temporarily lower volume when notifications arrive</string>
+    <string name="pause_on_noisy">Pause when unplugged</string>
+    <string name="pause_on_noisy_desc">Automatically pause when headphones/Bluetooth disconnected</string>
 </resources>

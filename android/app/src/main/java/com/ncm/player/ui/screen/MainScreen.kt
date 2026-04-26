@@ -42,6 +42,7 @@ import com.ncm.player.ui.component.UserAccountDialog
 import com.ncm.player.ui.component.SongItem
 import com.ncm.player.ui.component.SongCard
 import com.ncm.player.ui.component.ExpressiveShapes
+import com.ncm.player.ui.component.AppScaffold
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -93,33 +94,23 @@ fun MainScreen(
         )
     }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(stringResource(R.string.good_day), fontWeight = FontWeight.Normal)
-                },
-                actions = {
-                    actions()
-                    IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
-                    IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, null) }
-                    IconButton(onClick = { showAccountDialog = true }) {
-                        Surface(modifier = Modifier.size(32.dp).clip(CircleShape), color = MaterialTheme.colorScheme.surfaceVariant) {
-                            if (userProfile?.avatarUrl != null) {
-                                AsyncImage(model = userProfile.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
-                            } else {
-                                Icon(Icons.Default.Person, null, modifier = Modifier.padding(4.dp))
-                            }
-                        }
+    AppScaffold(
+        title = { 
+            Text(stringResource(R.string.good_day), fontWeight = FontWeight.Normal)
+        },
+        actions = {
+            actions()
+            IconButton(onClick = onNavigateToMessages) { Icon(Icons.Default.Email, null) }
+            IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, null) }
+            IconButton(onClick = { showAccountDialog = true }) {
+                Surface(modifier = Modifier.size(32.dp).clip(CircleShape), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    if (userProfile?.avatarUrl != null) {
+                        AsyncImage(model = userProfile.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
+                    } else {
+                        Icon(Icons.Default.Person, null, modifier = Modifier.padding(4.dp))
                     }
-                },
-                windowInsets = WindowInsets.statusBars,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            )
+                }
+            }
         }
     ) { innerPadding ->
         LazyColumn(

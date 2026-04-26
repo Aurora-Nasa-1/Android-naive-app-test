@@ -21,6 +21,7 @@ import com.ncm.player.viewmodel.PlaybackViewModel
 import com.ncm.player.ui.component.LyricContent
 import com.ncm.player.ui.component.CommonBackButton
 import com.ncm.player.ui.theme.createCustomColorScheme
+import com.ncm.player.ui.component.AppScaffold
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,46 +73,35 @@ fun LyricsScreen(
                 .fillMaxSize()
                 .background(bgBrush)
         ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White
-                    ),
-                    title = { 
-                        Text(
-                            songName, 
-                            style = MaterialTheme.typography.titleMedium, 
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(start = 4.dp)
-                        ) 
-                    },
-                    navigationIcon = {
-                        CommonBackButton(
-                            onClick = onBackPressed,
-                            containerColor = Color.White.copy(alpha = 0.12f),
-                            iconColor = Color.White
-                        )
-                    },
-                    windowInsets = WindowInsets.statusBars
-                )
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                LyricContent(
-                    lyrics = lyrics,
-                    currentPosition = currentPosition
-                )
+            AppScaffold(
+                title = { 
+                    Text(
+                        songName, 
+                        style = MaterialTheme.typography.titleMedium, 
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 4.dp),
+                        color = Color.White
+                    ) 
+                },
+                navigationIcon = {
+                    CommonBackButton(
+                        onClick = onBackPressed,
+                        containerColor = Color.White.copy(alpha = 0.12f),
+                        iconColor = Color.White
+                    )
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    LyricContent(
+                        lyrics = lyrics,
+                        currentPosition = currentPosition
+                    )
+                }
             }
         }
-    }
     }
 }

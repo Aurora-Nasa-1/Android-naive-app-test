@@ -20,19 +20,22 @@ import androidx.compose.ui.Modifier
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppScaffold(
-    title: String,
+    title: @Composable () -> Unit,
     onBackPressed: (() -> Unit)? = null,
+    navigationIcon: @Composable (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     isLoading: Boolean = false,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        bottomBar = bottomBar,
         topBar = {
             TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
+                title = title,
+                navigationIcon = navigationIcon ?: {
                     if (onBackPressed != null) {
                         CommonBackButton(onClick = onBackPressed)
                     }
@@ -53,4 +56,28 @@ fun AppScaffold(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppScaffold(
+    title: String,
+    onBackPressed: (() -> Unit)? = null,
+    navigationIcon: @Composable (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+    isLoading: Boolean = false,
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    bottomBar: @Composable () -> Unit = {},
+    content: @Composable (PaddingValues) -> Unit
+) {
+    AppScaffold(
+        title = { Text(title) },
+        onBackPressed = onBackPressed,
+        navigationIcon = navigationIcon,
+        actions = actions,
+        isLoading = isLoading,
+        scrollBehavior = scrollBehavior,
+        bottomBar = bottomBar,
+        content = content
+    )
 }

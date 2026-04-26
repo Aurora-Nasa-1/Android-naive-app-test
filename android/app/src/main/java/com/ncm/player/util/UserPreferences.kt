@@ -24,6 +24,9 @@ object UserPreferences {
     private const val KEY_USE_WAVY_PROGRESS = "use_wavy_progress"
     private const val KEY_USER_PROFILE_CACHE = "user_profile_cache"
     private const val KEY_AUDIO_FEATURES_CACHE = "audio_features_cache"
+    private const val KEY_AUDIO_FOCUS_MODE = "audio_focus_mode"
+    private const val KEY_ALLOW_DUCKING = "allow_ducking"
+    private const val KEY_PAUSE_ON_NOISY = "pause_on_noisy"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -239,5 +242,29 @@ object UserPreferences {
 
     fun getAudioFeatures(context: Context): String? {
         return getPrefs(context).getString(KEY_AUDIO_FEATURES_CACHE, null)
+    }
+
+    fun saveAudioFocusMode(context: Context, mode: Int) {
+        getPrefs(context).edit().putInt(KEY_AUDIO_FOCUS_MODE, mode).apply()
+    }
+
+    fun getAudioFocusMode(context: Context): Int {
+        return getPrefs(context).getInt(KEY_AUDIO_FOCUS_MODE, 0) // 0: Duck, 1: Pause
+    }
+
+    fun saveAllowDucking(context: Context, allow: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_ALLOW_DUCKING, allow).apply()
+    }
+
+    fun getAllowDucking(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_ALLOW_DUCKING, false)
+    }
+
+    fun savePauseOnNoisy(context: Context, pause: Boolean) {
+        getPrefs(context).edit().putBoolean(KEY_PAUSE_ON_NOISY, pause).apply()
+    }
+
+    fun getPauseOnNoisy(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_PAUSE_ON_NOISY, true)
     }
 }

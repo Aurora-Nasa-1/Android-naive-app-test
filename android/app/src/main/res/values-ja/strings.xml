@@ -99,4 +99,23 @@
     <string name="cloud_music">クラウド音楽</string>
     <string name="no_cloud_songs">クラウドは空です</string>
     <string name="not_interested">興味なし</string>
+    <string name="settings_appearance_desc">テーマ、外観、ピュアブラック...</string>
+    <string name="settings_audio_desc">再生音質、オーディオエフェクト...</string>
+    <string name="settings_download_desc">ダウンロード音質、モバイルデータ、保存先...</string>
+    <string name="settings_storage_desc">モバイルデータキャッシュ、キャッシュサイズ...</string>
+    <string name="settings_debug_desc">デバッグログをコピー...</string>
+    <string name="wavy_progress_bar">波形プログレスバー</string>
+    <string name="wavy_progress_bar_desc">再生画面で波形プログレスバーを切り替える</string>
+    <string name="system_music_folder">システム音楽フォルダ</string>
+    <string name="follow_cover_app_desc">カバーの色をアプリ全体に適用する</string>
+    <string name="follow_cover_mini_desc">ミニプレーヤーがカバーの色に追従する</string>
+    <string name="follow_cover_player_desc">フルプレーヤーがカバーの色に追従する</string>
+    <string name="audio_focus_management">オーディオフォーカス管理</string>
+    <string name="transient_focus_loss_behavior">他のアプリが音を鳴らす時</string>
+    <string name="focus_mode_duck">音量を下げる</string>
+    <string name="focus_mode_pause">一時停止</string>
+    <string name="allow_ducking">通知で音量を下げることを許可</string>
+    <string name="allow_ducking_desc">通知が届いたときに一時的に音量を下げます</string>
+    <string name="pause_on_noisy">イヤホンを抜いた時に一時停止</string>
+    <string name="pause_on_noisy_desc">ヘッドフォンやBluetoothの切断時に自動で一時停止します</string>
 </resources>

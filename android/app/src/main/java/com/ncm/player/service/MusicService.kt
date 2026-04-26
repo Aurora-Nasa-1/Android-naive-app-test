@@ -1,19 +1,18 @@
 package com.ncm.player.service
 
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.BroadcastReceiver
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import android.app.PendingIntent
@@ -22,7 +21,6 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.CommandButton
-import androidx.media3.session.MediaNotification
 import androidx.media3.session.DefaultMediaNotificationProvider
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.Futures
@@ -35,8 +33,6 @@ import com.ncm.player.util.RustServerManager
 import com.ncm.player.util.DebugLog
 import io.github.proify.lyricon.provider.LyriconFactory
 import io.github.proify.lyricon.provider.LyriconProvider
-import io.github.proify.lyricon.lyric.model.LyricWord
-import io.github.proify.lyricon.lyric.model.RichLyricLine
 import io.github.proify.lyricon.lyric.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,15 +41,25 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.regex.Pattern
+import android.media.AudioManager
+import android.media.AudioFocusRequest
+import android.os.Build
 
 class MusicService : MediaSessionService() {
-    private var player: ExoPlayer? = null
+    private val players = arrayOfNulls<ExoPlayer>(2)
+    private var activePlayerIndex = 0
     private var mediaSession: MediaSession? = null
+
+    private val activePlayer get() = players[activePlayerIndex]
+    private val nextPlayer get() = players[(activePlayerIndex + 1) % 2]
+
+    private lateinit var audioManager: AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var isCrossfading = false
 
     companion object {
         private var cache: SimpleCache? = null
-        fun getCache(context: android.content.Context): SimpleCache {
+        fun getCache(context: Context): SimpleCache {
             if (cache == null) {
                 val cacheDir = File(context.cacheDir, "media")
                 val cacheSize = UserPreferences.getCacheSize(context) * 1024L * 1024L
@@ -67,34 +73,79 @@ class MusicService : MediaSessionService() {
     private var lyricJob: Job? = null
     private var playbackInfoJob: Job? = null
     private val likedSongIds = mutableSetOf<String>()
-    private val fadeAudioProcessor = FadeAudioProcessor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    private val noisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                if (UserPreferences.getPauseOnNoisy(this@MusicService)) {
+                    players.forEach { it?.pause() }
+                }
+            }
+        }
+    }
+
+    private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                val mode = UserPreferences.getAudioFocusMode(this@MusicService)
+                if (focusChange == AudioManager.AUDIOFOCUS_LOSS || mode == 1) { // 1 = Pause
+                    players.forEach { it?.pause() }
+                } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT && mode == 0) { // Duck
+                    players.forEach { it?.volume = 0.2f }
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                if (UserPreferences.getAllowDucking(this@MusicService)) {
+                    players.forEach { it?.volume = 0.2f }
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                players.forEach {
+                    if (it == activePlayer && !isCrossfading) {
+                        it?.volume = 1.0f
+                    }
+                }
+            }
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val attr = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(attr)
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener(focusChangeListener)
+                .build()
+            audioFocusRequest = request
+            audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(focusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(focusChangeListener)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         DebugLog.i("MusicService: Service onCreate")
 
-        val fadeDuration = UserPreferences.getFadeDuration(this)
-        fadeAudioProcessor.setFadeDuration((fadeDuration * 1000).toLong())
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
 
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-            .build()
-
-        val renderersFactory = object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(
-                context: android.content.Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean
-            ): androidx.media3.exoplayer.audio.AudioSink {
-                return DefaultAudioSink.Builder(this@MusicService)
-                    .setAudioProcessors(arrayOf(fadeAudioProcessor))
-                    .setEnableFloatOutput(true)
-                    .build()
-            }
-        }
+        val renderersFactory = DefaultRenderersFactory(this).setEnableDecoderFallback(true)
 
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(mapOf("Referer" to "https://music.163.com"))
@@ -111,24 +162,31 @@ class MusicService : MediaSessionService() {
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)
 
-        player = ExoPlayer.Builder(this, renderersFactory)
-            .setAudioAttributes(audioAttributes, true)
-            .setHandleAudioBecomingNoisy(true)
-            .setMediaSourceFactory(mediaSourceFactory)
-            .build()
+        val playerListener = object : Player.Listener {
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (playWhenReady) {
+                    if (!requestAudioFocus()) {
+                        players.forEach { it?.pause() }
+                    }
+                }
+            }
 
-        player?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isCrossfading) return
                 updateMediaSessionLayout()
                 updateWidget()
+                lyriconProvider?.player?.setPlaybackState(isPlaying)
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (isCrossfading) return
                 updateMediaSessionLayout()
                 updateWidget()
+                mediaItem?.let { updateLyriconSong(it) }
             }
 
             override fun onEvents(player: Player, events: Player.Events) {
+                if (player != activePlayer) return
                 if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
                     updateMediaSessionLayout()
                     updateWidget()
@@ -143,19 +201,22 @@ class MusicService : MediaSessionService() {
                 }
             }
 
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+                if (isCrossfading) return
+                lyriconProvider?.player?.setPosition(newPosition.positionMs)
+            }
+
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 val errorMsg = "Error ${error.errorCode}: ${error.errorCodeName}\n${error.message}"
                 DebugLog.e("MusicService: Player Error", error)
 
-                val args = android.os.Bundle().apply {
-                    putString("error", errorMsg)
-                }
+                val args = android.os.Bundle().apply { putString("error", errorMsg) }
                 mediaSession?.broadcastCustomCommand(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY), args)
 
                 if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
                     error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
                     error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
-                    player?.let {
+                    activePlayer?.let {
                         val currentItem = it.currentMediaItem
                         if (currentItem != null) {
                             it.prepare()
@@ -164,7 +225,16 @@ class MusicService : MediaSessionService() {
                     }
                 }
             }
-        })
+        }
+
+        for (i in 0..1) {
+            players[i] = ExoPlayer.Builder(this, renderersFactory)
+                // We handle audio focus and becoming noisy ourselves
+                .setMediaSourceFactory(mediaSourceFactory)
+                .build().apply {
+                    addListener(playerListener)
+                }
+        }
 
         startPlaybackInfoLoop()
 
@@ -176,29 +246,19 @@ class MusicService : MediaSessionService() {
         val notificationProvider = DefaultMediaNotificationProvider.Builder(this).build()
         setMediaNotificationProvider(notificationProvider)
 
-        mediaSession = MediaSession.Builder(this, player!!)
+        mediaSession = MediaSession.Builder(this, activePlayer!!)
             .setSessionActivity(pendingIntent)
             .setCallback(object : MediaSession.Callback {
-                override fun onConnect(
-                    session: MediaSession,
-                    controller: MediaSession.ControllerInfo
-                ): MediaSession.ConnectionResult {
+                override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
                     val availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                         .add(SessionCommand("ACTION_LIKE", android.os.Bundle.EMPTY))
                         .add(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY))
                         .add(SessionCommand("ACTION_PLAYER_ERROR", android.os.Bundle.EMPTY))
                         .build()
-                    return MediaSession.ConnectionResult.accept(
-                        availableSessionCommands,
-                        MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
-                    )
+                    return MediaSession.ConnectionResult.accept(availableSessionCommands, MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
                 }
 
-                override fun onSetRating(
-                    session: MediaSession,
-                    controller: MediaSession.ControllerInfo,
-                    rating: Rating
-                ): ListenableFuture<SessionResult> {
+                override fun onSetRating(session: MediaSession, controller: MediaSession.ControllerInfo, rating: Rating): ListenableFuture<SessionResult> {
                     if (rating is HeartRating) {
                         val mediaId = session.player.currentMediaItem?.mediaId
                         if (mediaId != null) {
@@ -213,12 +273,7 @@ class MusicService : MediaSessionService() {
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
 
-                override fun onCustomCommand(
-                    session: MediaSession,
-                    controller: MediaSession.ControllerInfo,
-                    customCommand: SessionCommand,
-                    args: android.os.Bundle
-                ): ListenableFuture<SessionResult> {
+                override fun onCustomCommand(session: MediaSession, controller: MediaSession.ControllerInfo, customCommand: SessionCommand, args: android.os.Bundle): ListenableFuture<SessionResult> {
                     if (customCommand.customAction == "ACTION_LIKE") {
                         val currentMediaItem = session.player.currentMediaItem
                         val mediaId = currentMediaItem?.mediaId
@@ -247,49 +302,27 @@ class MusicService : MediaSessionService() {
     private fun initLyricon() {
         lyriconProvider = LyriconFactory.createProvider(this).apply {
             service.addConnectionListener(object : io.github.proify.lyricon.provider.ConnectionListener {
-                override fun onConnected(provider: LyriconProvider) {
-                    syncToLyricon()
-                }
-                override fun onReconnected(provider: LyriconProvider) {
-                    syncToLyricon()
-                }
+                override fun onConnected(provider: LyriconProvider) { syncToLyricon() }
+                override fun onReconnected(provider: LyriconProvider) { syncToLyricon() }
                 override fun onDisconnected(provider: LyriconProvider) {}
                 override fun onConnectTimeout(provider: LyriconProvider) {}
             })
             register()
         }
 
-        player?.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                lyriconProvider?.player?.setPlaybackState(isPlaying)
-            }
-
-            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                mediaItem?.let {
-                    updateLyriconSong(it)
-                }
-            }
-
-            override fun onPositionDiscontinuity(
-                oldPosition: Player.PositionInfo,
-                newPosition: Player.PositionInfo,
-                reason: Int
-            ) {
-                lyriconProvider?.player?.setPosition(newPosition.positionMs)
-            }
-        })
-
         serviceScope.launch {
             while (true) {
-                player?.let {
-                    if (it.isPlaying) {
-                        lyriconProvider?.player?.setPosition(it.currentPosition)
-                        
-                        val dur = it.duration
-                        val pos = it.currentPosition
-                        val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
-                        if (dur != C.TIME_UNSET && dur - pos <= fadeDur && dur - pos > 0) {
-                            fadeAudioProcessor.startFadeOut()
+                val p = activePlayer
+                if (p != null && p.isPlaying && !isCrossfading) {
+                    lyriconProvider?.player?.setPosition(p.currentPosition)
+                    
+                    val dur = p.duration
+                    val pos = p.currentPosition
+                    val fadeDur = (UserPreferences.getFadeDuration(this@MusicService) * 1000L).toLong()
+                    
+                    if (dur != C.TIME_UNSET && fadeDur > 0 && dur - pos <= fadeDur && dur - pos > 0) {
+                        if (p.currentMediaItemIndex < p.mediaItemCount - 1) {
+                            startCrossfade(fadeDur)
                         }
                     }
                 }
@@ -298,8 +331,49 @@ class MusicService : MediaSessionService() {
         }
     }
 
+    private fun startCrossfade(fadeDurationMs: Long) {
+        val oldPlayer = activePlayer ?: return
+        val newPlayer = nextPlayer ?: return
+        val targetIndex = oldPlayer.currentMediaItemIndex + 1
+        
+        if (targetIndex >= oldPlayer.mediaItemCount) return
+        
+        isCrossfading = true
+        val items = (0 until oldPlayer.mediaItemCount).map { oldPlayer.getMediaItemAt(it) }
+        
+        newPlayer.volume = 0f
+        newPlayer.setMediaItems(items, targetIndex, 0)
+        newPlayer.repeatMode = oldPlayer.repeatMode
+        newPlayer.shuffleModeEnabled = oldPlayer.shuffleModeEnabled
+        newPlayer.prepare()
+        newPlayer.play()
+        
+        activePlayerIndex = (activePlayerIndex + 1) % 2
+        mediaSession?.player = newPlayer
+        
+        oldPlayer.repeatMode = Player.REPEAT_MODE_OFF
+        if (oldPlayer.mediaItemCount > targetIndex) {
+            oldPlayer.removeMediaItems(targetIndex, oldPlayer.mediaItemCount)
+        }
+        
+        serviceScope.launch {
+            val steps = 20
+            val delayTime = fadeDurationMs / steps
+            for (i in 1..steps) {
+                val progress = i.toFloat() / steps
+                newPlayer.volume = progress
+                oldPlayer.volume = 1.0f - progress
+                delay(delayTime)
+            }
+            oldPlayer.pause()
+            oldPlayer.volume = 1.0f
+            oldPlayer.clearMediaItems()
+            isCrossfading = false
+        }
+    }
+
     private fun syncToLyricon() {
-        val p = player ?: return
+        val p = activePlayer ?: return
         val provider = lyriconProvider ?: return
 
         provider.player.setPlaybackState(p.isPlaying)
@@ -311,9 +385,8 @@ class MusicService : MediaSessionService() {
         if (playbackInfoJob?.isActive == true) return
         playbackInfoJob = serviceScope.launch {
             while (true) {
-                player?.let { p ->
-                    if (p.playbackState != Player.STATE_READY) return@let
-
+                val p = activePlayer
+                if (p != null && p.playbackState == Player.STATE_READY) {
                     var activeFormat = p.audioFormat
                     if (activeFormat == null || activeFormat.sampleRate == -1) {
                         val currentTracks = p.currentTracks
@@ -339,7 +412,6 @@ class MusicService : MediaSessionService() {
                                 putInt("sampleRate", sampleRate)
                                 putInt("bitrate", bitrate)
                             }
-
                             mediaSession?.setSessionExtras(extras)
                             mediaSession?.broadcastCustomCommand(SessionCommand("UPDATE_PLAYBACK_INFO", android.os.Bundle.EMPTY), extras)
                         }
@@ -356,7 +428,7 @@ class MusicService : MediaSessionService() {
         val title = metadata.title?.toString() ?: "Unknown"
         val artist = metadata.artist?.toString() ?: "Unknown"
 
-        lyriconProvider?.player?.setPlaybackState(player?.isPlaying ?: false)
+        lyriconProvider?.player?.setPlaybackState(activePlayer?.isPlaying ?: false)
         lyriconProvider?.player?.setSong(Song(id = songId, name = title, artist = artist))
 
         lyricJob?.cancel()
@@ -366,14 +438,14 @@ class MusicService : MediaSessionService() {
                 val body = com.google.gson.JsonParser.parseString(result).asJsonObject
 
                 if (body.has("lrc") || body.has("yrc")) {
-                    val lrc = body?.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
-                    val tlyric = body?.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
-                    val yrc = body?.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                    val lrc = body.get("lrc")?.asJsonObject?.get("lyric")?.asString ?: ""
+                    val tlyric = body.get("tlyric")?.asJsonObject?.get("lyric")?.asString ?: ""
+                    val yrc = body.get("yrc")?.asJsonObject?.get("lyric")?.asString ?: ""
 
                     val lyricLines = if (yrc.isNotEmpty()) {
                         com.ncm.player.util.LyricUtils.parseYrc(yrc)
                     } else {
-                        com.ncm.player.util.LyricUtils.parseLrc(lrc, player?.duration ?: 0L)
+                        com.ncm.player.util.LyricUtils.parseLrc(lrc, activePlayer?.duration ?: 0L)
                     }
 
                     val finalLines = if (tlyric.isNotEmpty()) {
@@ -391,15 +463,15 @@ class MusicService : MediaSessionService() {
                     }
 
                     lyriconProvider?.player?.setSong(
-                        io.github.proify.lyricon.lyric.model.Song(
+                        Song(
                             id = songId,
                             name = title,
                             artist = artist,
-                            duration = player?.duration?.coerceAtLeast(0L) ?: 0L,
+                            duration = activePlayer?.duration?.coerceAtLeast(0L) ?: 0L,
                             lyrics = com.ncm.player.util.LyricUtils.toRichLyricLines(finalLines)
                         )
                     )
-                    lyriconProvider?.player?.setPosition(player?.currentPosition ?: 0L)
+                    lyriconProvider?.player?.setPosition(activePlayer?.currentPosition ?: 0L)
                     lyriconProvider?.player?.setDisplayTranslation(tlyric.isNotEmpty())
                 }
             } catch (e: Exception) {
@@ -411,9 +483,9 @@ class MusicService : MediaSessionService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent != null) {
             when (intent.action) {
-                "ACTION_PREVIOUS" -> player?.seekToPrevious()
-                "ACTION_NEXT" -> player?.seekToNext()
-                "ACTION_TOGGLE_PLAY" -> player?.let { if (it.isPlaying) it.pause() else it.play() }
+                "ACTION_PREVIOUS" -> activePlayer?.seekToPrevious()
+                "ACTION_NEXT" -> activePlayer?.seekToNext()
+                "ACTION_TOGGLE_PLAY" -> activePlayer?.let { if (it.isPlaying) it.pause() else it.play() }
             }
         }
         return super.onStartCommand(intent, flags, startId)
@@ -422,7 +494,7 @@ class MusicService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     private fun updateWidget() {
-        val p = player ?: return
+        val p = activePlayer ?: return
         val item = p.currentMediaItem ?: return
         com.ncm.player.widget.MusicWidgetProvider.updateAllWidgets(
             this,
@@ -435,7 +507,7 @@ class MusicService : MediaSessionService() {
 
     private fun updateMediaSessionLayout() {
         val session = mediaSession ?: return
-        val currentMediaItem = player?.currentMediaItem
+        val currentMediaItem = activePlayer?.currentMediaItem
         val mediaId = currentMediaItem?.mediaId
         val isLiked = (mediaId != null && likedSongIds.contains(mediaId)) || (currentMediaItem?.mediaMetadata?.userRating?.isRated == true && (currentMediaItem.mediaMetadata.userRating as? HeartRating)?.isHeart == true)
 
@@ -452,15 +524,17 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val player = player ?: return
-        if ((!player.isPlaying && player.playbackState != Player.STATE_BUFFERING) || player.mediaItemCount == 0) {
+        val p = activePlayer ?: return
+        if ((!p.isPlaying && p.playbackState != Player.STATE_BUFFERING) || p.mediaItemCount == 0) {
             stopSelf()
         }
     }
 
     override fun onDestroy() {
+        unregisterReceiver(noisyReceiver)
+        abandonAudioFocus()
         mediaSession?.run {
-            player?.release()
+            players.forEach { it?.release() }
             release()
             mediaSession = null
         }

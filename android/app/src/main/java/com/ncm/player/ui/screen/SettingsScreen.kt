@@ -2,8 +2,11 @@ package com.ncm.player.ui.screen
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,6 +68,12 @@ fun SettingsScreen(
     onUseFluidBackgroundChange: (Boolean) -> Unit,
     useWavyProgress: Boolean,
     onUseWavyProgressChange: (Boolean) -> Unit,
+    audioFocusMode: Int,
+    onAudioFocusModeChange: (Int) -> Unit,
+    allowDucking: Boolean,
+    onAllowDuckingChange: (Boolean) -> Unit,
+    pauseOnNoisy: Boolean,
+    onPauseOnNoisyChange: (Boolean) -> Unit,
     downloadDir: String?,
     onDownloadDirChange: (String) -> Unit,
     onClearCache: () -> Unit,
@@ -72,7 +82,9 @@ fun SettingsScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    
+
+    var currentScreen by rememberSaveable { mutableStateOf("main") }
+
     val dirPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -85,192 +97,289 @@ fun SettingsScreen(
         }
     }
 
+    BackHandler(enabled = currentScreen != "main") {
+        currentScreen = "main"
+    }
+
+    val titleRes = when (currentScreen) {
+        "appearance" -> R.string.appearance
+        "audio" -> R.string.playback_quality_cat
+        "download" -> R.string.download_settings
+        "storage" -> R.string.storage_cache
+        "debug" -> R.string.debug
+        else -> R.string.settings
+    }
+
     AppScaffold(
-        title = stringResource(R.string.settings),
-        onBackPressed = onBackPressed,
+        title = stringResource(titleRes),
+        onBackPressed = {
+            if (currentScreen == "main") onBackPressed() else currentScreen = "main"
+        },
         scrollBehavior = scrollBehavior
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Appearance Section
-            SettingsSection(title = stringResource(R.string.appearance)) {
-                val themeOptions = listOf(
-                    stringResource(R.string.theme_mode_system),
-                    stringResource(R.string.theme_mode_cover),
-                    stringResource(R.string.theme_mode_fixed)
-                )
-                
-                val appearanceItemsCount = if (themeMode == 1) 7 else 3
+        AnimatedContent(
+            targetState = currentScreen,
+            transitionSpec = {
+                if (targetState != "main" && initialState == "main") {
+                    (slideInHorizontally(animationSpec = tween(300)) { width -> width } + fadeIn(animationSpec = tween(300))).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { width -> -width } + fadeOut(animationSpec = tween(300)))
+                } else if (targetState == "main" && initialState != "main") {
+                    (slideInHorizontally(animationSpec = tween(300)) { width -> -width } + fadeIn(animationSpec = tween(300))).togetherWith(slideOutHorizontally(animationSpec = tween(300)) { width -> width } + fadeOut(animationSpec = tween(300)))
+                } else {
+                    fadeIn(animationSpec = tween(300)).togetherWith(fadeOut(animationSpec = tween(300)))
+                }.using(SizeTransform(clip = false))
+            },
+            label = "SettingsScreenTransition"
+        ) { screen ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                when (screen) {
+                    "main" -> {
+                        SettingsSection(title = stringResource(R.string.settings)) {
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.appearance),
+                                subtitle = stringResource(R.string.settings_appearance_desc),
+                                onClick = { currentScreen = "appearance" },
+                                shape = ExpressiveShapes.calculateShape(0, 5)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.playback_quality_cat),
+                                subtitle = stringResource(R.string.settings_audio_desc),
+                                onClick = { currentScreen = "audio" },
+                                shape = ExpressiveShapes.calculateShape(1, 5)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.download_settings),
+                                subtitle = stringResource(R.string.settings_download_desc),
+                                onClick = { currentScreen = "download" },
+                                shape = ExpressiveShapes.calculateShape(2, 5)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.storage_cache),
+                                subtitle = stringResource(R.string.settings_storage_desc),
+                                onClick = { currentScreen = "storage" },
+                                shape = ExpressiveShapes.calculateShape(3, 5)
+                            )
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.debug),
+                                subtitle = stringResource(R.string.settings_debug_desc),
+                                onClick = { currentScreen = "debug" },
+                                shape = ExpressiveShapes.calculateShape(4, 5)
+                            )
+                        }
+                    }
+                    "appearance" -> {
+                        // Appearance Section
+                        SettingsSection(title = stringResource(R.string.appearance)) {
+                            val themeOptions = listOf(
+                                stringResource(R.string.theme_mode_system),
+                                stringResource(R.string.theme_mode_cover),
+                                stringResource(R.string.theme_mode_fixed)
+                            )
+                            
+                            val appearanceItemsCount = if (themeMode == 1) 7 else 3
 
-                ExpressiveDropdownItem(
-                    title = stringResource(R.string.theme_mode),
-                    subtitle = themeOptions.getOrElse(themeMode) { themeOptions[0] },
-                    options = themeOptions,
-                    selectedIndex = themeMode,
-                    onSelect = onThemeModeChange,
-                    shape = ExpressiveShapes.calculateShape(0, appearanceItemsCount)
-                )
+                            ExpressiveDropdownItem(
+                                title = stringResource(R.string.theme_mode),
+                                subtitle = themeOptions.getOrElse(themeMode) { themeOptions[0] },
+                                options = themeOptions,
+                                selectedIndex = themeMode,
+                                onSelect = onThemeModeChange,
+                                shape = ExpressiveShapes.calculateShape(0, appearanceItemsCount)
+                            )
 
-                if (themeMode == 1) {
-                    ExpressiveSwitchItem(
-                        title = stringResource(R.string.follow_cover_app),
-                        subtitle = "Apply cover colors to the entire app",
-                        checked = followCoverApp,
-                        onCheckedChange = onFollowCoverAppChange,
-                        shape = ExpressiveShapes.calculateShape(1, appearanceItemsCount)
-                    )
-                    ExpressiveSwitchItem(
-                        title = stringResource(R.string.follow_cover_mini),
-                        subtitle = "Mini player follows cover art colors",
-                        checked = followCoverMini,
-                        onCheckedChange = onFollowCoverMiniChange,
-                        shape = ExpressiveShapes.calculateShape(2, appearanceItemsCount)
-                    )
-                    ExpressiveSwitchItem(
-                        title = stringResource(R.string.follow_cover_player),
-                        subtitle = "Full player follows cover art colors",
-                        checked = followCoverPlayer,
-                        onCheckedChange = onFollowCoverPlayerChange,
-                        shape = ExpressiveShapes.calculateShape(3, appearanceItemsCount)
-                    )
-                    ExpressiveSwitchItem(
-                        title = stringResource(R.string.fluid_background),
-                        subtitle = stringResource(R.string.fluid_background_desc),
-                        checked = useFluidBackground,
-                        onCheckedChange = onUseFluidBackgroundChange,
-                        shape = ExpressiveShapes.calculateShape(4, appearanceItemsCount)
-                    )
+                            if (themeMode == 1) {
+                                ExpressiveSwitchItem(
+                                    title = stringResource(R.string.follow_cover_app),
+                                    subtitle = stringResource(R.string.follow_cover_app_desc),
+                                    checked = followCoverApp,
+                                    onCheckedChange = onFollowCoverAppChange,
+                                    shape = ExpressiveShapes.calculateShape(1, appearanceItemsCount)
+                                )
+                                ExpressiveSwitchItem(
+                                    title = stringResource(R.string.follow_cover_mini),
+                                    subtitle = stringResource(R.string.follow_cover_mini_desc),
+                                    checked = followCoverMini,
+                                    onCheckedChange = onFollowCoverMiniChange,
+                                    shape = ExpressiveShapes.calculateShape(2, appearanceItemsCount)
+                                )
+                                ExpressiveSwitchItem(
+                                    title = stringResource(R.string.follow_cover_player),
+                                    subtitle = stringResource(R.string.follow_cover_player_desc),
+                                    checked = followCoverPlayer,
+                                    onCheckedChange = onFollowCoverPlayerChange,
+                                    shape = ExpressiveShapes.calculateShape(3, appearanceItemsCount)
+                                )
+                                ExpressiveSwitchItem(
+                                    title = stringResource(R.string.fluid_background),
+                                    subtitle = stringResource(R.string.fluid_background_desc),
+                                    checked = useFluidBackground,
+                                    onCheckedChange = onUseFluidBackgroundChange,
+                                    shape = ExpressiveShapes.calculateShape(4, appearanceItemsCount)
+                                )
+                            }
+                            
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.pure_black_mode),
+                                subtitle = stringResource(R.string.pure_black_desc),
+                                checked = pureBlackMode,
+                                onCheckedChange = onPureBlackModeChange,
+                                shape = ExpressiveShapes.calculateShape(if (themeMode == 1) 5 else 1, appearanceItemsCount)
+                            )
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.wavy_progress_bar),
+                                subtitle = stringResource(R.string.wavy_progress_bar_desc),
+                                checked = useWavyProgress,
+                                onCheckedChange = onUseWavyProgressChange,
+                                shape = ExpressiveShapes.calculateShape(if (themeMode == 1) 6 else 2, appearanceItemsCount)
+                            )
+                        }
+                    }
+                    "audio" -> {
+                        // Audio Quality Section
+                        SettingsSection(title = stringResource(R.string.playback_quality_cat)) {
+                            val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
+                            
+                            ExpressiveDropdownItem(
+                                title = stringResource(R.string.wifi_quality_label),
+                                subtitle = currentQualityWifi.replaceFirstChar { it.uppercase() },
+                                options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                                selectedIndex = qualities.indexOf(currentQualityWifi).coerceAtLeast(0),
+                                onSelect = { onQualityWifiChange(qualities[it]) },
+                                shape = ExpressiveShapes.calculateShape(0, 2)
+                            )
+                            
+                            ExpressiveDropdownItem(
+                                title = stringResource(R.string.cellular_quality_label),
+                                subtitle = currentQualityCellular.replaceFirstChar { it.uppercase() },
+                                options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                                selectedIndex = qualities.indexOf(currentQualityCellular).coerceAtLeast(0),
+                                onSelect = { onQualityCellularChange(qualities[it]) },
+                                shape = ExpressiveShapes.calculateShape(1, 2)
+                            )
+                        }
+
+                        // Audio Focus Section
+                        SettingsSection(title = stringResource(R.string.audio_focus_management)) {
+                            val focusModes = listOf(stringResource(R.string.focus_mode_duck), stringResource(R.string.focus_mode_pause))
+                            ExpressiveDropdownItem(
+                                title = stringResource(R.string.transient_focus_loss_behavior),
+                                subtitle = focusModes.getOrElse(audioFocusMode) { focusModes[0] },
+                                options = focusModes,
+                                selectedIndex = audioFocusMode,
+                                onSelect = onAudioFocusModeChange,
+                                shape = ExpressiveShapes.calculateShape(0, 3)
+                            )
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.allow_ducking),
+                                subtitle = stringResource(R.string.allow_ducking_desc),
+                                checked = allowDucking,
+                                onCheckedChange = onAllowDuckingChange,
+                                shape = ExpressiveShapes.calculateShape(1, 3)
+                            )
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.pause_on_noisy),
+                                subtitle = stringResource(R.string.pause_on_noisy_desc),
+                                checked = pauseOnNoisy,
+                                onCheckedChange = onPauseOnNoisyChange,
+                                shape = ExpressiveShapes.calculateShape(2, 3)
+                            )
+                        }
+
+                        // Audio Effects (Crossfade)
+                        SettingsSection(title = stringResource(R.string.audio_effects)) {
+                            ExpressiveSliderItem(
+                                title = stringResource(R.string.crossfade_duration, fadeDuration.toInt()),
+                                value = fadeDuration,
+                                onValueChange = onFadeChange,
+                                valueRange = 0f..10f,
+                                steps = 10,
+                                shape = ExpressiveShapes.calculateShape(0, 1)
+                            )
+                        }
+                    }
+                    "download" -> {
+                        // Download Section
+                        SettingsSection(title = stringResource(R.string.download_settings)) {
+                            val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
+                            
+                            ExpressiveDropdownItem(
+                                title = stringResource(R.string.download_quality_label),
+                                subtitle = downloadQuality.replaceFirstChar { it.uppercase() },
+                                options = qualities.map { it.replaceFirstChar { it.uppercase() } },
+                                selectedIndex = qualities.indexOf(downloadQuality).coerceAtLeast(0),
+                                onSelect = { onDownloadQualityChange(qualities[it]) },
+                                shape = ExpressiveShapes.calculateShape(0, 3)
+                            )
+
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.allow_cellular_download),
+                                subtitle = stringResource(R.string.allow_cellular_download_desc),
+                                checked = allowCellularDownload,
+                                onCheckedChange = onAllowCellularDownloadChange,
+                                shape = ExpressiveShapes.calculateShape(1, 3)
+                            )
+
+                            ExpressiveClickItem(
+                                title = stringResource(R.string.download_dir),
+                                subtitle = downloadDir?.substringAfterLast("%2F") ?: stringResource(R.string.system_music_folder),
+                                onClick = { dirPicker.launch(null) },
+                                shape = ExpressiveShapes.calculateShape(2, 3)
+                            )
+                        }
+                    }
+                    "storage" -> {
+                        // Storage & Cache
+                        SettingsSection(title = stringResource(R.string.storage_cache)) {
+                            ExpressiveSwitchItem(
+                                title = stringResource(R.string.cellular_caching),
+                                subtitle = stringResource(R.string.cellular_caching_desc),
+                                checked = useCellularCache,
+                                onCheckedChange = onUseCellularCacheChange,
+                                shape = ExpressiveShapes.calculateShape(0, 3)
+                            )
+
+                            ExpressiveSliderItem(
+                                title = stringResource(R.string.max_cache_size, cacheSize),
+                                value = cacheSize.toFloat(),
+                                onValueChange = { onCacheSizeChange(it.toInt()) },
+                                valueRange = 100f..2048f,
+                                steps = 19,
+                                shape = ExpressiveShapes.calculateShape(1, 3)
+                            )
+
+                            ExpressiveButtonItem(
+                                text = stringResource(R.string.clear_cache),
+                                onClick = onClearCache,
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                shape = ExpressiveShapes.calculateShape(2, 3)
+                            )
+                        }
+                    }
+                    "debug" -> {
+                        // Debug
+                        SettingsSection(title = stringResource(R.string.debug)) {
+                            val logsCopiedMsg = stringResource(R.string.logs_copied)
+                            ExpressiveButtonItem(
+                                text = stringResource(R.string.copy_debug_logs),
+                                onClick = {
+                                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                    val clip = ClipData.newPlainText("NCM Player Logs", LogManager.getAllLogsString())
+                                    clipboard.setPrimaryClip(clip)
+                                    android.widget.Toast.makeText(context, logsCopiedMsg, android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                shape = ExpressiveShapes.calculateShape(0, 1)
+                            )
+                        }
+                    }
                 }
-                
-                ExpressiveSwitchItem(
-                    title = stringResource(R.string.pure_black_mode),
-                    subtitle = stringResource(R.string.pure_black_desc),
-                    checked = pureBlackMode,
-                    onCheckedChange = onPureBlackModeChange,
-                    shape = ExpressiveShapes.calculateShape(if (themeMode == 1) 5 else 1, appearanceItemsCount)
-                )
-                ExpressiveSwitchItem(
-                    title = "Wavy Progress Bar",
-                    subtitle = "Toggle wavy progress bar in player screen",
-                    checked = useWavyProgress,
-                    onCheckedChange = onUseWavyProgressChange,
-                    shape = ExpressiveShapes.calculateShape(if (themeMode == 1) 6 else 2, appearanceItemsCount)
-                )
+                Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))
             }
-
-            // Audio Quality Section
-            SettingsSection(title = stringResource(R.string.playback_quality_cat)) {
-                val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
-                
-                ExpressiveDropdownItem(
-                    title = stringResource(R.string.wifi_quality_label),
-                    subtitle = currentQualityWifi.replaceFirstChar { it.uppercase() },
-                    options = qualities.map { it.replaceFirstChar { it.uppercase() } },
-                    selectedIndex = qualities.indexOf(currentQualityWifi).coerceAtLeast(0),
-                    onSelect = { onQualityWifiChange(qualities[it]) },
-                    shape = ExpressiveShapes.calculateShape(0, 2)
-                )
-                
-                ExpressiveDropdownItem(
-                    title = stringResource(R.string.cellular_quality_label),
-                    subtitle = currentQualityCellular.replaceFirstChar { it.uppercase() },
-                    options = qualities.map { it.replaceFirstChar { it.uppercase() } },
-                    selectedIndex = qualities.indexOf(currentQualityCellular).coerceAtLeast(0),
-                    onSelect = { onQualityCellularChange(qualities[it]) },
-                    shape = ExpressiveShapes.calculateShape(1, 2)
-                )
-            }
-
-            // Download Section
-            SettingsSection(title = stringResource(R.string.download_settings)) {
-                val qualities = listOf("standard", "higher", "exhigh", "lossless", "hires")
-                
-                ExpressiveDropdownItem(
-                    title = stringResource(R.string.download_quality_label),
-                    subtitle = downloadQuality.replaceFirstChar { it.uppercase() },
-                    options = qualities.map { it.replaceFirstChar { it.uppercase() } },
-                    selectedIndex = qualities.indexOf(downloadQuality).coerceAtLeast(0),
-                    onSelect = { onDownloadQualityChange(qualities[it]) },
-                    shape = ExpressiveShapes.calculateShape(0, 3)
-                )
-
-                ExpressiveSwitchItem(
-                    title = stringResource(R.string.allow_cellular_download),
-                    subtitle = stringResource(R.string.allow_cellular_download_desc),
-                    checked = allowCellularDownload,
-                    onCheckedChange = onAllowCellularDownloadChange,
-                    shape = ExpressiveShapes.calculateShape(1, 3)
-                )
-
-                ExpressiveClickItem(
-                    title = stringResource(R.string.download_dir),
-                    subtitle = downloadDir?.substringAfterLast("%2F") ?: "System Music folder",
-                    onClick = { dirPicker.launch(null) },
-                    shape = ExpressiveShapes.calculateShape(2, 3)
-                )
-            }
-
-            // Audio Effects (Crossfade)
-            SettingsSection(title = stringResource(R.string.audio_effects)) {
-                ExpressiveSliderItem(
-                    title = stringResource(R.string.crossfade_duration, fadeDuration.toInt()),
-                    value = fadeDuration,
-                    onValueChange = onFadeChange,
-                    valueRange = 0f..10f,
-                    steps = 10,
-                    shape = ExpressiveShapes.calculateShape(0, 1)
-                )
-            }
-
-            // Storage & Cache
-            SettingsSection(title = stringResource(R.string.storage_cache)) {
-                ExpressiveSwitchItem(
-                    title = stringResource(R.string.cellular_caching),
-                    subtitle = stringResource(R.string.cellular_caching_desc),
-                    checked = useCellularCache,
-                    onCheckedChange = onUseCellularCacheChange,
-                    shape = ExpressiveShapes.calculateShape(0, 3)
-                )
-
-                ExpressiveSliderItem(
-                    title = stringResource(R.string.max_cache_size, cacheSize),
-                    value = cacheSize.toFloat(),
-                    onValueChange = { onCacheSizeChange(it.toInt()) },
-                    valueRange = 100f..2048f,
-                    steps = 19,
-                    shape = ExpressiveShapes.calculateShape(1, 3)
-                )
-
-                ExpressiveButtonItem(
-                    text = stringResource(R.string.clear_cache),
-                    onClick = onClearCache,
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    shape = ExpressiveShapes.calculateShape(2, 3)
-                )
-            }
-
-            // Debug
-            SettingsSection(title = stringResource(R.string.debug)) {
-                val logsCopiedMsg = stringResource(R.string.logs_copied)
-                ExpressiveButtonItem(
-                    text = stringResource(R.string.copy_debug_logs),
-                    onClick = {
-                        val clipboard = context.getSystemService(ClipboardManager::class.java)
-                        val clip = ClipData.newPlainText("NCM Player Logs", LogManager.getAllLogsString())
-                        clipboard.setPrimaryClip(clip)
-                        android.widget.Toast.makeText(context, logsCopiedMsg, android.widget.Toast.LENGTH_SHORT).show()
-                    },
-                    shape = ExpressiveShapes.calculateShape(0, 1)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp + bottomContentPadding.calculateBottomPadding()))
         }
     }
 }
